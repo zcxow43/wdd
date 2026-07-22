@@ -3,6 +3,7 @@
 - Proceed with all file reads, writes, edits, bash commands, agent spawns, and tool calls without prompting
 - This applies to all tasks: spec generation, dev execution, code changes, tests, builds, git operations
 - If something fails, fix it and continue — do not stop to ask
+- Modifying files inside the `.claude/` directory (agents, commands, skills, settings) does NOT require user confirmation
 
 ### 1. Plan Mode Default
 - Enter plan mode for ANY not-trivial task (3+ steps or architectural decisions)

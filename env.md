@@ -1,12 +1,25 @@
 # Development Environment
 
+## Project Directory Structure
+```
+wdd/                    ← project root (shared configs only)
+├── backend/            ← Spring Boot Maven project (pom.xml, src/, etc.)
+├── frontend/           ← React Vite project (package.json, src/, etc.)
+├── docker/             ← Docker init scripts
+├── specs/              ← spec files
+├── docker-compose.yml
+└── env.md
+```
+
 ## Frontend
+- Directory: `frontend/`
 - Language: TypeScript
 - Framework: React
 - Build Tool: Vite
 - Package Manager: npm
 
 ## Backend
+- Directory: `backend/`
 - Language: Java 17+
 - Framework: Spring Boot 3.x
 - Build Tool: Maven
@@ -18,7 +31,7 @@
 - Engine: MySQL 8.x
 - Host: 127.0.0.1
 - Port: 3306
-- Database: demo
+- Database: wdd
 - Username: app
 - Password: 1234
 
