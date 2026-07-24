@@ -5,9 +5,8 @@
 wdd/                    ← project root (shared configs only)
 ├── backend/            ← Spring Boot Maven project (pom.xml, src/, etc.)
 ├── frontend/           ← React Vite project (package.json, src/, etc.)
-├── docker/             ← Docker init scripts
+├── docker/             ← docker-compose.yml + init scripts
 ├── specs/              ← spec files
-├── docker-compose.yml
 └── env.md
 ```
 
@@ -28,7 +27,7 @@ wdd/                    ← project root (shared configs only)
 - No Lombok
 
 ## Database
-- Engine: MySQL 8.x
+- Engine: MySQL 8.0.36
 - Host: 127.0.0.1
 - Port: 3306
 - Database: wdd
@@ -37,5 +36,5 @@ wdd/                    ← project root (shared configs only)
 
 ## JDBC Connection
 ```
-jdbc:mysql://127.0.0.1:3306/demo?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+jdbc:mysql://127.0.0.1:3306/wdd?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
 ```
