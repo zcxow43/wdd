@@ -1,0 +1,10 @@
+.confirm-message {
+  margin: 0 0 20px;
+  font-size: 15px;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

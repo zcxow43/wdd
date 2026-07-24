@@ -1,5 +1,5 @@
 ---
-status: pending
+status: done
 title: "Currency Table"
 requirement: "Create currency table with seed data for the currency API"
 ---
@@ -69,8 +69,17 @@ INSERT INTO `currency` (`code`, `name`, `name_zh`, `symbol`, `decimal_places`, `
 ```
 
 ## Acceptance Criteria
-- [ ] `currency` table created with all columns and correct types
-- [ ] Unique constraint on `code` column
-- [ ] 10 seed records inserted successfully
-- [ ] `active` defaults to 1, `decimal_places` defaults to 2
-- [ ] Timestamps auto-populate on insert and update
+- [x] `currency` table created with all columns and correct types
+- [x] Unique constraint on `code` column
+- [x] 10 seed records inserted successfully
+- [x] `active` defaults to 1, `decimal_places` defaults to 2
+- [x] Timestamps auto-populate on insert and update
+
+---
+## Execution Result
+- Status: DONE
+- Files changed:
+  - develop/backend/src/main/resources/db/migration/V001__create_currency_table.sql (new)
+  - docker/mysql/initdb/V001__create_currency_table.sql (new)
+  - docker/docker-compose.yml (mounted ./mysql/initdb to /docker-entrypoint-initdb.d so the mysql container auto-runs init scripts on first boot)
+- Notes: Ran DBA pre-flight (env.md validated, connectivity to 127.0.0.1:3306 confirmed, database `wdd` already existed). Created migration V001 defining the `currency` table (PK on id, UNIQUE key on code, defaults for decimal_places=2 and active=1, created_at/updated_at auto-managed) plus the 10 seed rows (TWD, USD, EUR, JPY, GBP, CNY, HKD, SGD, AUD, CAD). Applied the migration directly against the live `wdd` database via `mysql ... < V001__create_currency_table.sql` and verified with `SHOW TABLES`, `DESCRIBE currency`, `SHOW INDEX FROM currency`, and `SELECT COUNT(*) FROM currency` — table exists, PRIMARY and uk_currency_code indexes present, 10 rows inserted. No pre-existing migration files were present, so this is V001.

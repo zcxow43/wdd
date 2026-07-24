@@ -1,0 +1,61 @@
+.currency-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #4a4550;
+}
+
+.form-field input {
+  padding: 8px 10px;
+  border: 1px solid #d6d4da;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.form-field input:disabled {
+  background: #f4f3f6;
+  color: #8a8590;
+}
+
+.form-field--toggle {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.form-field--toggle input {
+  width: 18px;
+  height: 18px;
+}
+
+.field-error {
+  color: #d93025;
+  font-size: 12px;
+}
+
+.form-error {
+  color: #d93025;
+  font-size: 13px;
+  background: #fdecea;
+  border: 1px solid #f5c2c0;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}

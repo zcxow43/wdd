@@ -1,0 +1,14 @@
+DROP TABLE IF EXISTS currency;
+
+CREATE TABLE currency (
+    id             BIGINT AUTO_INCREMENT PRIMARY KEY,
+    code           VARCHAR(3)    NOT NULL,
+    name           VARCHAR(100)  NOT NULL,
+    name_zh        VARCHAR(100)  NULL,
+    symbol         VARCHAR(10)   NULL,
+    decimal_places INT           NOT NULL DEFAULT 2,
+    active         TINYINT(1)    NOT NULL DEFAULT 1,
+    created_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_currency_code UNIQUE (code)
+);
