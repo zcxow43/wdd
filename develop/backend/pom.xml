@@ -13,11 +13,11 @@
 
     <groupId>pl.piomin.services</groupId>
     <artifactId>backend</artifactId>
-    <version>0.0.1</version>
+    <version>0.0.2</version>
     <packaging>jar</packaging>
 
     <name>backend</name>
-    <description>Currency API backend service</description>
+    <description>Currency and Brand API backend service</description>
 
     <properties>
         <java.version>17</java.version>

@@ -20,6 +20,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
     }
 
+    @ExceptionHandler(BrandNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFound(BrandNotFoundException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", "Brand not found");
+        body.put("id", ex.getId());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
+
     @ExceptionHandler(CurrencyCodeExistsException.class)
     public ResponseEntity<Map<String, Object>> handleCodeExists(CurrencyCodeExistsException ex) {
         Map<String, Object> body = new LinkedHashMap<>();

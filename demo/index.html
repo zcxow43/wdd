@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OWS - Currency Management</title>
+  <link rel="stylesheet" href="style.css?v=5">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Left Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <img src="assets/ows-logo.png" alt="OWS" class="logo-image">
+        <button class="collapse-btn">«</button>
+      </div>
+
+      <nav class="sidebar-nav">
+        <!-- Exchange Rate Center (Expandable) -->
+        <div class="nav-item nav-parent expanded">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><path d="M12 8v8M8 12h8"></path><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>
+          <span class="nav-label">Exchange Rate Cent...</span>
+          <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+        </div>
+
+        <!-- Exchange Rate Center Sub-items -->
+        <div class="nav-submenu">
+          <div class="nav-subitem">
+            <span class="nav-label">Rate Management</span>
+            <svg class="nav-star" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
+          </div>
+          <div class="nav-subitem active">
+            <span class="nav-label">Currency Management</span>
+            <svg class="nav-star" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
+          </div>
+          <div class="nav-subitem">
+            <span class="nav-label">Exchange Rate History</span>
+            <svg class="nav-star" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
+          </div>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="main-wrapper">
+      <!-- Top Header -->
+      <header class="top-header">
+        <div class="header-spacer"></div>
+        <div class="header-user">
+          <div class="user-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div>
+          <span class="username">phisnu.liao</span>
+          <svg class="dropdown-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+      </header>
+
+      <!-- Content Area -->
+      <main class="content-area">
+        <!-- Page Title -->
+        <div class="page-title">
+          <h1>Currency Management</h1>
+        </div>
+
+        <!-- Tab Bar -->
+        <div class="tab-bar">
+          <button class="tab-btn" data-tab="currency-pairs">Currency Pair List</button>
+          <button class="tab-btn active" data-tab="currency-settings">Currency Settings</button>
+        </div>
+
+        <!-- Tab Panel: Currency Pair List -->
+        <div class="tab-panel" id="currency-pairs" data-tab-content="currency-pairs">
+          <div class="search-table-card">
+            <div class="search-table-header">
+              <div class="search-table-title">
+                <svg class="table-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+                <span>Currency Pairs</span>
+              </div>
+              <button class="table-settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m5.08 5.08l4.24 4.24M1 12h6m6 0h6M4.22 19.78l4.24-4.24m5.08-5.08l4.24-4.24"></path></svg></button>
+            </div>
+
+            <!-- Currency Pairs Table -->
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>
+                    <span>Pair</span>
+                    <svg class="sort-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                  </th>
+                  <th>
+                    <span>Base Currency</span>
+                    <svg class="sort-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                  </th>
+                  <th>
+                    <span>Quote Currency</span>
+                    <svg class="sort-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                  </th>
+                  <th>
+                    <span>Status</span>
+                  </th>
+                  <th>
+                    <span>Last Updated</span>
+                    <svg class="sort-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="currencyPairsBody">
+                <tr>
+                  <td><span class="currency-code">USD/TWD</span></td>
+                  <td>USD</td>
+                  <td>TWD</td>
+                  <td><span class="status-badge status-approved"><span class="status-dot"></span>ACTIVE</span></td>
+                  <td>2024-12-15 14:32:18</td>
+                </tr>
+                <tr>
+                  <td><span class="currency-code">EUR/USD</span></td>
+                  <td>EUR</td>
+                  <td>USD</td>
+                  <td><span class="status-badge status-approved"><span class="status-dot"></span>ACTIVE</span></td>
+                  <td>2024-12-15 13:45:22</td>
+                </tr>
+                <tr>
+                  <td><span class="currency-code">JPY/USD</span></td>
+                  <td>JPY</td>
+                  <td>USD</td>
+                  <td><span class="status-badge status-approved"><span class="status-dot"></span>ACTIVE</span></td>
+                  <td>2024-12-14 11:20:35</td>
+                </tr>
+                <tr>
+                  <td><span class="currency-code">GBP/USD</span></td>
+                  <td>GBP</td>
+                  <td>USD</td>
+                  <td><span class="status-badge status-rejected"><span class="status-dot"></span>INACTIVE</span></td>
+                  <td>2024-12-13 09:15:47</td>
+                </tr>
+                <tr>
+                  <td><span class="currency-code">CAD/USD</span></td>
+                  <td>CAD</td>
+                  <td>USD</td>
+                  <td><span class="status-badge status-approved"><span class="status-dot"></span>ACTIVE</span></td>
+                  <td>2024-12-12 16:55:08</td>
+                </tr>
+                <tr>
+                  <td><span class="currency-code">AUD/USD</span></td>
+                  <td>AUD</td>
+                  <td>USD</td>
+                  <td><span class="status-badge status-approved"><span class="status-dot"></span>ACTIVE</span></td>
+                  <td>2024-12-11 10:30:42</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Table Footer -->
+            <div class="table-footer">
+              <div class="total-count">Total <span id="currencyPairsCount">6</span> items</div>
+              <div class="pagination-controls">
+                <span class="page-info">
+                  <input type="text" class="page-input" value="1"> / <span class="total-pages">1</span>
+                </span>
+                <button class="pagination-btn prev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+                <button class="pagination-btn next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+                <select class="page-size-select">
+                  <option value="20">20 / page</option>
+                  <option value="50">50 / page</option>
+                  <option value="100">100 / page</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab Panel: Currency Settings -->
+        <div class="tab-panel active" id="currency-settings" data-tab-content="currency-settings">
+        <!-- Filter Card -->
+        <div class="filter-card">
+          <div class="filter-row">
+            <div class="filter-group">
+              <label class="filter-label">Currency Code</label>
+              <select class="filter-input">
+                <option value="">Please select</option>
+                <option value="USD">USD</option>
+                <option value="TWD">TWD</option>
+                <option value="JPY">JPY</option>
+                <option value="EUR">EUR</option>
+              </select>
+            </div>
+
+            <div class="filter-group">
+              <label class="filter-label">Last Operation Time</label>
+              <div class="date-range-input">
+                <input type="text" placeholder="Start date" class="date-input">
+                <span class="date-separator">→</span>
+                <input type="text" placeholder="End date" class="date-input">
+              </div>
+            </div>
+
+            <div class="filter-group">
+              <label class="filter-label">Approval Status</label>
+              <select class="filter-input">
+                <option value="">Please select</option>
+                <option value="APPROVED">APPROVED</option>
+                <option value="REJECTED">REJECTED</option>
+              </select>
+            </div>
+
+            <div class="filter-actions">
+              <button class="btn btn-search">Search</button>
+              <button class="btn btn-reset">Reset</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Search Table Card -->
+        <div class="search-table-card">
+          <div class="search-table-header">
+            <div class="search-table-title">
+              <svg class="table-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+              <span>Search Table</span>
+            </div>
+            <button class="table-settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m5.08 5.08l4.24 4.24M1 12h6m6 0h6M4.22 19.78l4.24-4.24m5.08-5.08l4.24-4.24"></path></svg></button>
+          </div>
+
+          <!-- Data Table -->
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>
+                  <span>Currency Code</span>
+                  <svg class="sort-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                </th>
+                <th>
+                  <span>Currency Name</span>
+                  <svg class="sort-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                </th>
+                <th>
+                  <span>Last Operation Time</span>
+                  <svg class="sort-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                </th>
+                <th>
+                  <span>Operator</span>
+                  <svg class="sort-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                </th>
+                <th>
+                  <span>Approval Status</span>
+                </th>
+                <th>
+                  <span>Approver</span>
+                  <svg class="sort-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                </th>
+                <th>
+                  <span>Last Approval Time</span>
+                  <svg class="sort-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                </th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody">
+              <!-- Rows will be populated by script.js -->
+            </tbody>
+          </table>
+
+          <!-- Table Footer -->
+          <div class="table-footer">
+            <div class="total-count">Total <span id="totalCount">8</span> items</div>
+            <div class="pagination-controls">
+              <span class="page-info">
+                <input type="text" class="page-input" value="1"> / <span class="total-pages">1</span>
+              </span>
+              <button class="pagination-btn prev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+              <button class="pagination-btn next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+              <select class="page-size-select">
+                <option value="20">20 / page</option>
+                <option value="50">50 / page</option>
+                <option value="100">100 / page</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="script.js?v=2"></script>
+</body>
+</html>

@@ -12,3 +12,15 @@ CREATE TABLE currency (
     updated_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uk_currency_code UNIQUE (code)
 );
+
+DROP TABLE IF EXISTS brand;
+
+CREATE TABLE brand (
+    id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+    code       VARCHAR(20)   NOT NULL,
+    name       VARCHAR(100)  NOT NULL,
+    active     TINYINT(1)    NOT NULL DEFAULT 1,
+    created_at TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_brand_code UNIQUE (code)
+);

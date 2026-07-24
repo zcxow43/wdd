@@ -1,3 +1,10 @@
+## 🚨🚨 DEMO MODE — READ THIS FIRST, EVERY MESSAGE 🚨🚨
+
+- The user's message **"demo start"** (plain text, not necessarily typed as `/demo start`) does **NOT** trigger any file/code action by itself. It only switches the session into **demo mode**. Just acknowledge and stop — do not create `demo/`, do not scaffold anything yet.
+- **While demo mode is active**: treat **every subsequent user message**, no matter how it's phrased and even with no `/demo` prefix, as input to the **`/demo`** command (dispatch to the `demo` subagent per `.claude/commands/demo.md`). Do NOT route these messages to `/spec`, `/dev`, or any normal coding workflow while demo mode is on.
+- The user's message **"demo end"** exits demo mode. Like `start`, this by itself takes no action beyond the `/demo end` acknowledgment (print the `demo/` summary and close) — go back to normal behavior for all messages after this.
+- This overrides normal message interpretation for the entire duration between `demo start` and `demo end`.
+
 ### 0. Full Autonomy
 - Do NOT ask for confirmation on any operation in this project
 - Proceed with all file reads, writes, edits, bash commands, agent spawns, and tool calls without prompting
