@@ -1,5 +1,5 @@
 ---
-status: pending
+status: done
 title: "Currency Pair Table Page"
 requirement: "Display currency pairs in a table with CRUD operations, scoped per brand, exchange rate manual/auto; surface currency delete-blocked error"
 ---
@@ -110,15 +110,42 @@ On this response, show a toast: "此幣種已配置於幣種對，無法刪除" 
 No change is required to the currency edit modal's code-field handling — it already renders `code` as disabled on edit, matching the backend's now-enforced immutability (`specs/backend/currency-pair.md`).
 
 ## Acceptance Criteria
-- [ ] Currency pair table renders with all columns, including brand, base/quote shown as codes
-- [ ] Pairs load from API on page mount
-- [ ] Brand filter works (All / each brand)
-- [ ] Status filter works (All / Active / Inactive)
-- [ ] Add modal opens, brand picker populated from `/api/brands`, currency pickers populated from `/api/currencies`, validates base ≠ quote, creates via API
-- [ ] Edit modal pre-fills data (including brand), updates via API
-- [ ] Delete shows confirmation and deletes via API
-- [ ] Rate type toggle switches between 手動/自動, rate field remains editable in both modes
-- [ ] Error states display correct Chinese messages for 400/404/409/network cases
-- [ ] Table refreshes after create/update/delete
-- [ ] Empty state shown when no pairs match filter
-- [ ] Currency page delete flow shows "此幣種已配置於幣種對，無法刪除" on the new 409 response and leaves the row in place
+- [x] Currency pair table renders with all columns, including brand, base/quote shown as codes
+- [x] Pairs load from API on page mount
+- [x] Brand filter works (All / each brand)
+- [x] Status filter works (All / Active / Inactive)
+- [x] Add modal opens, brand picker populated from `/api/brands`, currency pickers populated from `/api/currencies`, validates base ≠ quote, creates via API
+- [x] Edit modal pre-fills data (including brand), updates via API
+- [x] Delete shows confirmation and deletes via API
+- [x] Rate type toggle switches between 手動/自動, rate field remains editable in both modes
+- [x] Error states display correct Chinese messages for 400/404/409/network cases
+- [x] Table refreshes after create/update/delete
+- [x] Empty state shown when no pairs match filter
+- [x] Currency page delete flow shows "此幣種已配置於幣種對，無法刪除" on the new 409 response and leaves the row in place
+
+---
+## Execution Result
+- Status: DONE
+- Files changed:
+  - develop/frontend/src/types/currencyPair.ts (new — `CurrencyPair`, `CurrencyPairInput`, `RateType` types matching the backend response/request contract)
+  - develop/frontend/src/api/currencyPairApi.ts (new — `list({ brandId?, active? })`, `create`, `update`, `remove` against `/api/currency-pairs`, following the `currencyApi.ts`/`brandApi.ts` pattern)
+  - develop/frontend/src/components/BrandFilter.tsx (new — dropdown populated from a `Brand[]` prop, options: All / each brand code; reuses the `.status-filter` CSS class for visual consistency with `StatusFilter`)
+  - develop/frontend/src/components/CurrencyPairTable.tsx + CurrencyPairTable.css (new — table with 品牌/基準幣別/對應幣別/匯率/匯率類型/狀態/Actions columns; rate formatted up to 8dp with trailing zeros trimmed; 手動/自動 badge; green/grey status dot; empty state; Edit/Delete actions)
+  - develop/frontend/src/components/CurrencyPairTable.test.tsx (new — 3 tests: column rendering, empty state, edit/delete callbacks)
+  - develop/frontend/src/components/CurrencyPairFormModal.tsx + CurrencyPairFormModal.css (new — brand/base/quote selects sourced from props, 匯率類型 select (手動/自動) with helper text shown (and rate field kept editable) when 自動 is selected, 匯率 number input, 啟用 toggle; live inline "基準幣別與對應幣別不可相同" error + disabled submit button when base === quote; on submit, maps 409 → "此品牌已存在相同的幣種對", 400 → the same base/quote message, anything else → "網路錯誤，請稍後再試")
+  - develop/frontend/src/components/CurrencyPairFormModal.test.tsx (new — 6 tests: required-field validation, live base===quote inline error + disabled submit, valid create submit with numeric id coercion, edit-mode prefill + AUTO helper text, 409 inline conflict message, network error message)
+  - develop/frontend/src/pages/CurrencyPairPage.tsx + CurrencyPairPage.css (new — page composing `BrandFilter` + `StatusFilter` + Add button, table, add/edit modal, delete confirm dialog, and toasts; fetches brands/currencies once on mount for the filter/pickers and refetches the pair list whenever the brand or status filter changes; create/update 404s are mapped to "品牌不存在" / "幣種不存在" / "幣種對不存在" toasts based on the backend's `error` message body, closing the modal and refreshing the table; delete 404 shows "幣種對不存在，請重新整理頁面")
+  - develop/frontend/src/pages/CurrencyPairPage.test.tsx (new — 10 integration tests mocking `currencyPairApi`/`brandApi`/`currencyApi`: mount load, empty state, network-error toast, brand-filter refetch, status-filter refetch, create/edit/delete flows, and 404 toast-and-refresh behavior for both edit and delete)
+  - develop/frontend/src/pages/CurrencyPage.tsx (edited — `handleConfirmDelete` now branches on `error.status === 409` in addition to 404: shows the new "此幣種已配置於幣種對，無法刪除" toast and closes the confirm dialog **without** refetching/removing the row, per spec; the 404 and network-error branches are unchanged aside from being split out into their own `if` bodies)
+  - develop/frontend/src/pages/CurrencyPage.test.tsx (edited — added `shows an in-use toast and keeps the row when the currency is referenced by a currency pair` covering the 409 response body from `specs/backend/currency-pair.md`, asserting the toast text, that `list` was not called again, and that the row is still rendered)
+  - develop/frontend/src/App.tsx (edited — added `/currency-pairs` route wired to the new `CurrencyPairPage`, alongside the existing `/currencies` and `/brands` routes)
+- Notes:
+  - Followed the exact conventions established by `CurrencyPage`/`CurrencyFormModal`/`CurrencyTable` and the newly-added `BrandPage`/`brandApi`: same Controller-less "page owns fetch/mutate + child components are presentational" structure, same `ApiError`/`NetworkError` handling via `api/client.ts`, same toast/modal/confirm-dialog composition, and matching Chinese copy style.
+  - Brand and currency lists for the filter bar and form pickers are fetched once on mount (`brandApi.list()` with no `active` filter — "all brands, active or not" per spec — and `currencyApi.list()` with no filter), independent of the brand/status filter state that only affects the currency-pair list query.
+  - Rate formatting (`Number(rate.toFixed(8)).toString()`) displays up to 8 decimal places while trimming trailing zeros (e.g. `32.5`, `157.3`), satisfying the "or up to 8 dp" fallback since the pair response doesn't carry either currency's `decimalPlaces` directly on the joined DTO.
+  - 404 disambiguation on create/update uses the backend's exact `error` message text (`"Currency pair not found"` / `"Brand not found"` / anything else treated as the currency-not-found case) to pick between the three distinct toast messages required by the spec, mirroring how `CurrencyPairService`'s validation order and `GlobalExceptionHandler` reuse the existing `BrandNotFoundException`/`CurrencyNotFoundException` bodies verbatim (per `specs/backend/currency-pair.md`).
+  - The base/quote "must differ" rule is enforced live in the modal (inline error + disabled submit as soon as both selects share a value), matching the "Selecting the same value for both base and quote shows an inline error and disables submit" requirement, in addition to the on-submit `validate()` check for the case where the field was left blank.
+  - `rate` stays a plain editable number input regardless of `rateType`; selecting 自動 only adds the helper text "系統將自動更新匯率，此值為目前/備援匯率" per spec (no auto-sync job exists, out of scope).
+  - Currency page: 409 delete handling intentionally does **not** call `fetchCurrencies()` afterward (unlike the 404/network branches), since nothing changed server-side and the row must be left in place exactly as rendered — verified by a test asserting `list` was called only once (the initial mount) even after the failed delete attempt.
+  - `npm run build` (`tsc -b && vite build`) and `npm test` (Vitest) both pass: 9 test files, 56 tests total (up from 24 prior to this task), 0 failures. `npm run lint` (Oxlint) passes with only the pre-existing benign fast-refresh warning on `ToastProvider.tsx`.
+  - No backend or DBA changes were made as part of this frontend task; the currency-pair backend API and the currency-delete 409 guard already existed per `specs/backend/currency-pair.md` (status: done) at the start of this task.

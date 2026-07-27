@@ -1,0 +1,171 @@
+import { describe, expect, it, vi } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { CurrencyPairFormModal } from './CurrencyPairFormModal'
+import { ApiError } from '../api/client'
+import type { CurrencyPair } from '../types/currencyPair'
+import type { Brand } from '../types/brand'
+import type { Currency } from '../types/currency'
+
+const BRANDS: Brand[] = [
+  { id: 1, code: 'AU', name: 'AU', active: true, createdAt: '2025-01-01T00:00:00', updatedAt: '2025-01-01T00:00:00' },
+  {
+    id: 2,
+    code: 'MONETA',
+    name: 'MONETA',
+    active: true,
+    createdAt: '2025-01-01T00:00:00',
+    updatedAt: '2025-01-01T00:00:00',
+  },
+]
+
+const CURRENCIES: Currency[] = [
+  {
+    id: 1,
+    code: 'TWD',
+    name: 'New Taiwan Dollar',
+    nameZh: '新台幣',
+    symbol: 'NT$',
+    decimalPlaces: 0,
+    active: true,
+    createdAt: '2025-01-01T00:00:00',
+    updatedAt: '2025-01-01T00:00:00',
+  },
+  {
+    id: 2,
+    code: 'USD',
+    name: 'United States Dollar',
+    nameZh: '美元',
+    symbol: '$',
+    decimalPlaces: 2,
+    active: true,
+    createdAt: '2025-01-01T00:00:00',
+    updatedAt: '2025-01-01T00:00:00',
+  },
+]
+
+const EXISTING: CurrencyPair = {
+  id: 1,
+  brandId: 1,
+  brandCode: 'AU',
+  baseCurrencyId: 2,
+  baseCurrencyCode: 'USD',
+  quoteCurrencyId: 1,
+  quoteCurrencyCode: 'TWD',
+  rate: 32.5,
+  rateType: 'MANUAL',
+  active: true,
+  createdAt: '2025-01-01T00:00:00',
+  updatedAt: '2025-01-01T00:00:00',
+}
+
+describe('CurrencyPairFormModal', () => {
+  it('shows validation errors when required fields are missing', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <CurrencyPairFormModal mode="create" brands={BRANDS} currencies={CURRENCIES} onSubmit={onSubmit} onClose={vi.fn()} />,
+    )
+
+    await user.click(screen.getByRole('button', { name: '儲存' }))
+
+    expect(await screen.findByText('品牌為必填')).toBeInTheDocument()
+    expect(screen.getByText('基準幣別為必填')).toBeInTheDocument()
+    expect(screen.getByText('對應幣別為必填')).toBeInTheDocument()
+    expect(screen.getByText('匯率為必填，且須大於 0')).toBeInTheDocument()
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('shows an inline error and disables submit when base and quote currency are the same', async () => {
+    const user = userEvent.setup()
+    render(
+      <CurrencyPairFormModal mode="create" brands={BRANDS} currencies={CURRENCIES} onSubmit={vi.fn()} onClose={vi.fn()} />,
+    )
+
+    await user.selectOptions(screen.getByLabelText('基準幣別'), '2')
+    await user.selectOptions(screen.getByLabelText('對應幣別'), '2')
+
+    expect(await screen.findByText('基準幣別與對應幣別不可相同')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '儲存' })).toBeDisabled()
+  })
+
+  it('submits a valid create form with numeric ids', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+    render(
+      <CurrencyPairFormModal mode="create" brands={BRANDS} currencies={CURRENCIES} onSubmit={onSubmit} onClose={vi.fn()} />,
+    )
+
+    await user.selectOptions(screen.getByLabelText('品牌'), '1')
+    await user.selectOptions(screen.getByLabelText('基準幣別'), '2')
+    await user.selectOptions(screen.getByLabelText('對應幣別'), '1')
+    await user.type(screen.getByLabelText('匯率'), '32.5')
+    await user.click(screen.getByRole('button', { name: '儲存' }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith({
+        brandId: 1,
+        baseCurrencyId: 2,
+        quoteCurrencyId: 1,
+        rate: 32.5,
+        rateType: 'MANUAL',
+        active: true,
+      }),
+    )
+  })
+
+  it('pre-fills values in edit mode and shows the helper text for AUTO rate type', async () => {
+    render(
+      <CurrencyPairFormModal
+        mode="edit"
+        initial={EXISTING}
+        brands={BRANDS}
+        currencies={CURRENCIES}
+        onSubmit={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+
+    expect((screen.getByLabelText('品牌') as HTMLSelectElement).value).toBe('1')
+    expect((screen.getByLabelText('基準幣別') as HTMLSelectElement).value).toBe('2')
+    expect((screen.getByLabelText('對應幣別') as HTMLSelectElement).value).toBe('1')
+    expect((screen.getByLabelText('匯率') as HTMLInputElement).value).toBe('32.5')
+
+    const user = userEvent.setup()
+    await user.selectOptions(screen.getByLabelText('匯率類型'), 'AUTO')
+    expect(await screen.findByText('系統將自動更新匯率，此值為目前/備援匯率')).toBeInTheDocument()
+    expect(screen.getByLabelText('匯率')).not.toBeDisabled()
+  })
+
+  it('shows an inline conflict message when the API returns 409', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn().mockRejectedValue(new ApiError(409, { error: 'Currency pair already exists for this brand' }, 'Conflict'))
+    render(
+      <CurrencyPairFormModal mode="create" brands={BRANDS} currencies={CURRENCIES} onSubmit={onSubmit} onClose={vi.fn()} />,
+    )
+
+    await user.selectOptions(screen.getByLabelText('品牌'), '1')
+    await user.selectOptions(screen.getByLabelText('基準幣別'), '2')
+    await user.selectOptions(screen.getByLabelText('對應幣別'), '1')
+    await user.type(screen.getByLabelText('匯率'), '32.5')
+    await user.click(screen.getByRole('button', { name: '儲存' }))
+
+    expect(await screen.findByText('此品牌已存在相同的幣種對')).toBeInTheDocument()
+  })
+
+  it('shows a network error message when the request fails to reach the server', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn().mockRejectedValue(new Error('network down'))
+    render(
+      <CurrencyPairFormModal mode="create" brands={BRANDS} currencies={CURRENCIES} onSubmit={onSubmit} onClose={vi.fn()} />,
+    )
+
+    await user.selectOptions(screen.getByLabelText('品牌'), '1')
+    await user.selectOptions(screen.getByLabelText('基準幣別'), '2')
+    await user.selectOptions(screen.getByLabelText('對應幣別'), '1')
+    await user.type(screen.getByLabelText('匯率'), '32.5')
+    await user.click(screen.getByRole('button', { name: '儲存' }))
+
+    expect(await screen.findByText('網路錯誤，請稍後再試')).toBeInTheDocument()
+  })
+})

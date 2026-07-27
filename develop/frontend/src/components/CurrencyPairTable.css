@@ -1,0 +1,18 @@
+.rate-type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.rate-type-badge--manual {
+  background: #eef2ff;
+  color: #2563eb;
+}
+
+.rate-type-badge--auto {
+  background: var(--color-brand-tint);
+  color: var(--color-brand);
+}

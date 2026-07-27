@@ -44,7 +44,7 @@
 - Always use the latest versions of dependencies.
 - Always write Java code as the Spring Boot application.
 - Always use Maven for dependency management.
-- Always create test cases for the generated code both positive and negative.
+- Do not generate test cases for new code (no unit/integration tests) unless the user explicitly asks for them.
 - Always generate the CircleCI pipeline in the .circleci directory to verify the code.
 - Minimize the amount of code generated.
 - The Maven artifact name must be the same as the parent directory name.

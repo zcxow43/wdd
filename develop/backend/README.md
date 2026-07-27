@@ -1,8 +1,8 @@
 # backend
 
-Version: 0.0.2
+Version: 0.0.3
 
-Spring Boot REST API for currency and brand management (`pl.piomin.services`).
+Spring Boot REST API for currency, brand and currency pair management (`pl.piomin.services`).
 
 ## Stack
 - Java 17, Spring Boot 3.5.16, Maven
@@ -17,7 +17,7 @@ mvn -f develop/backend/pom.xml spring-boot:run
 ```
 
 Requires MySQL reachable at `127.0.0.1:3306`, database `wdd`, user `app` (see `env.md`).
-The `currency` and `brand` tables must already exist (see `specs/dba/currency.md`, `specs/dba/brand.md`).
+The `currency`, `brand` and `currency_pair` tables must already exist (see `specs/dba/currency.md`, `specs/dba/brand.md`, `specs/dba/currency-pair.md`).
 
 ## Build & Test
 
@@ -50,6 +50,23 @@ Base path: `/api/brands`
 
 Brands are a fixed, seeded set (AU, MONETA, PUG, STAR, UM, VJP, VT) — there is no create or delete endpoint. See `specs/backend/brand.md` for the full contract, validation rules, and error responses.
 
+Base path: `/api/currency-pairs`
+
+| Method | Path                     | Description                                    |
+|--------|--------------------------|--------------------------------------------------|
+| GET    | /api/currency-pairs       | List currency pairs (optional `?brandId=`, `?active=`) |
+| GET    | /api/currency-pairs/{id}  | Get one currency pair                             |
+| POST   | /api/currency-pairs       | Create a currency pair                            |
+| PUT    | /api/currency-pairs/{id}  | Partially update a currency pair                  |
+| DELETE | /api/currency-pairs/{id}  | Delete a currency pair                            |
+
+Each currency pair belongs to exactly one brand and has a `rate`/`rateType` (`MANUAL` or `AUTO`); (brand, base, quote) must be unique, and base/quote currencies must differ. See `specs/backend/currency-pair.md` for the full contract, validation rules, and error responses.
+
+Two related changes ship alongside this feature:
+- `PUT /api/currencies/{id}` no longer accepts/changes `code` — a currency's code is immutable once created.
+- `DELETE /api/currencies/{id}` now returns `409` if the currency is still referenced (as base or quote) by any currency pair.
+
 ## Version History
 - 0.0.1 — Initial Currency CRUD API (list/get/create/update/delete), validation, error handling, unit + integration tests.
 - 0.0.2 — Added Brand API (list/get/toggle-active), reusing the `brand` table seeded by `specs/dba/brand.md`; unit + integration tests.
+- 0.0.3 — Added Currency Pair CRUD API (`/api/currency-pairs`), scoped per brand with brand/currency joins for enriched responses; made currency `code` immutable on update; currency delete now blocked (`409`) while referenced by a currency pair; unit + integration tests.

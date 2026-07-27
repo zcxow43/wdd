@@ -8,17 +8,21 @@ import org.springframework.transaction.annotation.Transactional;
 import pl.piomin.services.backend.dto.CurrencyCreateRequest;
 import pl.piomin.services.backend.dto.CurrencyUpdateRequest;
 import pl.piomin.services.backend.exception.CurrencyCodeExistsException;
+import pl.piomin.services.backend.exception.CurrencyInUseException;
 import pl.piomin.services.backend.exception.CurrencyNotFoundException;
 import pl.piomin.services.backend.mapper.CurrencyMapper;
+import pl.piomin.services.backend.mapper.CurrencyPairMapper;
 import pl.piomin.services.backend.model.Currency;
 
 @Service
 public class CurrencyService {
 
     private final CurrencyMapper currencyMapper;
+    private final CurrencyPairMapper currencyPairMapper;
 
-    public CurrencyService(CurrencyMapper currencyMapper) {
+    public CurrencyService(CurrencyMapper currencyMapper, CurrencyPairMapper currencyPairMapper) {
         this.currencyMapper = currencyMapper;
+        this.currencyPairMapper = currencyPairMapper;
     }
 
     public List<Currency> list(Boolean active) {
@@ -58,13 +62,6 @@ public class CurrencyService {
             throw new CurrencyNotFoundException(id);
         }
 
-        if (request.getCode() != null && !request.getCode().equals(existing.getCode())) {
-            Currency other = currencyMapper.findByCode(request.getCode());
-            if (other != null && !other.getId().equals(id)) {
-                throw new CurrencyCodeExistsException(request.getCode());
-            }
-            existing.setCode(request.getCode());
-        }
         if (request.getName() != null) {
             existing.setName(request.getName());
         }
@@ -90,6 +87,9 @@ public class CurrencyService {
         Currency existing = currencyMapper.findById(id);
         if (existing == null) {
             throw new CurrencyNotFoundException(id);
+        }
+        if (currencyPairMapper.existsByCurrencyId(id)) {
+            throw new CurrencyInUseException(id);
         }
         currencyMapper.deleteById(id);
     }

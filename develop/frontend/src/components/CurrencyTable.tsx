@@ -9,11 +9,11 @@ interface CurrencyTableProps {
 
 export function CurrencyTable({ currencies, onEdit, onDelete }: CurrencyTableProps) {
   if (currencies.length === 0) {
-    return <div className="currency-table-empty">目前沒有符合條件的幣種</div>
+    return <div className="table-empty">目前沒有符合條件的幣種</div>
   }
 
   return (
-    <table className="currency-table">
+    <table className="data-table">
       <thead>
         <tr>
           <th style={{ width: 80 }}>Code</th>
@@ -21,32 +21,39 @@ export function CurrencyTable({ currencies, onEdit, onDelete }: CurrencyTablePro
           <th style={{ width: 120 }}>中文名稱</th>
           <th style={{ width: 80 }}>Symbol</th>
           <th style={{ width: 100 }}>Decimal Places</th>
-          <th style={{ width: 80 }}>Active</th>
-          <th style={{ width: 120 }}>Actions</th>
+          <th style={{ width: 110 }}>Active</th>
+          <th style={{ width: 140 }}>Actions</th>
         </tr>
       </thead>
       <tbody>
         {currencies.map((currency) => (
           <tr key={currency.id}>
-            <td className="currency-code">{currency.code}</td>
+            <td>
+              <span className="currency-code">{currency.code}</span>
+            </td>
             <td>{currency.name}</td>
             <td>{currency.nameZh || '-'}</td>
             <td className="align-center">{currency.symbol || '-'}</td>
             <td className="align-center">{currency.decimalPlaces}</td>
             <td className="align-center">
               <span
-                className={`status-dot ${currency.active ? 'status-dot--active' : 'status-dot--inactive'}`}
+                className={`status-badge ${currency.active ? 'status-badge--active' : 'status-badge--inactive'}`}
                 role="img"
                 aria-label={currency.active ? '啟用' : '停用'}
-              />
+              >
+                <span className="status-dot" aria-hidden="true" />
+                {currency.active ? 'ACTIVE' : 'INACTIVE'}
+              </span>
             </td>
-            <td className="currency-actions">
-              <button type="button" className="btn btn-link" onClick={() => onEdit(currency)}>
-                Edit
-              </button>
-              <button type="button" className="btn btn-link btn-link--danger" onClick={() => onDelete(currency)}>
-                Delete
-              </button>
+            <td>
+              <div className="action-buttons">
+                <button type="button" className="action-btn" onClick={() => onEdit(currency)}>
+                  Edit
+                </button>
+                <button type="button" className="action-btn action-btn--danger" onClick={() => onDelete(currency)}>
+                  Delete
+                </button>
+              </div>
             </td>
           </tr>
         ))}

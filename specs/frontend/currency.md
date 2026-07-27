@@ -86,15 +86,15 @@ Form fields:
 - **Loading state**: show skeleton/spinner while fetching
 
 ## Acceptance Criteria
-- [ ] Currency table renders with all columns
-- [ ] Currencies load from API on page mount
-- [ ] Status filter works (All / Active / Inactive)
-- [ ] Add modal opens, validates, and creates via API
-- [ ] Edit modal pre-fills data, code field disabled, updates via API
-- [ ] Delete shows confirmation and deletes via API
-- [ ] Error states display correct Chinese messages
-- [ ] Table refreshes after create/update/delete
-- [ ] Empty state shown when no currencies match filter
+- [x] Currency table renders with all columns
+- [x] Currencies load from API on page mount
+- [x] Status filter works (All / Active / Inactive)
+- [x] Add modal opens, validates, and creates via API
+- [x] Edit modal pre-fills data, code field disabled, updates via API
+- [x] Delete shows confirmation and deletes via API
+- [x] Error states display correct Chinese messages
+- [x] Table refreshes after create/update/delete
+- [x] Empty state shown when no currencies match filter
 
 ---
 ## Execution Result

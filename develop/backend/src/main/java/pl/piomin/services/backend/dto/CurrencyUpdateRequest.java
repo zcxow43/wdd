@@ -2,17 +2,15 @@ package pl.piomin.services.backend.dto;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
  * Request DTO for partially updating a currency. Every field is optional,
  * but when present it must satisfy the same constraints as on create.
+ * {@code code} is intentionally absent: once created, a currency's code is
+ * immutable and can never be changed via this endpoint.
  */
 public class CurrencyUpdateRequest {
-
-    @Pattern(regexp = "^[A-Z]{3}$", message = "code must be exactly 3 uppercase letters")
-    private String code;
 
     @Size(max = 100, message = "name must be at most 100 characters")
     private String name;
@@ -28,14 +26,6 @@ public class CurrencyUpdateRequest {
     private Integer decimalPlaces;
 
     private Boolean active;
-
-    public String getCode() {
-        return code;
-    }
-
-    public void setCode(String code) {
-        this.code = code;
-    }
 
     public String getName() {
         return name;

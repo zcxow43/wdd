@@ -1,0 +1,64 @@
+.toggle-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.toggle-switch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.toggle-switch input:disabled ~ .toggle-switch-track {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.toggle-switch-track {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--color-border-input);
+  transition: background 0.15s ease;
+  flex-shrink: 0;
+}
+
+.toggle-switch-track::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s ease;
+}
+
+.toggle-switch input:checked + .toggle-switch-track {
+  background: var(--color-success);
+}
+
+.toggle-switch input:checked + .toggle-switch-track::before {
+  transform: translateX(16px);
+}
+
+.toggle-switch input:focus-visible + .toggle-switch-track {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+.toggle-switch-label {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  min-width: 28px;
+}

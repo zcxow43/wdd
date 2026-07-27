@@ -1,0 +1,8 @@
+.currency-pair-page {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.currency-pair-table-status--error {
+  color: var(--color-danger);
+}

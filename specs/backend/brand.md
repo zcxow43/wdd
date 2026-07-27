@@ -109,16 +109,16 @@ Fields map 1:1 to the `brand` table columns: `id`, `code`, `name`, `active`, `cr
 - Add `BrandNotFoundException` → `404` handler in `GlobalExceptionHandler`, following the existing pattern for `CurrencyNotFoundException`
 
 ## Acceptance Criteria
-- [ ] `GET /api/brands` returns all 7 seeded brands
-- [ ] `GET /api/brands?active=true` filters correctly
-- [ ] `GET /api/brands/{id}` returns single brand or 404
-- [ ] `PUT /api/brands/{id}` with `{"active": false}` disables the brand and returns 200
-- [ ] `PUT /api/brands/{id}` with `{"active": true}` re-enables the brand and returns 200
-- [ ] `PUT /api/brands/{id}` with missing/invalid `active` returns 400
-- [ ] `PUT /api/brands/{id}` for nonexistent id returns 404
-- [ ] No endpoint exists to create or delete a brand
-- [ ] Unit tests for `BrandService` (positive and negative cases)
-- [ ] Integration tests for `BrandController` endpoints
+- [x] `GET /api/brands` returns all 7 seeded brands
+- [x] `GET /api/brands?active=true` filters correctly
+- [x] `GET /api/brands/{id}` returns single brand or 404
+- [x] `PUT /api/brands/{id}` with `{"active": false}` disables the brand and returns 200
+- [x] `PUT /api/brands/{id}` with `{"active": true}` re-enables the brand and returns 200
+- [x] `PUT /api/brands/{id}` with missing/invalid `active` returns 400
+- [x] `PUT /api/brands/{id}` for nonexistent id returns 404
+- [x] No endpoint exists to create or delete a brand
+- [x] Unit tests for `BrandService` (positive and negative cases)
+- [x] Integration tests for `BrandController` endpoints
 
 ---
 ## Execution Result

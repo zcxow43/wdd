@@ -13,6 +13,7 @@ type FormModalState = { mode: 'create' } | { mode: 'edit'; currency: Currency } 
 
 const NETWORK_ERROR_MESSAGE = '網路錯誤，請稍後再試'
 const NOT_FOUND_MESSAGE = '幣種不存在，請重新整理頁面'
+const IN_USE_MESSAGE = '此幣種已配置於幣種對，無法刪除'
 
 function toActiveParam(filter: StatusFilterValue): boolean | undefined {
   if (filter === 'ACTIVE') return true
@@ -92,11 +93,17 @@ export function CurrencyPage() {
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) {
         showToast(NOT_FOUND_MESSAGE)
+        setDeleteTarget(null)
+        await fetchCurrencies()
+      } else if (error instanceof ApiError && error.status === 409) {
+        // Currency is referenced by a currency pair — leave the row in place, do not refetch/remove it.
+        showToast(IN_USE_MESSAGE)
+        setDeleteTarget(null)
       } else {
         showToast(NETWORK_ERROR_MESSAGE)
+        setDeleteTarget(null)
+        await fetchCurrencies()
       }
-      setDeleteTarget(null)
-      await fetchCurrencies()
     } finally {
       setDeleteBusy(false)
     }
@@ -104,40 +111,62 @@ export function CurrencyPage() {
 
   return (
     <div className="currency-page">
-      <h1>Currency Management</h1>
-
-      <div className="currency-toolbar">
-        <StatusFilter value={statusFilter} onChange={setStatusFilter} />
-        <input
-          className="currency-search"
-          type="search"
-          placeholder="Search..."
-          value={searchTerm}
-          onChange={(event) => setSearchTerm(event.target.value)}
-          aria-label="搜尋幣種"
-        />
-        <button type="button" className="btn btn-primary" onClick={() => setFormModal({ mode: 'create' })}>
-          + Add
-        </button>
+      <div className="page-title">
+        <h1>Currency Management</h1>
       </div>
 
-      <div className="currency-table-wrapper">
-        {loading && <div className="currency-table-status">載入中…</div>}
-        {!loading && loadError && (
-          <div className="currency-table-status currency-table-status--error">
-            資料載入失敗
-            <button type="button" className="btn btn-link" onClick={fetchCurrencies}>
-              重試
+      <div className="filter-card">
+        <div className="filter-row">
+          <div className="filter-group">
+            <label className="filter-label">Status</label>
+            <StatusFilter value={statusFilter} onChange={setStatusFilter} />
+          </div>
+          <div className="filter-group filter-group--grow">
+            <label className="filter-label">Search</label>
+            <input
+              className="filter-input currency-search"
+              type="search"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              aria-label="搜尋幣種"
+            />
+          </div>
+          <div className="filter-actions">
+            <button type="button" className="btn btn-primary" onClick={() => setFormModal({ mode: 'create' })}>
+              + Add
             </button>
           </div>
-        )}
-        {!loading && !loadError && (
-          <CurrencyTable
-            currencies={visibleCurrencies}
-            onEdit={(currency) => setFormModal({ mode: 'edit', currency })}
-            onDelete={(currency) => setDeleteTarget(currency)}
-          />
-        )}
+        </div>
+      </div>
+
+      <div className="search-table-card">
+        <div className="search-table-header">
+          <div className="search-table-title">Currencies</div>
+        </div>
+
+        <div className="currency-table-wrapper">
+          {loading && <div className="table-empty">載入中…</div>}
+          {!loading && loadError && (
+            <div className="table-empty currency-table-status--error">
+              資料載入失敗
+              <button type="button" className="btn btn-link" onClick={fetchCurrencies}>
+                重試
+              </button>
+            </div>
+          )}
+          {!loading && !loadError && (
+            <CurrencyTable
+              currencies={visibleCurrencies}
+              onEdit={(currency) => setFormModal({ mode: 'edit', currency })}
+              onDelete={(currency) => setDeleteTarget(currency)}
+            />
+          )}
+        </div>
+
+        <div className="table-footer">
+          <div className="total-count">Total {visibleCurrencies.length} items</div>
+        </div>
       </div>
 
       {formModal?.mode === 'create' && (

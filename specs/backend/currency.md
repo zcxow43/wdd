@@ -140,16 +140,16 @@ Fields map 1:1 to the `currency` table columns. Use camelCase in Java (`nameZh`,
 - Return `400` with field-level validation errors
 
 ## Acceptance Criteria
-- [ ] `GET /api/currencies` returns list of all currencies
-- [ ] `GET /api/currencies?active=true` filters correctly
-- [ ] `GET /api/currencies/{id}` returns single currency or 404
-- [ ] `POST /api/currencies` creates and returns 201
-- [ ] `POST /api/currencies` with duplicate code returns 409
-- [ ] `PUT /api/currencies/{id}` updates and returns 200
-- [ ] `DELETE /api/currencies/{id}` deletes and returns 204
-- [ ] Validation errors return 400 with details
-- [ ] Unit tests for service layer (positive and negative cases)
-- [ ] Integration tests for controller endpoints
+- [x] `GET /api/currencies` returns list of all currencies
+- [x] `GET /api/currencies?active=true` filters correctly
+- [x] `GET /api/currencies/{id}` returns single currency or 404
+- [x] `POST /api/currencies` creates and returns 201
+- [x] `POST /api/currencies` with duplicate code returns 409
+- [x] `PUT /api/currencies/{id}` updates and returns 200
+- [x] `DELETE /api/currencies/{id}` deletes and returns 204
+- [x] Validation errors return 400 with details
+- [x] Unit tests for service layer (positive and negative cases)
+- [x] Integration tests for controller endpoints
 
 ---
 ## Execution Result

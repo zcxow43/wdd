@@ -21,8 +21,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import pl.piomin.services.backend.dto.CurrencyCreateRequest;
 import pl.piomin.services.backend.dto.CurrencyUpdateRequest;
 import pl.piomin.services.backend.exception.CurrencyCodeExistsException;
+import pl.piomin.services.backend.exception.CurrencyInUseException;
 import pl.piomin.services.backend.exception.CurrencyNotFoundException;
 import pl.piomin.services.backend.mapper.CurrencyMapper;
+import pl.piomin.services.backend.mapper.CurrencyPairMapper;
 import pl.piomin.services.backend.model.Currency;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,11 +33,14 @@ class CurrencyServiceTest {
     @Mock
     private CurrencyMapper currencyMapper;
 
+    @Mock
+    private CurrencyPairMapper currencyPairMapper;
+
     private CurrencyService currencyService;
 
     @BeforeEach
     void setUp() {
-        currencyService = new CurrencyService(currencyMapper);
+        currencyService = new CurrencyService(currencyMapper, currencyPairMapper);
     }
 
     private Currency sampleCurrency(Long id, String code) {
@@ -169,23 +174,9 @@ class CurrencyServiceTest {
     }
 
     @Test
-    void update_throwsConflict_whenNewCodeUsedByAnotherRecord() {
-        Currency existing = sampleCurrency(1L, "TWD");
-        Currency other = sampleCurrency(2L, "USD");
-        when(currencyMapper.findById(1L)).thenReturn(existing);
-        when(currencyMapper.findByCode("USD")).thenReturn(other);
-
-        CurrencyUpdateRequest request = new CurrencyUpdateRequest();
-        request.setCode("USD");
-
-        assertThatThrownBy(() -> currencyService.update(1L, request))
-                .isInstanceOf(CurrencyCodeExistsException.class);
-        verify(currencyMapper, never()).update(any(Currency.class));
-    }
-
-    @Test
     void delete_removesCurrency_whenFound() {
         when(currencyMapper.findById(1L)).thenReturn(sampleCurrency(1L, "TWD"));
+        when(currencyPairMapper.existsByCurrencyId(1L)).thenReturn(false);
 
         currencyService.delete(1L);
 
@@ -199,5 +190,15 @@ class CurrencyServiceTest {
         assertThatThrownBy(() -> currencyService.delete(999L))
                 .isInstanceOf(CurrencyNotFoundException.class);
         verify(currencyMapper, never()).deleteById(eq(999L));
+    }
+
+    @Test
+    void delete_throwsConflict_whenReferencedByCurrencyPair() {
+        when(currencyMapper.findById(1L)).thenReturn(sampleCurrency(1L, "TWD"));
+        when(currencyPairMapper.existsByCurrencyId(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> currencyService.delete(1L))
+                .isInstanceOf(CurrencyInUseException.class);
+        verify(currencyMapper, never()).deleteById(eq(1L));
     }
 }

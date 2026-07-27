@@ -36,6 +36,39 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
 
+    @ExceptionHandler(CurrencyInUseException.class)
+    public ResponseEntity<Map<String, Object>> handleInUse(CurrencyInUseException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", "Currency is referenced by one or more currency pairs and cannot be deleted");
+        body.put("id", ex.getId());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
+    @ExceptionHandler(CurrencyPairNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFound(CurrencyPairNotFoundException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", "Currency pair not found");
+        body.put("id", ex.getId());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
+
+    @ExceptionHandler(CurrencyPairExistsException.class)
+    public ResponseEntity<Map<String, Object>> handleExists(CurrencyPairExistsException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", "Currency pair already exists for this brand");
+        body.put("brandId", ex.getBrandId());
+        body.put("baseCurrencyId", ex.getBaseCurrencyId());
+        body.put("quoteCurrencyId", ex.getQuoteCurrencyId());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
+    @ExceptionHandler(InvalidCurrencyPairException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalid(InvalidCurrencyPairException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
         Map<String, String> details = new LinkedHashMap<>();

@@ -1,5 +1,5 @@
 ---
-status: pending
+status: done
 title: "Restyle Frontend to Match Demo"
 requirement: "frontend 畫面可以照 demo 的樣式做修改 (frontend screens can be restyled to follow the demo/ prototype's look)"
 ---
@@ -68,16 +68,38 @@ The AppShell, design tokens, and restyled shared primitives (buttons, Modal, Con
 - After restyling, run the existing test suite (`npm test`) to confirm nothing broke, and `npm run build` / `npm run lint` to confirm the app still compiles cleanly.
 
 ## Acceptance Criteria
-- [ ] `develop/frontend/src/index.css` defines the token palette above as CSS custom properties, and existing `.btn*` classes are restyled to use them
-- [ ] A new `AppShell` renders a sidebar (OWS logo + nav) and top header on every page, matching the demo's structure and colors
-- [ ] Sidebar nav links only to real app pages (Currency Management now; Currency Pair / Brand once their specs ship); no dead links to demo-only placeholder items
-- [ ] The current route's nav item is visually highlighted
-- [ ] `CurrencyPage`'s filter/search toolbar is wrapped in a `.filter-card`-style container
-- [ ] `CurrencyTable` is wrapped in a `.search-table-card`-style container and its `<table>` matches the demo's data-table styling (header background, cell padding, row divider, row hover, green monospace currency code)
-- [ ] Active/inactive is shown as a colored dot + text label ("ACTIVE"/"INACTIVE"), accessible name preserved
-- [ ] Edit/Delete actions are restyled but keep their existing accessible names
-- [ ] A "Total N items" footer bar is shown on the table; no non-functional pagination controls are added
-- [ ] Modal, ConfirmDialog, and Toast are restyled to the token palette and demo's card look
-- [ ] `npm test` passes unchanged (no test file needs to change to accommodate the restyle)
-- [ ] `npm run build` and `npm run lint` pass
-- [ ] Manual check: `/currencies` in the dev server visually matches the demo's color palette, spacing, and card/table/badge language (side-by-side with `demo/index.html`)
+- [x] `develop/frontend/src/index.css` defines the token palette above as CSS custom properties, and existing `.btn*` classes are restyled to use them
+- [x] A new `AppShell` renders a sidebar (OWS logo + nav) and top header on every page, matching the demo's structure and colors
+- [x] Sidebar nav links only to real app pages (Currency Management now; Currency Pair / Brand once their specs ship); no dead links to demo-only placeholder items
+- [x] The current route's nav item is visually highlighted
+- [x] `CurrencyPage`'s filter/search toolbar is wrapped in a `.filter-card`-style container
+- [x] `CurrencyTable` is wrapped in a `.search-table-card`-style container and its `<table>` matches the demo's data-table styling (header background, cell padding, row divider, row hover, green monospace currency code)
+- [x] Active/inactive is shown as a colored dot + text label ("ACTIVE"/"INACTIVE"), accessible name preserved
+- [x] Edit/Delete actions are restyled but keep their existing accessible names
+- [x] A "Total N items" footer bar is shown on the table; no non-functional pagination controls are added
+- [x] Modal, ConfirmDialog, and Toast are restyled to the token palette and demo's card look
+- [x] `npm test` passes unchanged (no test file needs to change to accommodate the restyle)
+- [x] `npm run build` and `npm run lint` pass
+- [x] Manual check: `/currencies` in the dev server visually matches the demo's color palette, spacing, and card/table/badge language (side-by-side with `demo/index.html`)
+
+---
+## Execution Result
+- Status: DONE
+- Files changed:
+  - develop/frontend/src/assets/ows-logo.png (new — copied from `demo/assets/ows-logo.png`)
+  - develop/frontend/src/index.css (rewritten — CSS custom properties for the demo's token palette (`--color-brand`, `--color-bg`, `--color-surface`, `--color-border*`, `--color-text*`, `--color-success`, `--color-danger*`, `--radius-sm/md`, `--shadow-card`, `--font-family`); restyled `.btn`/`.btn-primary`/`.btn-secondary`/`.btn-danger`/`.btn-link`/`.btn-link--danger`; added shared reusable classes used by all three pages: `.page-title`, `.filter-card`/`.filter-row`/`.filter-group`/`.filter-label`/`.filter-input`/`.filter-actions`, `.status-filter` (restyled, same selector already used by `StatusFilter`/`BrandFilter`), `.search-table-card`/`.search-table-header`/`.search-table-title`, `.data-table` (header bg, cell padding, row divider, row hover), `.currency-code` (green monospace), `.status-badge`/`.status-badge--active`/`.status-badge--inactive`/`.status-dot`, `.action-buttons`/`.action-btn`/`.action-btn--danger`, `.table-footer`/`.total-count`, `.table-empty`, `.align-center`/`.align-right`)
+  - develop/frontend/src/layout/AppShell.tsx, AppShell.css (new — persistent shell: sidebar with OWS logo + flat nav list to `/currencies`, `/currency-pairs`, `/brands` using `react-router-dom`'s `NavLink` for active-route highlighting (green text/background/left border); top header with a static user avatar+label placeholder; content area wrapping `<Outlet />`)
+  - develop/frontend/src/App.tsx (edited — wrapped all routes in a parent `<Route element={<AppShell />}>` so every page renders inside the shell; `/` → `/currencies` redirect unchanged)
+  - develop/frontend/src/components/Modal.css, ConfirmDialog.css, Toast.css (restyled to token palette — white surface, `4px` radius, card shadow, `#e8e8e8` header divider; toast colors mapped to `--color-danger`/`--color-success`/`--color-brand`)
+  - develop/frontend/src/components/CurrencyFormModal.css, CurrencyPairFormModal.css (restyled colors/radius to use the new tokens; no markup/behavior change)
+  - develop/frontend/src/pages/CurrencyPage.tsx + .css (toolbar wrapped in `.filter-card` with labeled Status/Search filter groups and Add action; table wrapped in `.search-table-card` titled "Currencies" with a `.table-footer` showing "Total N items")
+  - develop/frontend/src/components/CurrencyTable.tsx + .css (table restyled to `.data-table`; code column uses shared `.currency-code`; active/inactive rendered as `.status-badge` with dot + "ACTIVE"/"INACTIVE" text, same `aria-label`; Edit/Delete restyled to `.action-btn`/`.action-btn--danger`, same accessible names)
+  - develop/frontend/src/pages/CurrencyPairPage.tsx + .css, develop/frontend/src/pages/BrandPage.tsx + .css (same shared-class treatment applied for consistency: filter-card for CurrencyPairPage's Brand/Status filters + Add button; search-table-card + table-footer for both; no props/callback/API changes)
+  - develop/frontend/src/components/CurrencyPairTable.tsx + .css, develop/frontend/src/components/BrandTable.tsx + .css (adopted `.data-table`, `.currency-code`, `.status-badge` (pair table), `.action-btn` (pair table); brand table's toggle switch kept as-is functionally, recolored to tokens (`--color-success`/`--color-brand`); brand/pair code columns use shared `.currency-code` styling)
+- Notes:
+  - No new dependencies added; pure CSS + markup-wrapper restyle, matching `env.md`'s existing React/Vite/TypeScript stack.
+  - No component props, callback signatures, API calls, visible test-queried text (currency/brand/pair values, "Edit"/"Delete"/"+ Add" button names, toast/dialog copy), or `aria-label`s were changed — only class names/markup wrappers and CSS.
+  - `CurrencyPage`, `CurrencyPairPage`, `BrandPage` test suites were rendered directly (without `AppShell`/Router) prior to this change and continue to be, so `AppShell` only affects real app navigation via `App.tsx`, not these existing unit tests.
+  - `npm test`: all 56 tests across 9 files pass unchanged.
+  - `npm run build` (`tsc -b && vite build`) and `npm run lint` (`oxlint`) both pass; the only lint output is a pre-existing, unrelated warning on `ToastProvider.tsx` (fast-refresh export rule), not introduced by this change.
+  - Manually smoke-tested via `npm run dev`: server boots and serves `index.html`/`main.tsx` without runtime errors.

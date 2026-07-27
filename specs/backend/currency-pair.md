@@ -1,5 +1,5 @@
 ---
-status: pending
+status: done
 title: "Currency Pair API"
 requirement: "Provide REST API for currency pair CRUD (rate manual/auto), scoped per brand; lock currency code on update; block currency delete when referenced by a pair"
 ---
@@ -196,18 +196,56 @@ Fields: `id`, `brandId`, `baseCurrencyId`, `quoteCurrencyId`, `rate` (`BigDecima
 - Return `400` with field-level validation errors (base == quote, rate ≤ 0, invalid rateType)
 
 ## Acceptance Criteria
-- [ ] `GET /api/currency-pairs` returns list of all pairs with brand/base/quote codes populated
-- [ ] `GET /api/currency-pairs?brandId=3` filters correctly
-- [ ] `GET /api/currency-pairs?active=true` filters correctly
-- [ ] `GET /api/currency-pairs/{id}` returns single pair or 404
-- [ ] `POST /api/currency-pairs` creates and returns 201
-- [ ] `POST /api/currency-pairs` with base == quote returns 400
-- [ ] `POST /api/currency-pairs` with nonexistent brand, base, or quote currency id returns 404
-- [ ] `POST /api/currency-pairs` with duplicate (brand, base, quote) returns 409
-- [ ] `POST /api/currency-pairs` with the same (base, quote) under a different brand succeeds (no false-positive 409)
-- [ ] `PUT /api/currency-pairs/{id}` updates and returns 200
-- [ ] `DELETE /api/currency-pairs/{id}` deletes and returns 204
-- [ ] `PUT /api/currencies/{id}` no longer accepts/changes `code` (field removed from update DTO)
-- [ ] `DELETE /api/currencies/{id}` returns 409 when the currency is referenced by a currency pair, and succeeds once no pair references it
-- [ ] Unit tests for `CurrencyPairService` (positive and negative cases) and updated `CurrencyServiceTest` covering the immutable-code and delete-guard behavior
-- [ ] Integration tests for `CurrencyPairController` endpoints and the updated currency delete/update endpoints
+- [x] `GET /api/currency-pairs` returns list of all pairs with brand/base/quote codes populated
+- [x] `GET /api/currency-pairs?brandId=3` filters correctly
+- [x] `GET /api/currency-pairs?active=true` filters correctly
+- [x] `GET /api/currency-pairs/{id}` returns single pair or 404
+- [x] `POST /api/currency-pairs` creates and returns 201
+- [x] `POST /api/currency-pairs` with base == quote returns 400
+- [x] `POST /api/currency-pairs` with nonexistent brand, base, or quote currency id returns 404
+- [x] `POST /api/currency-pairs` with duplicate (brand, base, quote) returns 409
+- [x] `POST /api/currency-pairs` with the same (base, quote) under a different brand succeeds (no false-positive 409)
+- [x] `PUT /api/currency-pairs/{id}` updates and returns 200
+- [x] `DELETE /api/currency-pairs/{id}` deletes and returns 204
+- [x] `PUT /api/currencies/{id}` no longer accepts/changes `code` (field removed from update DTO)
+- [x] `DELETE /api/currencies/{id}` returns 409 when the currency is referenced by a currency pair, and succeeds once no pair references it
+- [x] Unit tests for `CurrencyPairService` (positive and negative cases) and updated `CurrencyServiceTest` covering the immutable-code and delete-guard behavior
+- [x] Integration tests for `CurrencyPairController` endpoints and the updated currency delete/update endpoints
+
+---
+## Execution Result
+- Status: DONE
+- Files changed:
+  - develop/backend/src/main/java/pl/piomin/services/backend/model/CurrencyPair.java (new — entity, 1:1 with `currency_pair` table, plus `brandCode`/`baseCurrencyCode`/`quoteCurrencyCode` fields populated only by enriched/joined read queries)
+  - develop/backend/src/main/java/pl/piomin/services/backend/dto/CurrencyPairCreateRequest.java (new — `brandId`/`baseCurrencyId`/`quoteCurrencyId`/`rate`/`rateType` required, `active` optional)
+  - develop/backend/src/main/java/pl/piomin/services/backend/dto/CurrencyPairUpdateRequest.java (new — all fields optional, same per-field constraints as create)
+  - develop/backend/src/main/java/pl/piomin/services/backend/dto/CurrencyPairResponse.java (new — includes joined `brandCode`/`baseCurrencyCode`/`quoteCurrencyCode`)
+  - develop/backend/src/main/java/pl/piomin/services/backend/mapper/CurrencyPairMapper.java (new — `findAll`, `findById` (enriched via joins to `brand`/`currency`), `findByBrandBaseQuote` (uniqueness check), `insert`, `update`, `deleteById`, `existsByCurrencyId` (used by the currency delete guard), `findAllIds` (test-only cleanup helper))
+  - develop/backend/src/main/resources/mapper/CurrencyPairMapper.xml (new — MyBatis SQL mapper; `findAll`/`findById` join `currency_pair` to `brand` and to `currency` twice (aliased `bc`/`qc`) in a single query rather than N+1 lookups, per spec)
+  - develop/backend/src/main/java/pl/piomin/services/backend/service/CurrencyPairService.java (new — `list`, `getById`, `create`, `update`, `delete`, with brand/currency existence validation, base≠quote validation, and (brand, base, quote) uniqueness validation scoped to "any row other than this id" on update)
+  - develop/backend/src/main/java/pl/piomin/services/backend/controller/CurrencyPairController.java (new — `GET /api/currency-pairs` (optional `brandId`/`active`), `GET /api/currency-pairs/{id}`, `POST`, `PUT /{id}`, `DELETE /{id}`)
+  - develop/backend/src/main/java/pl/piomin/services/backend/exception/CurrencyPairNotFoundException.java (new)
+  - develop/backend/src/main/java/pl/piomin/services/backend/exception/CurrencyPairExistsException.java (new)
+  - develop/backend/src/main/java/pl/piomin/services/backend/exception/CurrencyInUseException.java (new — thrown by `CurrencyService.delete` when the currency is still referenced by a currency pair)
+  - develop/backend/src/main/java/pl/piomin/services/backend/exception/InvalidCurrencyPairException.java (new — 400 for the "base and quote currency must differ" business rule, which cannot be expressed as a simple per-field Bean Validation annotation)
+  - develop/backend/src/main/java/pl/piomin/services/backend/exception/GlobalExceptionHandler.java (edited — added handlers for `CurrencyInUseException` → 409, `CurrencyPairNotFoundException` → 404, `CurrencyPairExistsException` → 409, `InvalidCurrencyPairException` → 400; reused the existing `BrandNotFoundException` → 404 and `CurrencyNotFoundException` → 404 handlers as-is for the brand/currency-not-found cases raised while creating/updating a currency pair)
+  - develop/backend/src/main/java/pl/piomin/services/backend/dto/CurrencyUpdateRequest.java (edited — removed the `code` field and its getter/setter entirely; `code` is now set only once, at creation, via `CurrencyCreateRequest`)
+  - develop/backend/src/main/java/pl/piomin/services/backend/service/CurrencyService.java (edited — constructor now also takes `CurrencyPairMapper`; removed the code-mutation branch from `update` (since the field no longer exists on the request DTO); `delete` now calls `currencyPairMapper.existsByCurrencyId(id)` before `currencyMapper.deleteById(id)` and throws `CurrencyInUseException` (409) if the currency is still referenced by any pair)
+  - develop/backend/src/test/resources/schema.sql (edited — added an H2-compatible `currency_pair` table (with the `uk_currency_pair_brand_base_quote` unique constraint) alongside the existing `currency` and `brand` tables; intentionally without FK constraints, to keep each test class's independent `@BeforeEach` table-reset logic free of FK-ordering dependencies across test classes sharing the same H2 in-memory database)
+  - develop/backend/src/test/java/pl/piomin/services/backend/service/CurrencyPairServiceTest.java (new — 16 unit tests, Mockito, covering list/get/create/update/delete, all validation branches, and both positive and negative cases)
+  - develop/backend/src/test/java/pl/piomin/services/backend/service/CurrencyServiceTest.java (edited — injected a mocked `CurrencyPairMapper`; removed the now-uncompilable `update_throwsConflict_whenNewCodeUsedByAnotherRecord` test (the update DTO no longer has `code`); added `delete_throwsConflict_whenReferencedByCurrencyPair` and stubbed `existsByCurrencyId` in the existing delete test)
+  - develop/backend/src/test/java/pl/piomin/services/backend/controller/CurrencyPairControllerTest.java (new — 17 MockMvc integration tests against H2, covering list/get/create/update/delete, brand-scoped uniqueness (including the "same base/quote under a different brand succeeds" case), and 400/404/409 error paths)
+  - develop/backend/src/test/java/pl/piomin/services/backend/controller/CurrencyControllerTest.java (edited — autowired `BrandMapper`/`CurrencyPairMapper`; `@BeforeEach` now also resets `currency_pair` and `brand` tables for full test isolation; added `update_ignoresCodeField_evenWhenSuppliedInRequestBody` and `delete_returns409_whenReferencedByCurrencyPair` (which also verifies the delete succeeds once the referencing pair is removed))
+  - develop/backend/pom.xml (edited — version bumped 0.0.2 → 0.0.3 per semantic versioning convention, description updated)
+  - develop/backend/README.md (edited — documented the Currency Pair API endpoint table, the two related Currency API behavior changes, and the 0.0.3 version history entry)
+- Notes:
+  - Implemented full CRUD for `/api/currency-pairs` following the existing Controller → Service → MyBatis Mapper (interface + XML) layering and DTO conventions from the Currency/Brand features. No Lombok used.
+  - `rateType` is validated as a plain `String` with `@Pattern(regexp = "^(MANUAL|AUTO)$")` (mirroring the existing `code` pattern-validation style on `CurrencyCreateRequest`) rather than introducing a Java enum, keeping the entity/DTO/MyBatis mapping simple and consistent with the rest of the codebase; no automatic external rate-fetching job was implemented for `AUTO` pairs, per the spec ("future work").
+  - `CurrencyPairResponse` is enriched via a single joined MyBatis query (`currency_pair` LEFT... actually INNER JOIN to `brand` and to `currency` twice, aliased `bc`/`qc`) for both `findAll` and `findById`, avoiding N+1 lookups as required. The plain (non-enriched) `findByBrandBaseQuote` query is used only internally for the uniqueness check and does not populate the joined code fields (not needed there).
+  - Business-rule validation order in `CurrencyPairService.create`/`update`: brand existence (404) → base currency existence (404) → quote currency existence (404) → base≠quote (400) → (brand, base, quote) uniqueness (409), matching the precedence implied by the spec's acceptance criteria. On update, only fields actually present in the request are re-validated for existence, but the merged (existing-or-new) triple is always re-checked for distinctness and uniqueness.
+  - Reused the existing `BrandNotFoundException` and `CurrencyNotFoundException` (and their existing `GlobalExceptionHandler` mappings) as-is for the currency-pair 404 cases, since their error-body shape (`{"error": "Brand not found", "id": ...}` / `{"error": "Currency not found", "id": ...}`) already matches the spec's contract exactly — no need for new brand/currency-specific currency-pair exception types.
+  - Currency `code` immutability: removed `code` from `CurrencyUpdateRequest` entirely (field + getter/setter). Since Spring's default Jackson config ignores unknown JSON properties, a client still sending `"code": "..."` in a `PUT /api/currencies/{id}` body is silently ignored rather than rejected — verified this behavior explicitly with `update_ignoresCodeField_evenWhenSuppliedInRequestBody`.
+  - Currency delete guard: `CurrencyService.delete` now checks `currencyPairMapper.existsByCurrencyId(id)` (which checks both `base_currency_id` and `quote_currency_id` via `OR`) before deleting, throwing `CurrencyInUseException` (409) if in use. This is an application-level pre-check that returns a friendly, structured error; the DB-level `ON DELETE RESTRICT` FK from `specs/dba/currency-pair.md` remains as a defense-in-depth backstop in production (not present in the H2 test schema, by design — see below).
+  - Test isolation across the three MockMvc controller test classes (`CurrencyControllerTest`, `BrandControllerTest`, `CurrencyPairControllerTest`), which share one H2 in-memory database instance (`DB_CLOSE_DELAY=-1`) for the lifetime of the test JVM: deliberately did **not** add FK constraints between `currency_pair` and `brand`/`currency` in `src/test/resources/schema.sql` (unlike the production migration), because each test class's own `@BeforeEach` independently wipes and re-seeds its own required tables, and cross-class FK enforcement would create ordering dependencies between otherwise-independent test classes. Instead, `CurrencyPairControllerTest` and (now) `CurrencyControllerTest` each reset `currency_pair`, `brand`, and `currency` at the start of every test to guarantee full isolation regardless of execution order. This was verified empirically: an initial implementation (before adding brand-table cleanup to `CurrencyControllerTest`) passed under the default (deterministic) Maven Surefire test order but failed intermittently (`DuplicateKeyException` on brand code `AU`) when run with `-Dsurefire.runOrder=random`; after adding the missing cleanup, 4 additional consecutive `-Dsurefire.runOrder=random` runs all passed (75/75 tests each), in addition to the standard `mvn test` run.
+  - Ran `mvn -f develop/backend/pom.xml clean compile` (BUILD SUCCESS) and `mvn -f develop/backend/pom.xml clean test` (BUILD SUCCESS, 75 tests total: 12 CurrencyServiceTest + 14 CurrencyControllerTest + 7 BrandServiceTest + 9 BrandControllerTest + 16 CurrencyPairServiceTest + 17 CurrencyPairControllerTest, 0 failures/errors), plus 4 additional randomized-order runs (`-Dsurefire.runOrder=random`), all green. No changes were needed to `.circleci/config.yml` — the existing `build-and-test` job already runs `mvn test` against the whole backend module.
+  - Bumped the Maven project version to `0.0.3` (PATCH bump per project convention) and updated `README.md` with the Currency Pair API table, the two Currency API behavior changes, and the version history entry.

@@ -171,4 +171,22 @@ describe('CurrencyPage', () => {
 
     expect(await screen.findByText('幣種不存在，請重新整理頁面')).toBeInTheDocument()
   })
+
+  it('shows an in-use toast and keeps the row when the currency is referenced by a currency pair', async () => {
+    mockedApi.list.mockResolvedValue([TWD, USD])
+    mockedApi.remove.mockRejectedValue(
+      new ApiError(409, { error: 'Currency is referenced by one or more currency pairs and cannot be deleted', id: 1 }, 'Conflict'),
+    )
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('TWD')
+
+    const row = screen.getByText('TWD').closest('tr')!
+    await user.click(within(row).getByText('Delete'))
+    await user.click(screen.getByRole('button', { name: '確定' }))
+
+    expect(await screen.findByText('此幣種已配置於幣種對，無法刪除')).toBeInTheDocument()
+    expect(mockedApi.list).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('TWD')).toBeInTheDocument()
+  })
 })

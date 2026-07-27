@@ -20,8 +20,12 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import pl.piomin.services.backend.mapper.BrandMapper;
 import pl.piomin.services.backend.mapper.CurrencyMapper;
+import pl.piomin.services.backend.mapper.CurrencyPairMapper;
+import pl.piomin.services.backend.model.Brand;
 import pl.piomin.services.backend.model.Currency;
+import pl.piomin.services.backend.model.CurrencyPair;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -34,12 +38,25 @@ class CurrencyControllerTest {
     private CurrencyMapper currencyMapper;
 
     @Autowired
+    private CurrencyPairMapper currencyPairMapper;
+
+    @Autowired
+    private BrandMapper brandMapper;
+
+    @Autowired
     private ObjectMapper objectMapper;
 
     private Long twdId;
 
     @BeforeEach
     void setUp() {
+        for (Long pairId : currencyPairMapper.findAllIds()) {
+            currencyPairMapper.deleteById(pairId);
+        }
+        for (Brand brand : brandMapper.findAll(null)) {
+            brandMapper.deleteById(brand.getId());
+        }
+
         List<Currency> existing = currencyMapper.findAll(null);
         for (Currency currency : existing) {
             currencyMapper.deleteById(currency.getId());
@@ -163,6 +180,19 @@ class CurrencyControllerTest {
     }
 
     @Test
+    void update_ignoresCodeField_evenWhenSuppliedInRequestBody() throws Exception {
+        String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
+            put("code", "XXX");
+            put("name", "New Taiwan Dollar Updated");
+        }});
+
+        mockMvc.perform(put("/api/currencies/{id}", twdId).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("New Taiwan Dollar Updated"))
+                .andExpect(jsonPath("$.code").value("TWD"));
+    }
+
+    @Test
     void update_returns404_whenNotFound() throws Exception {
         String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
             put("name", "Does Not Matter");
@@ -187,5 +217,36 @@ class CurrencyControllerTest {
         mockMvc.perform(delete("/api/currencies/{id}", 999999))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("Currency not found"));
+    }
+
+    @Test
+    void delete_returns409_whenReferencedByCurrencyPair() throws Exception {
+        Brand brand = new Brand();
+        brand.setCode("AU");
+        brand.setName("AU");
+        brand.setActive(true);
+        brandMapper.insert(brand);
+
+        Currency usd = currencyMapper.findByCode("USD");
+
+        CurrencyPair pair = new CurrencyPair();
+        pair.setBrandId(brand.getId());
+        pair.setBaseCurrencyId(usd.getId());
+        pair.setQuoteCurrencyId(twdId);
+        pair.setRate(new java.math.BigDecimal("32.5"));
+        pair.setRateType("MANUAL");
+        pair.setActive(true);
+        currencyPairMapper.insert(pair);
+
+        mockMvc.perform(delete("/api/currencies/{id}", twdId))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value(
+                        "Currency is referenced by one or more currency pairs and cannot be deleted"))
+                .andExpect(jsonPath("$.id").value(twdId));
+
+        currencyPairMapper.deleteById(pair.getId());
+
+        mockMvc.perform(delete("/api/currencies/{id}", twdId))
+                .andExpect(status().isNoContent());
     }
 }
