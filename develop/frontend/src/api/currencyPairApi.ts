@@ -1,4 +1,5 @@
 import { apiClient } from './client'
+import type { AuditRequest } from '../audit/types'
 import type { CurrencyPair, CurrencyPairInput } from '../types/currencyPair'
 
 const BASE_PATH = '/api/currency-pairs'
@@ -8,6 +9,12 @@ export interface CurrencyPairListParams {
   active?: boolean
 }
 
+/**
+ * Create/update/delete no longer apply directly — they submit a request
+ * through the generic audit module and return `202 Accepted` with the
+ * resulting `AuditRequest` instead of the currency pair itself, per
+ * specs/frontend/currency-pair-approval.md. `list`/`getById` are unaffected.
+ */
 export const currencyPairApi = {
   list: (params?: CurrencyPairListParams) => {
     const query = new URLSearchParams()
@@ -16,8 +23,8 @@ export const currencyPairApi = {
     const qs = query.toString()
     return apiClient.get<CurrencyPair[]>(`${BASE_PATH}${qs ? `?${qs}` : ''}`)
   },
-  create: (input: CurrencyPairInput) => apiClient.post<CurrencyPair>(BASE_PATH, input),
+  create: (input: CurrencyPairInput) => apiClient.post<AuditRequest>(BASE_PATH, input),
   update: (id: number, input: Partial<CurrencyPairInput>) =>
-    apiClient.put<CurrencyPair>(`${BASE_PATH}/${id}`, input),
-  remove: (id: number) => apiClient.delete<void>(`${BASE_PATH}/${id}`),
+    apiClient.put<AuditRequest>(`${BASE_PATH}/${id}`, input),
+  remove: (id: number) => apiClient.delete<AuditRequest>(`${BASE_PATH}/${id}`),
 }

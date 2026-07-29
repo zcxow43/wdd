@@ -1,6 +1,8 @@
 package pl.piomin.services.backend.controller;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,19 +17,36 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
+import pl.piomin.services.backend.audit.AuditActionType;
+import pl.piomin.services.backend.audit.AuditRequest;
+import pl.piomin.services.backend.audit.AuditRequestResponse;
+import pl.piomin.services.backend.audit.AuditService;
 import pl.piomin.services.backend.dto.CurrencyPairCreateRequest;
+import pl.piomin.services.backend.dto.CurrencyPairDeleteRequest;
 import pl.piomin.services.backend.dto.CurrencyPairResponse;
 import pl.piomin.services.backend.dto.CurrencyPairUpdateRequest;
+import pl.piomin.services.backend.model.CurrencyPair;
+import pl.piomin.services.backend.service.CurrencyPairAuditHandler;
 import pl.piomin.services.backend.service.CurrencyPairService;
 
+/**
+ * GET endpoints keep reading live, already-approved rows from
+ * {@code currency_pair} directly and are unaffected by the audit-approval
+ * delta. POST/PUT/DELETE no longer mutate {@code currency_pair} directly -
+ * they submit a change request through the generic audit module
+ * (specs/backend/audit.md) via {@link AuditService#submit} and return
+ * {@code 202 Accepted} with the resulting {@link AuditRequestResponse}.
+ */
 @RestController
 @RequestMapping("/api/currency-pairs")
 public class CurrencyPairController {
 
     private final CurrencyPairService currencyPairService;
+    private final AuditService auditService;
 
-    public CurrencyPairController(CurrencyPairService currencyPairService) {
+    public CurrencyPairController(CurrencyPairService currencyPairService, AuditService auditService) {
         this.currencyPairService = currencyPairService;
+        this.auditService = auditService;
     }
 
     @GetMapping
@@ -44,19 +63,49 @@ public class CurrencyPairController {
     }
 
     @PostMapping
-    public ResponseEntity<CurrencyPairResponse> create(@Valid @RequestBody CurrencyPairCreateRequest request) {
-        CurrencyPairResponse response = CurrencyPairResponse.from(currencyPairService.create(request));
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    public ResponseEntity<AuditRequestResponse> create(@Valid @RequestBody CurrencyPairCreateRequest request) {
+        Map<String, Object> after = new LinkedHashMap<>();
+        after.put("brandId", request.getBrandId());
+        after.put("baseCurrencyId", request.getBaseCurrencyId());
+        after.put("quoteCurrencyId", request.getQuoteCurrencyId());
+        after.put("rateType", request.getRateType());
+        after.put("rate", request.getRate());
+        after.put("active", request.getActive() != null ? request.getActive() : Boolean.TRUE);
+
+        AuditRequest auditRequest = auditService.submit(CurrencyPairAuditHandler.ENTITY_TYPE, AuditActionType.CREATE,
+                null, after, request.getRequestedBy());
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(AuditRequestResponse.from(auditRequest));
     }
 
     @PutMapping("/{id}")
-    public CurrencyPairResponse update(@PathVariable Long id, @Valid @RequestBody CurrencyPairUpdateRequest request) {
-        return CurrencyPairResponse.from(currencyPairService.update(id, request));
+    public ResponseEntity<AuditRequestResponse> update(@PathVariable Long id,
+                                                         @Valid @RequestBody CurrencyPairUpdateRequest request) {
+        // Merge the partial request onto the pair's current values so the
+        // proposed "after" snapshot submitted for approval is self-contained,
+        // per specs/backend/currency-pair-approval.md.
+        CurrencyPair existing = currencyPairService.getById(id);
+
+        Map<String, Object> after = new LinkedHashMap<>();
+        after.put("brandId", request.getBrandId() != null ? request.getBrandId() : existing.getBrandId());
+        after.put("baseCurrencyId", request.getBaseCurrencyId() != null
+                ? request.getBaseCurrencyId() : existing.getBaseCurrencyId());
+        after.put("quoteCurrencyId", request.getQuoteCurrencyId() != null
+                ? request.getQuoteCurrencyId() : existing.getQuoteCurrencyId());
+        after.put("rateType", request.getRateType() != null ? request.getRateType() : existing.getRateType());
+        after.put("rate", request.getRate() != null ? request.getRate() : existing.getRate());
+        after.put("active", request.getActive() != null ? request.getActive() : existing.getActive());
+
+        AuditRequest auditRequest = auditService.submit(CurrencyPairAuditHandler.ENTITY_TYPE, AuditActionType.UPDATE,
+                id, after, request.getRequestedBy());
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(AuditRequestResponse.from(auditRequest));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        currencyPairService.delete(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<AuditRequestResponse> delete(@PathVariable Long id,
+            @RequestBody(required = false) CurrencyPairDeleteRequest request) {
+        String requestedBy = request != null ? request.getRequestedBy() : null;
+        AuditRequest auditRequest = auditService.submit(CurrencyPairAuditHandler.ENTITY_TYPE, AuditActionType.DELETE,
+                id, null, requestedBy);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(AuditRequestResponse.from(auditRequest));
     }
 }

@@ -1,10 +1,13 @@
 ---
 status: done
 title: "Currency Pair Table Page"
-requirement: "Display currency pairs in a table with CRUD operations, scoped per brand, exchange rate manual/auto; surface currency delete-blocked error. Delta: when rate type is AUTO, clear/disable the rate input; when MANUAL, rate is required."
+requirement: "Display currency pairs in a table with CRUD operations, scoped per brand, exchange rate manual/auto; surface currency delete-blocked error. Delta: when rate type is AUTO, clear/disable the rate input; when MANUAL, rate is required. Delta 2: create/update/delete now submit for approval instead of applying directly — see specs/frontend/currency-pair-approval.md."
 ---
 
 # Currency Pair Table Page — Frontend Spec
+
+## Delta: create/update/delete now submit for approval (implemented)
+**Add/Edit/Delete on this page no longer apply immediately.** The backend endpoints they call now return `202 Accepted` with a pending audit request instead of directly creating/updating/removing the row. Implemented per `specs/frontend/currency-pair-approval.md`'s "Required changes to the existing Currency Pair page" section (toast copy, the 409 "pending request already exists" case, and the "審核中" badge/disabled-actions treatment) — see that spec's Execution Result for details. The Acceptance Criteria below (all `[x]`, describing the pre-delta immediate-apply contract) remain historically accurate for what they tested at the time; the immediate-apply behavior itself is superseded by `specs/frontend/currency-pair-approval.md`, per that file's own Acceptance Criteria.
 
 ## Overview
 Build a currency pair management page that displays all configured currency pairs (base → quote), each scoped to a brand, with their exchange rate. Users can view, add, edit, and delete pairs, filter by brand, and choose whether the rate is entered manually or maintained automatically. Consumes the API defined in `specs/backend/currency-pair.md`. Reuses the existing `currency` list (`GET /api/currencies`) to populate the base/quote currency dropdowns, and the brand list (`GET /api/brands`, see `specs/frontend/brand.md` / `specs/backend/brand.md`) to populate the brand filter and picker.

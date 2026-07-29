@@ -154,6 +154,24 @@ describe('CurrencyPairFormModal', () => {
     expect(await screen.findByText('此品牌已存在相同的幣種對')).toBeInTheDocument()
   })
 
+  it('shows the pending-duplicate conflict message for any other 409 body', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi
+      .fn()
+      .mockRejectedValue(new ApiError(409, { error: 'A pending audit request already exists for this entity' }, 'Conflict'))
+    render(
+      <CurrencyPairFormModal mode="create" brands={BRANDS} currencies={CURRENCIES} onSubmit={onSubmit} onClose={vi.fn()} />,
+    )
+
+    await user.selectOptions(screen.getByLabelText('品牌'), '1')
+    await user.selectOptions(screen.getByLabelText('基準幣別'), '2')
+    await user.selectOptions(screen.getByLabelText('對應幣別'), '1')
+    await user.type(screen.getByLabelText('匯率'), '32.5')
+    await user.click(screen.getByRole('button', { name: '儲存' }))
+
+    expect(await screen.findByText('此幣種對已有待審核的異動申請')).toBeInTheDocument()
+  })
+
   it('shows a network error message when the request fails to reach the server', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn().mockRejectedValue(new Error('network down'))

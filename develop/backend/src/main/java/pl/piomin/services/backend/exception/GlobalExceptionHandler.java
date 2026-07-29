@@ -9,6 +9,10 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import pl.piomin.services.backend.audit.AuditRequestAlreadyReviewedException;
+import pl.piomin.services.backend.audit.AuditRequestNotFoundException;
+import pl.piomin.services.backend.audit.DuplicatePendingAuditRequestException;
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -67,6 +71,40 @@ public class GlobalExceptionHandler {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("error", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(DuplicatePendingCurrencyPairCreateException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicatePendingCreate(
+            DuplicatePendingCurrencyPairCreateException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
+    @ExceptionHandler(AuditRequestNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFound(AuditRequestNotFoundException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", "Audit request not found");
+        body.put("id", ex.getId());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
+
+    @ExceptionHandler(AuditRequestAlreadyReviewedException.class)
+    public ResponseEntity<Map<String, Object>> handleAlreadyReviewed(AuditRequestAlreadyReviewedException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", "Audit request has already been reviewed");
+        body.put("id", ex.getId());
+        body.put("status", ex.getStatus());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
+    @ExceptionHandler(DuplicatePendingAuditRequestException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicatePending(DuplicatePendingAuditRequestException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", "A pending audit request already exists for this entity");
+        body.put("entityType", ex.getEntityType());
+        body.put("entityId", ex.getEntityId());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

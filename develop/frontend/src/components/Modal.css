@@ -19,6 +19,10 @@
   box-shadow: var(--shadow-card), 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
+.modal--lg {
+  width: 720px;
+}
+
 .modal-header {
   display: flex;
   align-items: center;

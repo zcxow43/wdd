@@ -37,7 +37,7 @@ const PAIRS: CurrencyPair[] = [
 
 describe('CurrencyPairTable', () => {
   it('renders all columns for each currency pair row', () => {
-    render(<CurrencyPairTable pairs={PAIRS} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    render(<CurrencyPairTable pairs={PAIRS} pendingIds={new Set()} onEdit={vi.fn()} onDelete={vi.fn()} />)
 
     expect(screen.getByText('AU')).toBeInTheDocument()
     expect(screen.getByText('MONETA')).toBeInTheDocument()
@@ -51,7 +51,7 @@ describe('CurrencyPairTable', () => {
   })
 
   it('renders the empty state when there are no pairs', () => {
-    render(<CurrencyPairTable pairs={[]} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    render(<CurrencyPairTable pairs={[]} pendingIds={new Set()} onEdit={vi.fn()} onDelete={vi.fn()} />)
 
     expect(screen.getByText('目前沒有符合條件的幣種對')).toBeInTheDocument()
   })
@@ -60,7 +60,7 @@ describe('CurrencyPairTable', () => {
     const user = userEvent.setup()
     const onEdit = vi.fn()
     const onDelete = vi.fn()
-    render(<CurrencyPairTable pairs={PAIRS} onEdit={onEdit} onDelete={onDelete} />)
+    render(<CurrencyPairTable pairs={PAIRS} pendingIds={new Set()} onEdit={onEdit} onDelete={onDelete} />)
 
     const auRow = screen.getByText('AU').closest('tr')!
     await user.click(within(auRow).getByText('Edit'))
@@ -85,9 +85,28 @@ describe('CurrencyPairTable', () => {
       createdAt: '2025-01-01T00:00:00',
       updatedAt: '2025-01-01T00:00:00',
     }
-    render(<CurrencyPairTable pairs={[autoPair]} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    render(<CurrencyPairTable pairs={[autoPair]} pendingIds={new Set()} onEdit={vi.fn()} onDelete={vi.fn()} />)
 
     expect(screen.getByText('—')).toBeInTheDocument()
     expect(screen.getByText('自動')).toBeInTheDocument()
+  })
+
+  it('shows a 審核中 badge and disables Edit/Delete for a pair with a pending request', async () => {
+    const user = userEvent.setup()
+    const onEdit = vi.fn()
+    const onDelete = vi.fn()
+    render(<CurrencyPairTable pairs={PAIRS} pendingIds={new Set([1])} onEdit={onEdit} onDelete={onDelete} />)
+
+    const auRow = screen.getByText('AU').closest('tr')!
+    expect(within(auRow).getByText('審核中')).toBeInTheDocument()
+    expect(within(auRow).getByText('Edit')).toBeDisabled()
+    expect(within(auRow).getByText('Delete')).toBeDisabled()
+
+    await user.click(within(auRow).getByText('Edit'))
+    expect(onEdit).not.toHaveBeenCalled()
+
+    const monetaRow = screen.getByText('MONETA').closest('tr')!
+    expect(within(monetaRow).queryByText('審核中')).not.toBeInTheDocument()
+    expect(within(monetaRow).getByText('Edit')).not.toBeDisabled()
   })
 })

@@ -26,6 +26,9 @@ public class CurrencyPairUpdateRequest {
 
     private Boolean active;
 
+    /** Optional free-text submitter name, passed through to AuditService.submit. */
+    private String requestedBy;
+
     public Long getBrandId() {
         return brandId;
     }
@@ -72,5 +75,13 @@ public class CurrencyPairUpdateRequest {
 
     public void setActive(Boolean active) {
         this.active = active;
+    }
+
+    public String getRequestedBy() {
+        return requestedBy;
+    }
+
+    public void setRequestedBy(String requestedBy) {
+        this.requestedBy = requestedBy;
     }
 }

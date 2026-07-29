@@ -11,6 +11,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/currencies', label: 'Currency Management' },
   { to: '/currency-pairs', label: 'Currency Pair List' },
   { to: '/brands', label: 'Brand Management' },
+  { to: '/audit-requests', label: '審核作業' },
 ]
 
 export function AppShell() {

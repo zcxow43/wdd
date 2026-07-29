@@ -1,6 +1,6 @@
 # backend
 
-Version: 0.0.4
+Version: 0.0.5
 
 Spring Boot REST API for currency, brand and currency pair management (`pl.piomin.services`).
 
@@ -66,8 +66,24 @@ Two related changes ship alongside this feature:
 - `PUT /api/currencies/{id}` no longer accepts/changes `code` — a currency's code is immutable once created.
 - `DELETE /api/currencies/{id}` now returns `409` if the currency is still referenced (as base or quote) by any currency pair.
 
+### Audit / approval workflow
+
+**`POST`/`PUT`/`DELETE /api/currency-pairs...` no longer mutate `currency_pair` directly.** Each now submits a `PENDING` change request through the generic audit module and returns `202 Accepted` with an `AuditRequestResponse` (`before`/`after` snapshots, `status`). The change only lands once approved. See `specs/backend/currency-pair-approval.md` and `specs/backend/audit.md`.
+
+Base path: `/api/audit-requests` (generic — works for any registered `entityType`, e.g. `CURRENCY_PAIR`)
+
+| Method | Path                          | Description                                             |
+|--------|-------------------------------|-----------------------------------------------------------|
+| GET    | /api/audit-requests            | List requests (optional `?entityType=`, `?status=`, `?actionType=`) |
+| GET    | /api/audit-requests/{id}       | Get one request                                            |
+| POST   | /api/audit-requests/{id}/approve | Approve a `PENDING` request (re-validates, then applies)  |
+| POST   | /api/audit-requests/{id}/reject  | Reject a `PENDING` request (requires `rejectReason`)      |
+
+`CurrencyPairAuditHandler` plugs `currency_pair` into this module as `entityType = "CURRENCY_PAIR"`, reusing `CurrencyPairService`/`CurrencyPairValidator` for validation and for actually applying an approved change.
+
 ## Version History
 - 0.0.1 — Initial Currency CRUD API (list/get/create/update/delete), validation, error handling, unit + integration tests.
 - 0.0.2 — Added Brand API (list/get/toggle-active), reusing the `brand` table seeded by `specs/dba/brand.md`; unit + integration tests.
 - 0.0.3 — Added Currency Pair CRUD API (`/api/currency-pairs`), scoped per brand with brand/currency joins for enriched responses; made currency `code` immutable on update; currency delete now blocked (`409`) while referenced by a currency pair; unit + integration tests.
 - 0.0.4 — Currency Pair rate/rateType rule: `MANUAL` requires rate (non-null, >0); `AUTO` forces rate to null (ignores supplied values). Enforced at service layer on create/update; comprehensive unit + integration tests covering all branches.
+- 0.0.5 — Generic audit/approval module (`/api/audit-requests`, `AuditHandler`/`AuditService`/`AuditController`) and `CurrencyPairAuditHandler` plugging `currency_pair` into it: `POST`/`PUT`/`DELETE /api/currency-pairs...` now submit a `PENDING` change request (`202`) instead of mutating directly; a change only lands once approved. Validation logic shared between `CurrencyPairService` and `CurrencyPairAuditHandler` via new `CurrencyPairValidator`. Unit + integration tests covering submit/validate/apply/approve/reject and re-validation-at-approval branches.

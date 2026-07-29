@@ -39,3 +39,23 @@ CREATE TABLE currency_pair (
     updated_at         TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uk_currency_pair_brand_base_quote UNIQUE (brand_id, base_currency_id, quote_currency_id)
 );
+
+DROP TABLE IF EXISTS audit_request;
+
+CREATE TABLE audit_request (
+    id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+    entity_type     VARCHAR(30)    NOT NULL,
+    action_type     VARCHAR(10)    NOT NULL,
+    entity_id       BIGINT         NULL,
+    before_snapshot VARCHAR(4000)  NULL,
+    after_snapshot  VARCHAR(4000)  NULL,
+    summary         VARCHAR(255)   NULL,
+    status          VARCHAR(10)    NOT NULL DEFAULT 'PENDING',
+    requested_by    VARCHAR(100)   NULL,
+    requested_at    DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    reviewed_by     VARCHAR(100)   NULL,
+    reviewed_at     DATETIME       NULL,
+    reject_reason   VARCHAR(255)   NULL,
+    created_at      DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

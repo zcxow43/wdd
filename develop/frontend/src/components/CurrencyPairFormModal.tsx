@@ -24,6 +24,8 @@ interface FormErrors {
 }
 
 const SAME_CURRENCY_ERROR = '基準幣別與對應幣別不可相同'
+const LIVE_DUPLICATE_ERROR = 'Currency pair already exists for this brand'
+const PENDING_DUPLICATE_MESSAGE = '此幣種對已有待審核的異動申請'
 
 export function CurrencyPairFormModal({
   mode,
@@ -92,7 +94,9 @@ export function CurrencyPairFormModal({
       })
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
-        setSubmitError('此品牌已存在相同的幣種對')
+        setSubmitError(
+          error.body?.error === LIVE_DUPLICATE_ERROR ? '此品牌已存在相同的幣種對' : PENDING_DUPLICATE_MESSAGE,
+        )
       } else if (error instanceof ApiError && error.status === 400) {
         setSubmitError(SAME_CURRENCY_ERROR)
       } else {

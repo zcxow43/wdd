@@ -47,7 +47,8 @@ class CurrencyPairServiceTest {
 
     @BeforeEach
     void setUp() {
-        currencyPairService = new CurrencyPairService(currencyPairMapper, brandMapper, currencyMapper);
+        CurrencyPairValidator validator = new CurrencyPairValidator(brandMapper, currencyMapper, currencyPairMapper);
+        currencyPairService = new CurrencyPairService(currencyPairMapper, validator);
     }
 
     private Brand sampleBrand(Long id) {

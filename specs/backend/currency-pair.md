@@ -1,10 +1,13 @@
 ---
 status: done
 title: "Currency Pair API"
-requirement: "Provide REST API for currency pair CRUD (rate manual/auto), scoped per brand; lock currency code on update; block currency delete when referenced by a pair. Delta: when rateType is AUTO, clear any supplied rate to null; when rateType is MANUAL, rate is required."
+requirement: "Provide REST API for currency pair CRUD (rate manual/auto), scoped per brand; lock currency code on update; block currency delete when referenced by a pair. Delta: when rateType is AUTO, clear any supplied rate to null; when rateType is MANUAL, rate is required. Delta 2: create/update/delete no longer apply directly — see specs/backend/currency-pair-approval.md."
 ---
 
 # Currency Pair API — Backend Spec
+
+## Delta: create/update/delete now go through approval (implemented)
+**`POST /api/currency-pairs`, `PUT /api/currency-pairs/{id}`, and `DELETE /api/currency-pairs/{id}` no longer mutate `currency_pair` directly.** They now submit an audit request (`202 Accepted` instead of `201`/`200`/`204`) that must be approved before it takes effect. Implemented per `specs/backend/currency-pair-approval.md`'s "Required changes to the existing Currency Pair API" section (`CurrencyPairAuditHandler` + `CurrencyPairController` delegating to `AuditService.submit`, `specs/backend/audit.md`) — see that spec's Execution Result for details. `GET /api/currency-pairs` and `GET /api/currency-pairs/{id}` are unaffected and keep working exactly as documented below; the Acceptance Criteria below (all `[x]`, describing the pre-delta 201/200/204 contract) remain historically accurate for what they tested at the time and are superseded for POST/PUT/DELETE response codes by `specs/backend/currency-pair-approval.md`, per that file's own Acceptance Criteria.
 
 ## Overview
 Implement a REST API for managing currency pairs, each with an exchange rate that is either manually entered or automatically maintained, and each belonging to exactly one **brand**. Depends on the `currency_pair` table defined in `specs/dba/currency-pair.md`, the `brand` table/API (`specs/dba/brand.md`, `specs/backend/brand.md`), and the existing `currency` table/API (`specs/dba/currency.md`, `specs/backend/currency.md`).

@@ -1,0 +1,39 @@
+.audit-action-badge,
+.audit-status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.audit-action-badge--create {
+  background: var(--color-brand-tint);
+  color: var(--color-brand);
+}
+
+.audit-action-badge--update {
+  background: #eef2ff;
+  color: #2563eb;
+}
+
+.audit-action-badge--delete {
+  background: var(--color-danger-tint);
+  color: var(--color-danger);
+}
+
+.audit-status-badge--pending {
+  background: #fff7e6;
+  color: #d48806;
+}
+
+.audit-status-badge--approved {
+  background: var(--color-brand-tint);
+  color: var(--color-brand);
+}
+
+.audit-status-badge--rejected {
+  background: var(--color-danger-tint);
+  color: var(--color-danger);
+}

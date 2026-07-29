@@ -1,6 +1,7 @@
 package pl.piomin.services.backend.controller;
 
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -20,6 +21,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import pl.piomin.services.backend.audit.AuditRequestMapper;
 import pl.piomin.services.backend.mapper.BrandMapper;
 import pl.piomin.services.backend.mapper.CurrencyMapper;
 import pl.piomin.services.backend.mapper.CurrencyPairMapper;
@@ -27,6 +29,14 @@ import pl.piomin.services.backend.model.Brand;
 import pl.piomin.services.backend.model.Currency;
 import pl.piomin.services.backend.model.CurrencyPair;
 
+/**
+ * Integration tests for {@code /api/currency-pairs}. Per
+ * specs/backend/currency-pair-approval.md, POST/PUT/DELETE no longer mutate
+ * {@code currency_pair} directly - they return {@code 202} with a pending
+ * {@code AuditRequestResponse}, and the change only lands once approved via
+ * the generic {@code /api/audit-requests/{id}/approve} endpoint. GET remains
+ * unaffected and is tested exactly as before.
+ */
 @SpringBootTest
 @AutoConfigureMockMvc
 class CurrencyPairControllerTest {
@@ -44,6 +54,9 @@ class CurrencyPairControllerTest {
     private CurrencyMapper currencyMapper;
 
     @Autowired
+    private AuditRequestMapper auditRequestMapper;
+
+    @Autowired
     private ObjectMapper objectMapper;
 
     private Long pugId;
@@ -54,6 +67,9 @@ class CurrencyPairControllerTest {
 
     @BeforeEach
     void setUp() {
+        for (Long id : auditRequestMapper.findAllIds()) {
+            auditRequestMapper.deleteById(id);
+        }
         for (Long id : currencyPairMapper.findAllIds()) {
             currencyPairMapper.deleteById(id);
         }
@@ -98,6 +114,8 @@ class CurrencyPairControllerTest {
         currencyMapper.insert(currency);
         return currency.getId();
     }
+
+    // --- GET (unaffected by the approval delta) --------------------------------
 
     @Test
     void list_returnsAllPairs_withCodesPopulated() throws Exception {
@@ -147,22 +165,33 @@ class CurrencyPairControllerTest {
                 .andExpect(jsonPath("$.id").value(999999));
     }
 
+    // --- POST (submits a CREATE audit request) --------------------------------
+
     @Test
-    void create_returns201_withCreatedPair() throws Exception {
+    void create_returns202_withPendingCreateRequest_andNoRowInserted() throws Exception {
         String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
             put("brandId", starId);
             put("baseCurrencyId", usdId);
             put("quoteCurrencyId", twdId);
             put("rate", 33.1);
-            put("rateType", "AUTO");
+            put("rateType", "MANUAL");
+            put("requestedBy", "Alice");
         }});
 
         mockMvc.perform(post("/api/currency-pairs").contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").exists())
-                .andExpect(jsonPath("$.brandCode").value("STAR"))
-                .andExpect(jsonPath("$.rateType").value("AUTO"))
-                .andExpect(jsonPath("$.active").value(true));
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.entityType").value("CURRENCY_PAIR"))
+                .andExpect(jsonPath("$.actionType").value("CREATE"))
+                .andExpect(jsonPath("$.entityId").value(nullValue()))
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.before").value(nullValue()))
+                .andExpect(jsonPath("$.after.brandCode").value("STAR"))
+                .andExpect(jsonPath("$.after.baseCurrencyCode").value("USD"))
+                .andExpect(jsonPath("$.after.quoteCurrencyCode").value("TWD"))
+                .andExpect(jsonPath("$.requestedBy").value("Alice"));
+
+        // no row inserted into currency_pair - still just the seeded PUG pair
+        org.assertj.core.api.Assertions.assertThat(currencyPairMapper.findAll(null, null)).hasSize(1);
     }
 
     @Test
@@ -211,7 +240,7 @@ class CurrencyPairControllerTest {
     }
 
     @Test
-    void create_returns409_whenDuplicatePairForSameBrand() throws Exception {
+    void create_returns409_whenLivePairAlreadyExistsForSameBrand() throws Exception {
         String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
             put("brandId", pugId);
             put("baseCurrencyId", usdId);
@@ -239,8 +268,8 @@ class CurrencyPairControllerTest {
         }});
 
         mockMvc.perform(post("/api/currency-pairs").contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.brandCode").value("STAR"));
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.after.brandCode").value("STAR"));
     }
 
     @Test
@@ -255,7 +284,26 @@ class CurrencyPairControllerTest {
                 .andExpect(jsonPath("$.details.rateType").exists());
     }
 
-    // Rate/rateType rule integration tests (delta)
+    @Test
+    void create_returns409_whenPendingCreateAlreadyExistsForSameTriple() throws Exception {
+        String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
+            put("brandId", starId);
+            put("baseCurrencyId", usdId);
+            put("quoteCurrencyId", twdId);
+            put("rate", 33.0);
+            put("rateType", "MANUAL");
+        }});
+
+        mockMvc.perform(post("/api/currency-pairs").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isAccepted());
+
+        mockMvc.perform(post("/api/currency-pairs").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error")
+                        .value("A pending create request already exists for this brand/base/quote combination"));
+    }
+
+    // Rate/rateType rule tests (unchanged business rule, now enforced at submit time)
 
     @Test
     void create_returns400_whenRateTypeManualWithoutRate() throws Exception {
@@ -288,23 +336,7 @@ class CurrencyPairControllerTest {
     }
 
     @Test
-    void create_returns400_whenRateTypeManualWithRateNegative() throws Exception {
-        String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
-            put("brandId", starId);
-            put("baseCurrencyId", usdId);
-            put("quoteCurrencyId", twdId);
-            put("rate", -1.5);
-            put("rateType", "MANUAL");
-        }});
-
-        mockMvc.perform(post("/api/currency-pairs").contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("Validation failed"))
-                .andExpect(jsonPath("$.details.rate").value("rate must be greater than 0"));
-    }
-
-    @Test
-    void create_returns201WithRateNull_whenRateTypeAutoWithRateSupplied() throws Exception {
+    void create_returns202WithRateNull_whenRateTypeAutoWithRateSupplied() throws Exception {
         String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
             put("brandId", starId);
             put("baseCurrencyId", usdId);
@@ -314,14 +346,13 @@ class CurrencyPairControllerTest {
         }});
 
         mockMvc.perform(post("/api/currency-pairs").contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").exists())
-                .andExpect(jsonPath("$.rate").doesNotExist())
-                .andExpect(jsonPath("$.rateType").value("AUTO"));
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.after.rate").value(nullValue()))
+                .andExpect(jsonPath("$.after.rateType").value("AUTO"));
     }
 
     @Test
-    void create_returns201WithRateNull_whenRateTypeAutoWithoutRate() throws Exception {
+    void create_returns202WithRateNull_whenRateTypeAutoWithoutRate() throws Exception {
         String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
             put("brandId", starId);
             put("baseCurrencyId", usdId);
@@ -330,110 +361,34 @@ class CurrencyPairControllerTest {
         }});
 
         mockMvc.perform(post("/api/currency-pairs").contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").exists())
-                .andExpect(jsonPath("$.rate").doesNotExist())
-                .andExpect(jsonPath("$.rateType").value("AUTO"));
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.after.rate").value(nullValue()))
+                .andExpect(jsonPath("$.after.rateType").value("AUTO"));
     }
 
-    @Test
-    void update_clearsRate_whenSwitchingManualToAuto() throws Exception {
-        String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
-            put("rateType", "AUTO");
-        }});
-
-        mockMvc.perform(put("/api/currency-pairs/{id}", pairId).contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.rate").doesNotExist())
-                .andExpect(jsonPath("$.rateType").value("AUTO"));
-    }
+    // --- PUT (submits an UPDATE audit request) ---------------------------------
 
     @Test
-    void update_clearsRate_whenSwitchingToAutoEvenIfRateSupplied() throws Exception {
-        String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
-            put("rateType", "AUTO");
-            put("rate", 999.0);
-        }});
-
-        mockMvc.perform(put("/api/currency-pairs/{id}", pairId).contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.rate").doesNotExist())
-                .andExpect(jsonPath("$.rateType").value("AUTO"));
-    }
-
-    @Test
-    void update_returns400_whenSwitchingAutoToManualWithoutRate() throws Exception {
-        // First create an AUTO pair with rate null
-        CurrencyPair autoPair = new CurrencyPair();
-        autoPair.setBrandId(starId);
-        autoPair.setBaseCurrencyId(usdId);
-        autoPair.setQuoteCurrencyId(twdId);
-        autoPair.setRate(null);
-        autoPair.setRateType("AUTO");
-        autoPair.setActive(true);
-        currencyPairMapper.insert(autoPair);
-
-        String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
-            put("rateType", "MANUAL");
-        }});
-
-        mockMvc.perform(put("/api/currency-pairs/{id}", autoPair.getId()).contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("rate is required and must be greater than 0 when rateType is MANUAL"));
-    }
-
-    @Test
-    void update_succeeds_whenSwitchingToManualWithValidRate() throws Exception {
-        // First create an AUTO pair with rate null
-        CurrencyPair autoPair = new CurrencyPair();
-        autoPair.setBrandId(starId);
-        autoPair.setBaseCurrencyId(usdId);
-        autoPair.setQuoteCurrencyId(twdId);
-        autoPair.setRate(null);
-        autoPair.setRateType("AUTO");
-        autoPair.setActive(true);
-        currencyPairMapper.insert(autoPair);
-
-        String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
-            put("rateType", "MANUAL");
-            put("rate", 42.0);
-        }});
-
-        mockMvc.perform(put("/api/currency-pairs/{id}", autoPair.getId()).contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.rate").value(42.0))
-                .andExpect(jsonPath("$.rateType").value("MANUAL"));
-    }
-
-    @Test
-    void getById_serializesRateAsNull_whenRateTypeAuto() throws Exception {
-        // Create an AUTO pair
-        CurrencyPair autoPair = new CurrencyPair();
-        autoPair.setBrandId(starId);
-        autoPair.setBaseCurrencyId(usdId);
-        autoPair.setQuoteCurrencyId(twdId);
-        autoPair.setRate(null);
-        autoPair.setRateType("AUTO");
-        autoPair.setActive(true);
-        currencyPairMapper.insert(autoPair);
-
-        mockMvc.perform(get("/api/currency-pairs/{id}", autoPair.getId()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.rate").doesNotExist())
-                .andExpect(jsonPath("$.rateType").value("AUTO"));
-    }
-
-    @Test
-    void update_returns200_withUpdatedPair() throws Exception {
+    void update_returns202_withBeforeAndMergedAfter_andLivePairUnchanged() throws Exception {
         String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
             put("rate", 40.0);
-            put("active", false);
+            put("requestedBy", "Alice");
         }});
 
         mockMvc.perform(put("/api/currency-pairs/{id}", pairId).contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.rate").value(40.0))
-                .andExpect(jsonPath("$.active").value(false));
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.entityType").value("CURRENCY_PAIR"))
+                .andExpect(jsonPath("$.actionType").value("UPDATE"))
+                .andExpect(jsonPath("$.entityId").value(pairId))
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.before.rate").value(32.5))
+                .andExpect(jsonPath("$.before.brandCode").value("PUG"))
+                .andExpect(jsonPath("$.after.rate").value(40.0))
+                .andExpect(jsonPath("$.after.brandCode").value("PUG"))
+                .andExpect(jsonPath("$.requestedBy").value("Alice"));
+
+        CurrencyPair live = currencyPairMapper.findById(pairId);
+        org.assertj.core.api.Assertions.assertThat(live.getRate()).isEqualByComparingTo("32.5");
     }
 
     @Test
@@ -459,12 +414,107 @@ class CurrencyPairControllerTest {
     }
 
     @Test
-    void delete_returns204_whenFound() throws Exception {
+    void update_returns409_whenPendingUpdateAlreadyExists() throws Exception {
+        String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
+            put("rate", 40.0);
+        }});
+
+        mockMvc.perform(put("/api/currency-pairs/{id}", pairId).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isAccepted());
+
+        mockMvc.perform(put("/api/currency-pairs/{id}", pairId).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void update_clearsRateToNull_whenSwitchingManualToAuto() throws Exception {
+        String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
+            put("rateType", "AUTO");
+        }});
+
+        mockMvc.perform(put("/api/currency-pairs/{id}", pairId).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.after.rate").value(nullValue()))
+                .andExpect(jsonPath("$.after.rateType").value("AUTO"));
+    }
+
+    @Test
+    void update_returns400_whenSwitchingAutoToManualWithoutRate() throws Exception {
+        CurrencyPair autoPair = new CurrencyPair();
+        autoPair.setBrandId(starId);
+        autoPair.setBaseCurrencyId(usdId);
+        autoPair.setQuoteCurrencyId(twdId);
+        autoPair.setRate(null);
+        autoPair.setRateType("AUTO");
+        autoPair.setActive(true);
+        currencyPairMapper.insert(autoPair);
+
+        String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
+            put("rateType", "MANUAL");
+        }});
+
+        mockMvc.perform(put("/api/currency-pairs/{id}", autoPair.getId()).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("rate is required and must be greater than 0 when rateType is MANUAL"));
+    }
+
+    @Test
+    void update_returns400_whenNewBaseEqualsQuote() throws Exception {
+        String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
+            put("baseCurrencyId", twdId);
+        }});
+
+        mockMvc.perform(put("/api/currency-pairs/{id}", pairId).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Base and quote currency must differ"));
+    }
+
+    @Test
+    void update_returns409_whenCollidesWithAnotherLiveRow() throws Exception {
+        CurrencyPair other = new CurrencyPair();
+        other.setBrandId(pugId);
+        other.setBaseCurrencyId(twdId);
+        other.setQuoteCurrencyId(usdId);
+        other.setRate(new BigDecimal("1.0"));
+        other.setRateType("MANUAL");
+        other.setActive(true);
+        currencyPairMapper.insert(other);
+
+        String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
+            put("baseCurrencyId", twdId);
+            put("quoteCurrencyId", usdId);
+        }});
+
+        mockMvc.perform(put("/api/currency-pairs/{id}", pairId).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isConflict());
+    }
+
+    // --- DELETE (submits a DELETE audit request) --------------------------------
+
+    @Test
+    void delete_returns202_withBeforeSnapshot_andPairStillExists() throws Exception {
         mockMvc.perform(delete("/api/currency-pairs/{id}", pairId))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.entityType").value("CURRENCY_PAIR"))
+                .andExpect(jsonPath("$.actionType").value("DELETE"))
+                .andExpect(jsonPath("$.entityId").value(pairId))
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.before.brandCode").value("PUG"))
+                .andExpect(jsonPath("$.after").value(nullValue()));
 
         mockMvc.perform(get("/api/currency-pairs/{id}", pairId))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void delete_withRequestedBy_returns202() throws Exception {
+        String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
+            put("requestedBy", "Bob");
+        }});
+
+        mockMvc.perform(delete("/api/currency-pairs/{id}", pairId).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.requestedBy").value("Bob"));
     }
 
     @Test
@@ -472,5 +522,133 @@ class CurrencyPairControllerTest {
         mockMvc.perform(delete("/api/currency-pairs/{id}", 999999))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("Currency pair not found"));
+    }
+
+    @Test
+    void delete_returns409_whenPendingDeleteAlreadyExists() throws Exception {
+        mockMvc.perform(delete("/api/currency-pairs/{id}", pairId))
+                .andExpect(status().isAccepted());
+
+        mockMvc.perform(delete("/api/currency-pairs/{id}", pairId))
+                .andExpect(status().isConflict());
+    }
+
+    // --- Approval round-trip (via the generic /api/audit-requests endpoints) ---
+
+    @Test
+    void approve_createRequest_insertsRowAndSetsEntityId() throws Exception {
+        String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
+            put("brandId", starId);
+            put("baseCurrencyId", usdId);
+            put("quoteCurrencyId", twdId);
+            put("rate", 33.0);
+            put("rateType", "MANUAL");
+        }});
+
+        String response = mockMvc.perform(post("/api/currency-pairs").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        Long requestId = objectMapper.readTree(response).get("id").asLong();
+
+        mockMvc.perform(post("/api/audit-requests/{id}/approve", requestId)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"reviewedBy\":\"Bob\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("APPROVED"))
+                .andExpect(jsonPath("$.entityId").exists());
+
+        org.assertj.core.api.Assertions.assertThat(currencyPairMapper.findAll(starId, null)).hasSize(1);
+    }
+
+    @Test
+    void approve_updateRequest_overwritesLivePair() throws Exception {
+        String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
+            put("rate", 50.0);
+        }});
+
+        String response = mockMvc.perform(put("/api/currency-pairs/{id}", pairId)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        Long requestId = objectMapper.readTree(response).get("id").asLong();
+
+        mockMvc.perform(post("/api/audit-requests/{id}/approve", requestId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("APPROVED"));
+
+        CurrencyPair live = currencyPairMapper.findById(pairId);
+        org.assertj.core.api.Assertions.assertThat(live.getRate()).isEqualByComparingTo("50.0");
+    }
+
+    @Test
+    void approve_deleteRequest_deletesLivePair() throws Exception {
+        String response = mockMvc.perform(delete("/api/currency-pairs/{id}", pairId))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        Long requestId = objectMapper.readTree(response).get("id").asLong();
+
+        mockMvc.perform(post("/api/audit-requests/{id}/approve", requestId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("APPROVED"));
+
+        mockMvc.perform(get("/api/currency-pairs/{id}", pairId))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void approve_updateRequest_returns409_andLeavesPending_whenDuplicateNowExistsAtApprovalTime() throws Exception {
+        String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
+            put("baseCurrencyId", twdId);
+            put("quoteCurrencyId", usdId);
+        }});
+
+        String response = mockMvc.perform(put("/api/currency-pairs/{id}", pairId)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        Long requestId = objectMapper.readTree(response).get("id").asLong();
+
+        // Someone else creates the colliding live row directly after submission.
+        CurrencyPair other = new CurrencyPair();
+        other.setBrandId(pugId);
+        other.setBaseCurrencyId(twdId);
+        other.setQuoteCurrencyId(usdId);
+        other.setRate(new BigDecimal("1.0"));
+        other.setRateType("MANUAL");
+        other.setActive(true);
+        currencyPairMapper.insert(other);
+
+        mockMvc.perform(post("/api/audit-requests/{id}/approve", requestId))
+                .andExpect(status().isConflict());
+
+        mockMvc.perform(get("/api/audit-requests/{id}", requestId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDING"));
+
+        // live pair (id=pairId) unaffected
+        CurrencyPair live = currencyPairMapper.findById(pairId);
+        org.assertj.core.api.Assertions.assertThat(live.getBaseCurrencyId()).isEqualTo(usdId);
+    }
+
+    @Test
+    void approve_updateRequest_returns404_andLeavesPending_whenTargetPairDeletedBeforeApproval() throws Exception {
+        String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
+            put("rate", 60.0);
+        }});
+
+        String response = mockMvc.perform(put("/api/currency-pairs/{id}", pairId)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        Long requestId = objectMapper.readTree(response).get("id").asLong();
+
+        // Row removed directly (bypassing audit) between submission and approval.
+        currencyPairMapper.deleteById(pairId);
+
+        mockMvc.perform(post("/api/audit-requests/{id}/approve", requestId))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/api/audit-requests/{id}", requestId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDING"));
     }
 }

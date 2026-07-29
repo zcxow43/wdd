@@ -1,0 +1,28 @@
+.audit-generic-diff-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.audit-generic-diff-table th,
+.audit-generic-diff-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-row-divider);
+  text-align: left;
+  word-break: break-word;
+}
+
+.audit-generic-diff-table th {
+  background: #fafafa;
+  font-weight: 500;
+}
+
+.audit-generic-diff-row--changed td {
+  background: #fffbe6;
+}
+
+.audit-diff-empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--color-text-muted);
+}

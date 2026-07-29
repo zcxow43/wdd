@@ -2,8 +2,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { currencyPairApi } from '../api/currencyPairApi'
 import { brandApi } from '../api/brandApi'
 import { currencyApi } from '../api/currencyApi'
+import { auditApi } from '../audit/auditApi'
+import { registerDiffRenderer } from '../audit/diffRegistry'
 import { ApiError } from '../api/client'
 import { CurrencyPairTable } from '../components/CurrencyPairTable'
+import { renderCurrencyPairDiff } from '../components/CurrencyPairDiff'
 import { StatusFilter } from '../components/StatusFilter'
 import { BrandFilter } from '../components/BrandFilter'
 import { CurrencyPairFormModal } from '../components/CurrencyPairFormModal'
@@ -15,12 +18,22 @@ import type { Brand } from '../types/brand'
 import type { Currency } from '../types/currency'
 import './CurrencyPairPage.css'
 
+// Registers this feature's diff renderer with the generic audit module, so
+// the Audit page (`/audit-requests`) can render CURRENCY_PAIR requests with
+// the proper labeled before/after layout instead of the generic fallback.
+// Runs once, at module load, as soon as this page module is imported (App.tsx
+// imports it eagerly alongside the route registration) — well before the
+// Audit page can be visited. See specs/frontend/currency-pair-approval.md.
+registerDiffRenderer('CURRENCY_PAIR', renderCurrencyPairDiff)
+
 type FormModalState = { mode: 'create' } | { mode: 'edit'; pair: CurrencyPair } | null
 
 const NETWORK_ERROR_MESSAGE = '網路錯誤，請稍後再試'
 const PAIR_NOT_FOUND_MESSAGE = '幣種對不存在，請重新整理頁面'
 const BRAND_NOT_FOUND_MESSAGE = '品牌不存在，請重新整理頁面'
 const CURRENCY_NOT_FOUND_MESSAGE = '幣種不存在，請重新整理頁面'
+const LIVE_DUPLICATE_ERROR = 'Currency pair already exists for this brand'
+const PENDING_DUPLICATE_MESSAGE = '此幣種對已有待審核的異動申請'
 
 function toActiveParam(filter: StatusFilterValue): boolean | undefined {
   if (filter === 'ACTIVE') return true
@@ -35,6 +48,11 @@ function notFoundMessage(error: ApiError): string {
   return CURRENCY_NOT_FOUND_MESSAGE
 }
 
+/** A 409 whose message isn't the "live duplicate" case is a pending-request conflict. */
+function isPendingDuplicateConflict(error: ApiError): boolean {
+  return error.body?.error !== LIVE_DUPLICATE_ERROR
+}
+
 export function CurrencyPairPage() {
   const { showToast } = useToast()
   const [pairs, setPairs] = useState<CurrencyPair[]>([])
@@ -47,6 +65,7 @@ export function CurrencyPairPage() {
   const [formModal, setFormModal] = useState<FormModalState>(null)
   const [deleteTarget, setDeleteTarget] = useState<CurrencyPair | null>(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
+  const [pendingIds, setPendingIds] = useState<Set<number>>(new Set())
 
   const fetchPairs = useCallback(async () => {
     setLoading(true)
@@ -65,9 +84,30 @@ export function CurrencyPairPage() {
     }
   }, [brandFilter, statusFilter, showToast])
 
+  // Rows with a PENDING request against them are marked and their
+  // Edit/Delete actions disabled, to avoid the "already has a pending
+  // request" 409 in the common case. Fetched independently of the
+  // brand/status filters since it must match every pair's id, not just the
+  // currently-filtered ones.
+  const fetchPendingIds = useCallback(async () => {
+    try {
+      const requests = await auditApi.list({ entityType: 'CURRENCY_PAIR', status: 'PENDING' })
+      setPendingIds(
+        new Set(requests.filter((request) => request.entityId !== null).map((request) => request.entityId as number)),
+      )
+    } catch {
+      // Non-critical for the page's core functionality — leave the previous
+      // badge state as-is rather than surfacing another error toast.
+    }
+  }, [])
+
+  const refresh = useCallback(async () => {
+    await Promise.all([fetchPairs(), fetchPendingIds()])
+  }, [fetchPairs, fetchPendingIds])
+
   useEffect(() => {
-    fetchPairs()
-  }, [fetchPairs])
+    refresh()
+  }, [refresh])
 
   useEffect(() => {
     brandApi.list().then(setBrands).catch(() => showToast(NETWORK_ERROR_MESSAGE))
@@ -78,12 +118,19 @@ export function CurrencyPairPage() {
     try {
       await currencyPairApi.create(input)
       setFormModal(null)
-      await fetchPairs()
+      showToast('已送出新增申請，待審核', 'success')
+      await refresh()
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) {
         showToast(notFoundMessage(error))
         setFormModal(null)
-        await fetchPairs()
+        await refresh()
+        return
+      }
+      if (error instanceof ApiError && error.status === 409 && isPendingDuplicateConflict(error)) {
+        showToast(PENDING_DUPLICATE_MESSAGE)
+        setFormModal(null)
+        await refresh()
         return
       }
       throw error
@@ -94,12 +141,19 @@ export function CurrencyPairPage() {
     try {
       await currencyPairApi.update(id, input)
       setFormModal(null)
-      await fetchPairs()
+      showToast('已送出修改申請，待審核', 'success')
+      await refresh()
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) {
         showToast(notFoundMessage(error))
         setFormModal(null)
-        await fetchPairs()
+        await refresh()
+        return
+      }
+      if (error instanceof ApiError && error.status === 409 && isPendingDuplicateConflict(error)) {
+        showToast(PENDING_DUPLICATE_MESSAGE)
+        setFormModal(null)
+        await refresh()
         return
       }
       throw error
@@ -112,15 +166,18 @@ export function CurrencyPairPage() {
     try {
       await currencyPairApi.remove(deleteTarget.id)
       setDeleteTarget(null)
-      await fetchPairs()
+      showToast('已送出刪除申請，待審核', 'success')
+      await refresh()
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) {
         showToast(PAIR_NOT_FOUND_MESSAGE)
+      } else if (error instanceof ApiError && error.status === 409) {
+        showToast(PENDING_DUPLICATE_MESSAGE)
       } else {
         showToast(NETWORK_ERROR_MESSAGE)
       }
       setDeleteTarget(null)
-      await fetchPairs()
+      await refresh()
     } finally {
       setDeleteBusy(false)
     }
@@ -160,7 +217,7 @@ export function CurrencyPairPage() {
           {!loading && loadError && (
             <div className="table-empty currency-pair-table-status--error">
               資料載入失敗
-              <button type="button" className="btn btn-link" onClick={fetchPairs}>
+              <button type="button" className="btn btn-link" onClick={refresh}>
                 重試
               </button>
             </div>
@@ -168,6 +225,7 @@ export function CurrencyPairPage() {
           {!loading && !loadError && (
             <CurrencyPairTable
               pairs={pairs}
+              pendingIds={pendingIds}
               onEdit={(pair) => setFormModal({ mode: 'edit', pair })}
               onDelete={(pair) => setDeleteTarget(pair)}
             />
@@ -203,7 +261,7 @@ export function CurrencyPairPage() {
       {deleteTarget && (
         <ConfirmDialog
           title="刪除幣種對"
-          message={`確定要刪除 ${deleteTarget.brandCode} 品牌的幣種對 ${deleteTarget.baseCurrencyCode}/${deleteTarget.quoteCurrencyCode} 嗎？`}
+          message={`確定要送出刪除 ${deleteTarget.brandCode} 品牌幣種對 ${deleteTarget.baseCurrencyCode}/${deleteTarget.quoteCurrencyCode} 的申請嗎？`}
           onConfirm={handleConfirmDelete}
           onCancel={() => setDeleteTarget(null)}
           busy={deleteBusy}
