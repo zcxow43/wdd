@@ -37,7 +37,9 @@ export function CurrencyPairFormModal({
   const [baseCurrencyId, setBaseCurrencyId] = useState<string>(initial ? String(initial.baseCurrencyId) : '')
   const [quoteCurrencyId, setQuoteCurrencyId] = useState<string>(initial ? String(initial.quoteCurrencyId) : '')
   const [rateType, setRateType] = useState<RateType>(initial?.rateType ?? 'MANUAL')
-  const [rate, setRate] = useState<string>(initial ? String(initial.rate) : '')
+  const [rate, setRate] = useState<string>(
+    initial && initial.rate !== null && initial.rateType === 'MANUAL' ? String(initial.rate) : ''
+  )
   const [active, setActive] = useState(initial?.active ?? true)
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -45,6 +47,12 @@ export function CurrencyPairFormModal({
 
   const sameCurrency = baseCurrencyId !== '' && quoteCurrencyId !== '' && baseCurrencyId === quoteCurrencyId
   const quoteError = sameCurrency ? SAME_CURRENCY_ERROR : errors.quoteCurrencyId
+
+  function handleRateTypeChange(newRateType: RateType) {
+    setRateType(newRateType)
+    setRate('')
+    setErrors((prev) => ({ ...prev, rate: undefined }))
+  }
 
   function validate(): FormErrors {
     const next: FormErrors = {}
@@ -54,9 +62,11 @@ export function CurrencyPairFormModal({
     if (baseCurrencyId && quoteCurrencyId && baseCurrencyId === quoteCurrencyId) {
       next.quoteCurrencyId = SAME_CURRENCY_ERROR
     }
-    const rateValue = Number(rate)
-    if (!rate.trim() || Number.isNaN(rateValue) || rateValue <= 0) {
-      next.rate = '匯率為必填，且須大於 0'
+    if (rateType === 'MANUAL') {
+      const rateValue = Number(rate)
+      if (!rate.trim() || Number.isNaN(rateValue) || rateValue <= 0) {
+        next.rate = '匯率為必填，且須大於 0'
+      }
     }
     return next
   }
@@ -76,7 +86,7 @@ export function CurrencyPairFormModal({
         brandId: Number(brandId),
         baseCurrencyId: Number(baseCurrencyId),
         quoteCurrencyId: Number(quoteCurrencyId),
-        rate: Number(rate),
+        rate: rateType === 'AUTO' ? null : Number(rate),
         rateType,
         active,
       })
@@ -152,7 +162,11 @@ export function CurrencyPairFormModal({
 
         <div className="form-field">
           <label htmlFor="rateType">匯率類型</label>
-          <select id="rateType" value={rateType} onChange={(event) => setRateType(event.target.value as RateType)}>
+          <select
+            id="rateType"
+            value={rateType}
+            onChange={(event) => handleRateTypeChange(event.target.value as RateType)}
+          >
             <option value="MANUAL">手動</option>
             <option value="AUTO">自動</option>
           </select>
@@ -168,10 +182,10 @@ export function CurrencyPairFormModal({
             value={rate}
             onChange={(event) => setRate(event.target.value)}
             aria-invalid={Boolean(errors.rate)}
+            disabled={rateType === 'AUTO'}
+            placeholder={rateType === 'AUTO' ? '系統自動維護' : ''}
           />
-          {rateType === 'AUTO' && (
-            <span className="field-hint">系統將自動更新匯率，此值為目前/備援匯率</span>
-          )}
+          {rateType === 'AUTO' && <span className="field-hint">系統將自動維護匯率</span>}
           {errors.rate && <span className="field-error">{errors.rate}</span>}
         </div>
 

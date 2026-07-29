@@ -1,7 +1,7 @@
 ---
 status: done
 title: "Currency Pair Table Page"
-requirement: "Display currency pairs in a table with CRUD operations, scoped per brand, exchange rate manual/auto; surface currency delete-blocked error"
+requirement: "Display currency pairs in a table with CRUD operations, scoped per brand, exchange rate manual/auto; surface currency delete-blocked error. Delta: when rate type is AUTO, clear/disable the rate input; when MANUAL, rate is required."
 ---
 
 # Currency Pair Table Page — Frontend Spec
@@ -17,8 +17,16 @@ This spec also requires a small update to the existing Currency page (`develop/f
 - Add new pair via modal form; brand, base/quote pickers sourced from `/api/brands` and `/api/currencies`
 - Edit existing pair via modal (brand, base/quote, and rate/rateType editable)
 - Delete with confirmation
-- Rate input behavior differs by `rateType`: `MANUAL` requires the user to type the rate; `AUTO` marks the rate as system-maintained but still allows an editable fallback value (no automatic sync job exists yet — out of scope, per `specs/backend/currency-pair.md`)
+- Rate input behavior differs by `rateType`: `MANUAL` requires the user to type the rate; `AUTO` marks the rate as system-maintained (no automatic sync job exists yet — out of scope, per `specs/backend/currency-pair.md`)
 - Existing Currency page delete flow must display a clear error when the backend rejects deletion because the currency is referenced by a pair
+
+### Delta: rate cleared/disabled for AUTO, required for MANUAL
+- When `匯率類型` (rateType) is `自動` (AUTO): the `匯率` (rate) input is **disabled and its value cleared** (shown blank or a placeholder like "系統自動維護"), since the backend now clears/ignores `rate` for `AUTO` pairs (`specs/backend/currency-pair.md`) — it is no longer an editable fallback value. No validation error is shown for a blank rate in this mode.
+- When `匯率類型` is `手動` (MANUAL): the `匯率` input is **enabled and required** — validation shows "匯率為必填，且須大於 0" if left blank, non-numeric, or `<= 0`, same as before.
+- Switching `匯率類型` from `自動` to `手動` in the form clears any stale disabled-state value and re-enables the field, requiring the user to enter a rate before submitting.
+- Switching from `手動` to `自動` clears the previously-typed rate value in the form (matching what the backend will persist) rather than silently submitting a rate that will be discarded.
+- The `CurrencyPair`/`CurrencyPairInput` types' `rate` field becomes `number | null` to reflect the backend's nullable `rate`.
+- Table column `匯率`: render `—` when `rate` is `null` (i.e. any `AUTO` pair), instead of attempting to format `null` as a number.
 
 ## Page Layout
 
@@ -68,7 +76,7 @@ Form fields:
 | 基準幣別   | Select (from currency list) | Required, must differ from quote                    |
 | 對應幣別   | Select (from currency list) | Required, must differ from base                     |
 | 匯率類型   | Radio / Select: 手動 / 自動 | Required                                              |
-| 匯率       | Number                   | Required, > 0. When `自動` selected, show helper text "系統將自動更新匯率，此值為目前/備援匯率" but keep the field editable |
+| 匯率       | Number                   | **`手動`**: required, > 0, field enabled. **`自動`**: field disabled and cleared to empty/`null`, no validation error shown; helper text "系統將自動維護匯率" displayed instead |
 | 狀態       | Toggle                   | Default: on                                           |
 
 The brand dropdown is populated from `GET /api/brands` (all brands, active or not — a pair under a currently-disabled brand can still be viewed/edited). Currency dropdowns are populated from `GET /api/currencies` (active currencies only, or all — consistent with how the Currency page's own filters work). Selecting the same value for both base and quote shows an inline error and disables submit.
@@ -89,7 +97,7 @@ The brand dropdown is populated from `GET /api/brands` (all brands, active or no
 | Delete   | DELETE | /api/currency-pairs/{id}      | Confirm dialog                |
 
 ### Error Handling
-- **400 on create/update** (base == quote, rate ≤ 0, invalid type): show inline field error, e.g. "基準幣別與對應幣別不可相同"
+- **400 on create/update** (base == quote, rate ≤ 0, invalid type, or missing `rate` while `rateType` is `MANUAL`): show inline field error, e.g. "基準幣別與對應幣別不可相同" or "匯率為必填，且須大於 0"
 - **404 on create/update** (referenced currency or brand missing): show toast "幣種不存在，請重新整理頁面" or "品牌不存在，請重新整理頁面"
 - **409 on create/update** (duplicate pair within the same brand): show inline error "此品牌已存在相同的幣種對"
 - **404 on edit/delete** (pair itself missing): show toast "幣種對不存在，請重新整理頁面"
@@ -122,6 +130,11 @@ No change is required to the currency edit modal's code-field handling — it al
 - [x] Table refreshes after create/update/delete
 - [x] Empty state shown when no pairs match filter
 - [x] Currency page delete flow shows "此幣種已配置於幣種對，無法刪除" on the new 409 response and leaves the row in place
+- [x] Selecting `自動` disables the `匯率` input and clears its value; no "required" error is shown for it
+- [x] Selecting `手動` (including switching from `自動`) re-enables the `匯率` input and requires a valid value (> 0) before submit
+- [x] Submitting the form with `自動` selected sends `rate: null` (or omits `rate`) rather than a stale typed value
+- [x] Table renders `—` in the `匯率` column for any pair with `rate: null`
+- [x] Edit modal correctly reflects a loaded `AUTO` pair (rate `null`) as disabled/blank, and a loaded `MANUAL` pair with its numeric rate, enabled
 
 ---
 ## Execution Result
@@ -149,3 +162,28 @@ No change is required to the currency edit modal's code-field handling — it al
   - Currency page: 409 delete handling intentionally does **not** call `fetchCurrencies()` afterward (unlike the 404/network branches), since nothing changed server-side and the row must be left in place exactly as rendered — verified by a test asserting `list` was called only once (the initial mount) even after the failed delete attempt.
   - `npm run build` (`tsc -b && vite build`) and `npm test` (Vitest) both pass: 9 test files, 56 tests total (up from 24 prior to this task), 0 failures. `npm run lint` (Oxlint) passes with only the pre-existing benign fast-refresh warning on `ToastProvider.tsx`.
   - No backend or DBA changes were made as part of this frontend task; the currency-pair backend API and the currency-delete 409 guard already existed per `specs/backend/currency-pair.md` (status: done) at the start of this task.
+
+### Increment 1 — 2026-07-27
+- Status: DONE
+- Delta implemented: Rate cleared/disabled for AUTO, required for MANUAL
+- Files changed:
+  - develop/frontend/src/types/currencyPair.ts (edited — `rate` field in both `CurrencyPair` and `CurrencyPairInput` changed from `number` to `number | null` to reflect the backend's nullable rate)
+  - develop/frontend/src/components/CurrencyPairTable.tsx (edited — `formatRate()` now handles `null` rate by returning `—`, matching the spec's table rendering requirement for AUTO pairs)
+  - develop/frontend/src/components/CurrencyPairTable.test.tsx (edited — updated test data to have `rate: null` for AUTO pair; added dedicated test `renders — in the rate column when rate is null (AUTO pairs)` verifying the `—` display)
+  - develop/frontend/src/components/CurrencyPairFormModal.tsx (edited — added `handleRateTypeChange()` that clears the rate field and validation errors when switching rateType; updated initial rate state to be blank when initial pair is AUTO or rate is null; `validate()` now skips rate validation when `rateType === 'AUTO'`; `handleSubmit()` sends `rate: null` when AUTO, `Number(rate)` when MANUAL; rate input now has `disabled={rateType === 'AUTO'}` and a placeholder "系統自動維護"; helper text changed from "系統將自動更新匯率，此值為目前/備援匯率" to "系統將自動維護匯率")
+  - develop/frontend/src/components/CurrencyPairFormModal.test.tsx (edited — updated existing "pre-fills values" test to verify AUTO disables the input and clears it; added 5 new tests: `disables and clears the rate input when AUTO is selected`, `re-enables and requires rate when switching from AUTO to MANUAL`, `does not show rate validation error when AUTO is selected and rate is blank`, `submits rate: null when AUTO is selected`, `correctly reflects a loaded AUTO pair with null rate as disabled/blank`)
+- Acceptance criteria completed (all 5 previously unchecked items now checked):
+  - [x] Selecting 自動 disables the 匯率 input and clears its value; no "required" error is shown for it
+  - [x] Selecting 手動 (including switching from 自動) re-enables the 匯率 input and requires a valid value (> 0) before submit
+  - [x] Submitting the form with 自動 selected sends `rate: null` rather than a stale typed value
+  - [x] Table renders `—` in the 匯率 column for any pair with `rate: null`
+  - [x] Edit modal correctly reflects a loaded AUTO pair (rate null) as disabled/blank, and a loaded MANUAL pair with its numeric rate, enabled
+- Verification:
+  - `npm run build` passes (tsc + vite build, 0 errors)
+  - `npm test` passes (62 tests total across 9 test files, up from 56 tests before this increment, 0 failures)
+  - `npm run lint` passes (only the pre-existing ToastProvider.tsx fast-refresh warning)
+- Notes:
+  - The rate input field is now fully dynamic: AUTO mode disables and clears it (with placeholder "系統自動維護" and helper text "系統將自動維護匯率"), MANUAL mode enables it and requires a value > 0.
+  - Switching rateType in either direction clears the rate field and any validation errors, ensuring no stale values are submitted.
+  - Edit modal correctly initializes with blank/disabled rate for AUTO pairs loaded from the backend (rate: null) and numeric/enabled rate for MANUAL pairs.
+  - The backend delta (AUTO pairs force rate to null, MANUAL pairs require rate > 0) was already implemented per `specs/backend/currency-pair.md`; this increment aligns the frontend UI with that behavior.

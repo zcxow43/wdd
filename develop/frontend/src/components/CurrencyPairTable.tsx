@@ -7,7 +7,10 @@ interface CurrencyPairTableProps {
   onDelete: (pair: CurrencyPair) => void
 }
 
-function formatRate(rate: number): string {
+function formatRate(rate: number | null): string {
+  if (rate === null) {
+    return '—'
+  }
   return Number(rate.toFixed(8)).toString()
 }
 

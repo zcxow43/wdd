@@ -292,4 +292,194 @@ class CurrencyPairServiceTest {
                 .isInstanceOf(CurrencyPairNotFoundException.class);
         verify(currencyPairMapper, never()).deleteById(999L);
     }
+
+    // Rate/rateType rule tests (delta)
+
+    @Test
+    void create_throws400_whenRateTypeManualAndRateMissing() {
+        CurrencyPairCreateRequest request = new CurrencyPairCreateRequest();
+        request.setBrandId(3L);
+        request.setBaseCurrencyId(2L);
+        request.setQuoteCurrencyId(1L);
+        request.setRateType("MANUAL");
+        request.setRate(null);
+
+        when(brandMapper.findById(3L)).thenReturn(sampleBrand(3L));
+        when(currencyMapper.findById(2L)).thenReturn(sampleCurrency(2L, "USD"));
+        when(currencyMapper.findById(1L)).thenReturn(sampleCurrency(1L, "TWD"));
+        when(currencyPairMapper.findByBrandBaseQuote(3L, 2L, 1L)).thenReturn(null);
+
+        assertThatThrownBy(() -> currencyPairService.create(request))
+                .isInstanceOf(InvalidCurrencyPairException.class)
+                .hasMessageContaining("rate is required and must be greater than 0 when rateType is MANUAL");
+        verify(currencyPairMapper, never()).insert(any(CurrencyPair.class));
+    }
+
+    @Test
+    void create_throws400_whenRateTypeManualAndRateZero() {
+        CurrencyPairCreateRequest request = sampleCreateRequest(3L, 2L, 1L);
+        request.setRate(BigDecimal.ZERO);
+
+        when(brandMapper.findById(3L)).thenReturn(sampleBrand(3L));
+        when(currencyMapper.findById(2L)).thenReturn(sampleCurrency(2L, "USD"));
+        when(currencyMapper.findById(1L)).thenReturn(sampleCurrency(1L, "TWD"));
+        when(currencyPairMapper.findByBrandBaseQuote(3L, 2L, 1L)).thenReturn(null);
+
+        assertThatThrownBy(() -> currencyPairService.create(request))
+                .isInstanceOf(InvalidCurrencyPairException.class)
+                .hasMessageContaining("rate is required and must be greater than 0 when rateType is MANUAL");
+        verify(currencyPairMapper, never()).insert(any(CurrencyPair.class));
+    }
+
+    @Test
+    void create_throws400_whenRateTypeManualAndRateNegative() {
+        CurrencyPairCreateRequest request = sampleCreateRequest(3L, 2L, 1L);
+        request.setRate(new BigDecimal("-1.0"));
+
+        when(brandMapper.findById(3L)).thenReturn(sampleBrand(3L));
+        when(currencyMapper.findById(2L)).thenReturn(sampleCurrency(2L, "USD"));
+        when(currencyMapper.findById(1L)).thenReturn(sampleCurrency(1L, "TWD"));
+        when(currencyPairMapper.findByBrandBaseQuote(3L, 2L, 1L)).thenReturn(null);
+
+        assertThatThrownBy(() -> currencyPairService.create(request))
+                .isInstanceOf(InvalidCurrencyPairException.class)
+                .hasMessageContaining("rate is required and must be greater than 0 when rateType is MANUAL");
+        verify(currencyPairMapper, never()).insert(any(CurrencyPair.class));
+    }
+
+    @Test
+    void create_forcesRateToNull_whenRateTypeAutoWithRateSupplied() {
+        CurrencyPairCreateRequest request = new CurrencyPairCreateRequest();
+        request.setBrandId(3L);
+        request.setBaseCurrencyId(2L);
+        request.setQuoteCurrencyId(1L);
+        request.setRateType("AUTO");
+        request.setRate(new BigDecimal("100.0"));
+
+        when(brandMapper.findById(3L)).thenReturn(sampleBrand(3L));
+        when(currencyMapper.findById(2L)).thenReturn(sampleCurrency(2L, "USD"));
+        when(currencyMapper.findById(1L)).thenReturn(sampleCurrency(1L, "TWD"));
+        when(currencyPairMapper.findByBrandBaseQuote(3L, 2L, 1L)).thenReturn(null);
+        doAnswer(invocation -> {
+            CurrencyPair toInsert = invocation.getArgument(0);
+            toInsert.setId(1L);
+            return 1;
+        }).when(currencyPairMapper).insert(any(CurrencyPair.class));
+        CurrencyPair inserted = new CurrencyPair();
+        inserted.setId(1L);
+        inserted.setRate(null);
+        inserted.setRateType("AUTO");
+        when(currencyPairMapper.findById(1L)).thenReturn(inserted);
+
+        CurrencyPair result = currencyPairService.create(request);
+
+        org.mockito.ArgumentCaptor<CurrencyPair> captor = org.mockito.ArgumentCaptor.forClass(CurrencyPair.class);
+        verify(currencyPairMapper).insert(captor.capture());
+        assertThat(captor.getValue().getRate()).isNull();
+        assertThat(result.getRate()).isNull();
+    }
+
+    @Test
+    void create_forcesRateToNull_whenRateTypeAutoWithoutRate() {
+        CurrencyPairCreateRequest request = new CurrencyPairCreateRequest();
+        request.setBrandId(3L);
+        request.setBaseCurrencyId(2L);
+        request.setQuoteCurrencyId(1L);
+        request.setRateType("AUTO");
+        request.setRate(null);
+
+        when(brandMapper.findById(3L)).thenReturn(sampleBrand(3L));
+        when(currencyMapper.findById(2L)).thenReturn(sampleCurrency(2L, "USD"));
+        when(currencyMapper.findById(1L)).thenReturn(sampleCurrency(1L, "TWD"));
+        when(currencyPairMapper.findByBrandBaseQuote(3L, 2L, 1L)).thenReturn(null);
+        doAnswer(invocation -> {
+            CurrencyPair toInsert = invocation.getArgument(0);
+            toInsert.setId(1L);
+            return 1;
+        }).when(currencyPairMapper).insert(any(CurrencyPair.class));
+        CurrencyPair inserted = new CurrencyPair();
+        inserted.setId(1L);
+        inserted.setRate(null);
+        inserted.setRateType("AUTO");
+        when(currencyPairMapper.findById(1L)).thenReturn(inserted);
+
+        CurrencyPair result = currencyPairService.create(request);
+
+        org.mockito.ArgumentCaptor<CurrencyPair> captor = org.mockito.ArgumentCaptor.forClass(CurrencyPair.class);
+        verify(currencyPairMapper).insert(captor.capture());
+        assertThat(captor.getValue().getRate()).isNull();
+        assertThat(result.getRate()).isNull();
+    }
+
+    @Test
+    void update_clearsRate_whenSwitchingToAuto() {
+        CurrencyPair existing = samplePair(1L, 3L, 2L, 1L);
+        existing.setRate(new BigDecimal("50.0"));
+        existing.setRateType("MANUAL");
+        when(currencyPairMapper.findById(1L)).thenReturn(existing).thenReturn(existing);
+        when(currencyPairMapper.findByBrandBaseQuote(3L, 2L, 1L)).thenReturn(existing);
+
+        CurrencyPairUpdateRequest request = new CurrencyPairUpdateRequest();
+        request.setRateType("AUTO");
+
+        currencyPairService.update(1L, request);
+
+        org.mockito.ArgumentCaptor<CurrencyPair> captor = org.mockito.ArgumentCaptor.forClass(CurrencyPair.class);
+        verify(currencyPairMapper).update(captor.capture());
+        assertThat(captor.getValue().getRate()).isNull();
+    }
+
+    @Test
+    void update_clearsRate_whenSwitchingToAutoEvenIfRateSupplied() {
+        CurrencyPair existing = samplePair(1L, 3L, 2L, 1L);
+        existing.setRate(new BigDecimal("50.0"));
+        existing.setRateType("MANUAL");
+        when(currencyPairMapper.findById(1L)).thenReturn(existing).thenReturn(existing);
+        when(currencyPairMapper.findByBrandBaseQuote(3L, 2L, 1L)).thenReturn(existing);
+
+        CurrencyPairUpdateRequest request = new CurrencyPairUpdateRequest();
+        request.setRateType("AUTO");
+        request.setRate(new BigDecimal("999.0"));
+
+        currencyPairService.update(1L, request);
+
+        org.mockito.ArgumentCaptor<CurrencyPair> captor = org.mockito.ArgumentCaptor.forClass(CurrencyPair.class);
+        verify(currencyPairMapper).update(captor.capture());
+        assertThat(captor.getValue().getRate()).isNull();
+    }
+
+    @Test
+    void update_throws400_whenSwitchingToManualWithoutRate() {
+        CurrencyPair existing = samplePair(1L, 3L, 2L, 1L);
+        existing.setRate(null);
+        existing.setRateType("AUTO");
+        when(currencyPairMapper.findById(1L)).thenReturn(existing);
+
+        CurrencyPairUpdateRequest request = new CurrencyPairUpdateRequest();
+        request.setRateType("MANUAL");
+
+        assertThatThrownBy(() -> currencyPairService.update(1L, request))
+                .isInstanceOf(InvalidCurrencyPairException.class)
+                .hasMessageContaining("rate is required and must be greater than 0 when rateType is MANUAL");
+        verify(currencyPairMapper, never()).update(any(CurrencyPair.class));
+    }
+
+    @Test
+    void update_succeeds_whenSwitchingToManualWithValidRate() {
+        CurrencyPair existing = samplePair(1L, 3L, 2L, 1L);
+        existing.setRate(null);
+        existing.setRateType("AUTO");
+        when(currencyPairMapper.findById(1L)).thenReturn(existing).thenReturn(existing);
+        when(currencyPairMapper.findByBrandBaseQuote(3L, 2L, 1L)).thenReturn(existing);
+
+        CurrencyPairUpdateRequest request = new CurrencyPairUpdateRequest();
+        request.setRateType("MANUAL");
+        request.setRate(new BigDecimal("42.0"));
+
+        currencyPairService.update(1L, request);
+
+        org.mockito.ArgumentCaptor<CurrencyPair> captor = org.mockito.ArgumentCaptor.forClass(CurrencyPair.class);
+        verify(currencyPairMapper).update(captor.capture());
+        assertThat(captor.getValue().getRate()).isEqualByComparingTo("42.0");
+    }
 }

@@ -133,8 +133,9 @@ describe('CurrencyPairFormModal', () => {
 
     const user = userEvent.setup()
     await user.selectOptions(screen.getByLabelText('匯率類型'), 'AUTO')
-    expect(await screen.findByText('系統將自動更新匯率，此值為目前/備援匯率')).toBeInTheDocument()
-    expect(screen.getByLabelText('匯率')).not.toBeDisabled()
+    expect(await screen.findByText('系統將自動維護匯率')).toBeInTheDocument()
+    expect(screen.getByLabelText('匯率')).toBeDisabled()
+    expect((screen.getByLabelText('匯率') as HTMLInputElement).value).toBe('')
   })
 
   it('shows an inline conflict message when the API returns 409', async () => {
@@ -167,5 +168,108 @@ describe('CurrencyPairFormModal', () => {
     await user.click(screen.getByRole('button', { name: '儲存' }))
 
     expect(await screen.findByText('網路錯誤，請稍後再試')).toBeInTheDocument()
+  })
+
+  it('disables and clears the rate input when AUTO is selected', async () => {
+    const user = userEvent.setup()
+    render(
+      <CurrencyPairFormModal mode="create" brands={BRANDS} currencies={CURRENCIES} onSubmit={vi.fn()} onClose={vi.fn()} />,
+    )
+
+    const rateInput = screen.getByLabelText('匯率') as HTMLInputElement
+    expect(rateInput).not.toBeDisabled()
+
+    await user.type(rateInput, '100.5')
+    expect(rateInput.value).toBe('100.5')
+
+    await user.selectOptions(screen.getByLabelText('匯率類型'), 'AUTO')
+    expect(rateInput).toBeDisabled()
+    expect(rateInput.value).toBe('')
+    expect(screen.getByText('系統將自動維護匯率')).toBeInTheDocument()
+  })
+
+  it('re-enables and requires rate when switching from AUTO to MANUAL', async () => {
+    const user = userEvent.setup()
+    render(
+      <CurrencyPairFormModal mode="create" brands={BRANDS} currencies={CURRENCIES} onSubmit={vi.fn()} onClose={vi.fn()} />,
+    )
+
+    await user.selectOptions(screen.getByLabelText('匯率類型'), 'AUTO')
+    const rateInput = screen.getByLabelText('匯率') as HTMLInputElement
+    expect(rateInput).toBeDisabled()
+
+    await user.selectOptions(screen.getByLabelText('匯率類型'), 'MANUAL')
+    expect(rateInput).not.toBeDisabled()
+    expect(rateInput.value).toBe('')
+
+    await user.selectOptions(screen.getByLabelText('品牌'), '1')
+    await user.selectOptions(screen.getByLabelText('基準幣別'), '2')
+    await user.selectOptions(screen.getByLabelText('對應幣別'), '1')
+    await user.click(screen.getByRole('button', { name: '儲存' }))
+
+    expect(await screen.findByText('匯率為必填，且須大於 0')).toBeInTheDocument()
+  })
+
+  it('does not show rate validation error when AUTO is selected and rate is blank', async () => {
+    const user = userEvent.setup()
+    render(
+      <CurrencyPairFormModal mode="create" brands={BRANDS} currencies={CURRENCIES} onSubmit={vi.fn()} onClose={vi.fn()} />,
+    )
+
+    await user.selectOptions(screen.getByLabelText('品牌'), '1')
+    await user.selectOptions(screen.getByLabelText('基準幣別'), '2')
+    await user.selectOptions(screen.getByLabelText('對應幣別'), '1')
+    await user.selectOptions(screen.getByLabelText('匯率類型'), 'AUTO')
+    await user.click(screen.getByRole('button', { name: '儲存' }))
+
+    await waitFor(() => expect(screen.queryByText('匯率為必填，且須大於 0')).not.toBeInTheDocument())
+  })
+
+  it('submits rate: null when AUTO is selected', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+    render(
+      <CurrencyPairFormModal mode="create" brands={BRANDS} currencies={CURRENCIES} onSubmit={onSubmit} onClose={vi.fn()} />,
+    )
+
+    await user.selectOptions(screen.getByLabelText('品牌'), '1')
+    await user.selectOptions(screen.getByLabelText('基準幣別'), '2')
+    await user.selectOptions(screen.getByLabelText('對應幣別'), '1')
+    await user.selectOptions(screen.getByLabelText('匯率類型'), 'AUTO')
+    await user.click(screen.getByRole('button', { name: '儲存' }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith({
+        brandId: 1,
+        baseCurrencyId: 2,
+        quoteCurrencyId: 1,
+        rate: null,
+        rateType: 'AUTO',
+        active: true,
+      }),
+    )
+  })
+
+  it('correctly reflects a loaded AUTO pair with null rate as disabled/blank', () => {
+    const autoPair: CurrencyPair = {
+      ...EXISTING,
+      rate: null,
+      rateType: 'AUTO',
+    }
+    render(
+      <CurrencyPairFormModal
+        mode="edit"
+        initial={autoPair}
+        brands={BRANDS}
+        currencies={CURRENCIES}
+        onSubmit={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+
+    const rateInput = screen.getByLabelText('匯率') as HTMLInputElement
+    expect(rateInput).toBeDisabled()
+    expect(rateInput.value).toBe('')
+    expect(screen.getByText('系統將自動維護匯率')).toBeInTheDocument()
   })
 })

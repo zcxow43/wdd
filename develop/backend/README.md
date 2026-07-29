@@ -1,6 +1,6 @@
 # backend
 
-Version: 0.0.3
+Version: 0.0.4
 
 Spring Boot REST API for currency, brand and currency pair management (`pl.piomin.services`).
 
@@ -70,3 +70,4 @@ Two related changes ship alongside this feature:
 - 0.0.1 — Initial Currency CRUD API (list/get/create/update/delete), validation, error handling, unit + integration tests.
 - 0.0.2 — Added Brand API (list/get/toggle-active), reusing the `brand` table seeded by `specs/dba/brand.md`; unit + integration tests.
 - 0.0.3 — Added Currency Pair CRUD API (`/api/currency-pairs`), scoped per brand with brand/currency joins for enriched responses; made currency `code` immutable on update; currency delete now blocked (`409`) while referenced by a currency pair; unit + integration tests.
+- 0.0.4 — Currency Pair rate/rateType rule: `MANUAL` requires rate (non-null, >0); `AUTO` forces rate to null (ignores supplied values). Enforced at service layer on create/update; comprehensive unit + integration tests covering all branches.

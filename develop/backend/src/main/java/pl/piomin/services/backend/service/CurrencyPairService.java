@@ -55,9 +55,11 @@ public class CurrencyPairService {
         pair.setBrandId(request.getBrandId());
         pair.setBaseCurrencyId(request.getBaseCurrencyId());
         pair.setQuoteCurrencyId(request.getQuoteCurrencyId());
-        pair.setRate(request.getRate());
         pair.setRateType(request.getRateType());
         pair.setActive(request.getActive() != null ? request.getActive() : Boolean.TRUE);
+
+        // Apply rate/rateType rule immediately before persisting
+        applyRateTypeRule(pair, request.getRate(), null);
 
         currencyPairMapper.insert(pair);
         return currencyPairMapper.findById(pair.getId());
@@ -91,15 +93,16 @@ public class CurrencyPairService {
         existing.setBrandId(brandId);
         existing.setBaseCurrencyId(baseCurrencyId);
         existing.setQuoteCurrencyId(quoteCurrencyId);
-        if (request.getRate() != null) {
-            existing.setRate(request.getRate());
-        }
-        if (request.getRateType() != null) {
-            existing.setRateType(request.getRateType());
-        }
         if (request.getActive() != null) {
             existing.setActive(request.getActive());
         }
+
+        // Resolve effective rateType and rate
+        String effectiveRateType = request.getRateType() != null ? request.getRateType() : existing.getRateType();
+        existing.setRateType(effectiveRateType);
+
+        // Apply rate/rateType rule immediately before persisting
+        applyRateTypeRule(existing, request.getRate(), existing.getRate());
 
         currencyPairMapper.update(existing);
         return currencyPairMapper.findById(id);
@@ -136,6 +139,32 @@ public class CurrencyPairService {
         CurrencyPair other = currencyPairMapper.findByBrandBaseQuote(brandId, baseCurrencyId, quoteCurrencyId);
         if (other != null && !other.getId().equals(excludeId)) {
             throw new CurrencyPairExistsException(brandId, baseCurrencyId, quoteCurrencyId);
+        }
+    }
+
+    /**
+     * Apply rate/rateType business rule immediately before persisting.
+     * - AUTO: force rate = null, ignoring any supplied value
+     * - MANUAL: rate must be non-null and > 0 (resolve from requestRate or fallbackRate)
+     *
+     * @param pair the entity to modify
+     * @param requestRate the rate supplied in the request (may be null)
+     * @param fallbackRate the existing rate from the DB row (used on update when requestRate is null; may be null)
+     */
+    private void applyRateTypeRule(CurrencyPair pair, java.math.BigDecimal requestRate,
+                                     java.math.BigDecimal fallbackRate) {
+        String effectiveRateType = pair.getRateType();
+
+        if ("AUTO".equals(effectiveRateType)) {
+            // Force rate to null, discarding any supplied value
+            pair.setRate(null);
+        } else if ("MANUAL".equals(effectiveRateType)) {
+            // Resolve effective rate: prefer requestRate, fall back to existing
+            java.math.BigDecimal effectiveRate = requestRate != null ? requestRate : fallbackRate;
+            if (effectiveRate == null || effectiveRate.compareTo(java.math.BigDecimal.ZERO) <= 0) {
+                throw new InvalidCurrencyPairException("rate is required and must be greater than 0 when rateType is MANUAL");
+            }
+            pair.setRate(effectiveRate);
         }
     }
 }

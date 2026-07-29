@@ -32,7 +32,7 @@ CREATE TABLE currency_pair (
     brand_id           BIGINT         NOT NULL,
     base_currency_id   BIGINT         NOT NULL,
     quote_currency_id  BIGINT         NOT NULL,
-    rate               DECIMAL(18,8)  NOT NULL,
+    rate               DECIMAL(18,8)  NULL,
     rate_type          VARCHAR(10)    NOT NULL DEFAULT 'MANUAL',
     active             TINYINT(1)     NOT NULL DEFAULT 1,
     created_at         TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,

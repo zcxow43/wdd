@@ -8,7 +8,7 @@ export interface CurrencyPair {
   baseCurrencyCode: string
   quoteCurrencyId: number
   quoteCurrencyCode: string
-  rate: number
+  rate: number | null
   rateType: RateType
   active: boolean
   createdAt: string
@@ -19,7 +19,7 @@ export interface CurrencyPairInput {
   brandId: number
   baseCurrencyId: number
   quoteCurrencyId: number
-  rate: number
+  rate: number | null
   rateType: RateType
   active: boolean
 }

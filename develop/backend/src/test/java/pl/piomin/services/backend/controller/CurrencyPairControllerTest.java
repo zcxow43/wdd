@@ -252,8 +252,175 @@ class CurrencyPairControllerTest {
                 .andExpect(jsonPath("$.details.brandId").exists())
                 .andExpect(jsonPath("$.details.baseCurrencyId").exists())
                 .andExpect(jsonPath("$.details.quoteCurrencyId").exists())
-                .andExpect(jsonPath("$.details.rate").exists())
                 .andExpect(jsonPath("$.details.rateType").exists());
+    }
+
+    // Rate/rateType rule integration tests (delta)
+
+    @Test
+    void create_returns400_whenRateTypeManualWithoutRate() throws Exception {
+        String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
+            put("brandId", starId);
+            put("baseCurrencyId", usdId);
+            put("quoteCurrencyId", twdId);
+            put("rateType", "MANUAL");
+        }});
+
+        mockMvc.perform(post("/api/currency-pairs").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("rate is required and must be greater than 0 when rateType is MANUAL"));
+    }
+
+    @Test
+    void create_returns400_whenRateTypeManualWithRateZero() throws Exception {
+        String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
+            put("brandId", starId);
+            put("baseCurrencyId", usdId);
+            put("quoteCurrencyId", twdId);
+            put("rate", 0);
+            put("rateType", "MANUAL");
+        }});
+
+        mockMvc.perform(post("/api/currency-pairs").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Validation failed"))
+                .andExpect(jsonPath("$.details.rate").value("rate must be greater than 0"));
+    }
+
+    @Test
+    void create_returns400_whenRateTypeManualWithRateNegative() throws Exception {
+        String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
+            put("brandId", starId);
+            put("baseCurrencyId", usdId);
+            put("quoteCurrencyId", twdId);
+            put("rate", -1.5);
+            put("rateType", "MANUAL");
+        }});
+
+        mockMvc.perform(post("/api/currency-pairs").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Validation failed"))
+                .andExpect(jsonPath("$.details.rate").value("rate must be greater than 0"));
+    }
+
+    @Test
+    void create_returns201WithRateNull_whenRateTypeAutoWithRateSupplied() throws Exception {
+        String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
+            put("brandId", starId);
+            put("baseCurrencyId", usdId);
+            put("quoteCurrencyId", twdId);
+            put("rate", 100.0);
+            put("rateType", "AUTO");
+        }});
+
+        mockMvc.perform(post("/api/currency-pairs").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").exists())
+                .andExpect(jsonPath("$.rate").doesNotExist())
+                .andExpect(jsonPath("$.rateType").value("AUTO"));
+    }
+
+    @Test
+    void create_returns201WithRateNull_whenRateTypeAutoWithoutRate() throws Exception {
+        String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
+            put("brandId", starId);
+            put("baseCurrencyId", usdId);
+            put("quoteCurrencyId", twdId);
+            put("rateType", "AUTO");
+        }});
+
+        mockMvc.perform(post("/api/currency-pairs").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").exists())
+                .andExpect(jsonPath("$.rate").doesNotExist())
+                .andExpect(jsonPath("$.rateType").value("AUTO"));
+    }
+
+    @Test
+    void update_clearsRate_whenSwitchingManualToAuto() throws Exception {
+        String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
+            put("rateType", "AUTO");
+        }});
+
+        mockMvc.perform(put("/api/currency-pairs/{id}", pairId).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rate").doesNotExist())
+                .andExpect(jsonPath("$.rateType").value("AUTO"));
+    }
+
+    @Test
+    void update_clearsRate_whenSwitchingToAutoEvenIfRateSupplied() throws Exception {
+        String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
+            put("rateType", "AUTO");
+            put("rate", 999.0);
+        }});
+
+        mockMvc.perform(put("/api/currency-pairs/{id}", pairId).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rate").doesNotExist())
+                .andExpect(jsonPath("$.rateType").value("AUTO"));
+    }
+
+    @Test
+    void update_returns400_whenSwitchingAutoToManualWithoutRate() throws Exception {
+        // First create an AUTO pair with rate null
+        CurrencyPair autoPair = new CurrencyPair();
+        autoPair.setBrandId(starId);
+        autoPair.setBaseCurrencyId(usdId);
+        autoPair.setQuoteCurrencyId(twdId);
+        autoPair.setRate(null);
+        autoPair.setRateType("AUTO");
+        autoPair.setActive(true);
+        currencyPairMapper.insert(autoPair);
+
+        String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
+            put("rateType", "MANUAL");
+        }});
+
+        mockMvc.perform(put("/api/currency-pairs/{id}", autoPair.getId()).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("rate is required and must be greater than 0 when rateType is MANUAL"));
+    }
+
+    @Test
+    void update_succeeds_whenSwitchingToManualWithValidRate() throws Exception {
+        // First create an AUTO pair with rate null
+        CurrencyPair autoPair = new CurrencyPair();
+        autoPair.setBrandId(starId);
+        autoPair.setBaseCurrencyId(usdId);
+        autoPair.setQuoteCurrencyId(twdId);
+        autoPair.setRate(null);
+        autoPair.setRateType("AUTO");
+        autoPair.setActive(true);
+        currencyPairMapper.insert(autoPair);
+
+        String body = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
+            put("rateType", "MANUAL");
+            put("rate", 42.0);
+        }});
+
+        mockMvc.perform(put("/api/currency-pairs/{id}", autoPair.getId()).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rate").value(42.0))
+                .andExpect(jsonPath("$.rateType").value("MANUAL"));
+    }
+
+    @Test
+    void getById_serializesRateAsNull_whenRateTypeAuto() throws Exception {
+        // Create an AUTO pair
+        CurrencyPair autoPair = new CurrencyPair();
+        autoPair.setBrandId(starId);
+        autoPair.setBaseCurrencyId(usdId);
+        autoPair.setQuoteCurrencyId(twdId);
+        autoPair.setRate(null);
+        autoPair.setRateType("AUTO");
+        autoPair.setActive(true);
+        currencyPairMapper.insert(autoPair);
+
+        mockMvc.perform(get("/api/currency-pairs/{id}", autoPair.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rate").doesNotExist())
+                .andExpect(jsonPath("$.rateType").value("AUTO"));
     }
 
     @Test

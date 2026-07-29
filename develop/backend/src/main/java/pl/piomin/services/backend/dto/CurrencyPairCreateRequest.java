@@ -21,7 +21,6 @@ public class CurrencyPairCreateRequest {
     @NotNull(message = "quoteCurrencyId is required")
     private Long quoteCurrencyId;
 
-    @NotNull(message = "rate is required")
     @DecimalMin(value = "0.0", inclusive = false, message = "rate must be greater than 0")
     private BigDecimal rate;
 
