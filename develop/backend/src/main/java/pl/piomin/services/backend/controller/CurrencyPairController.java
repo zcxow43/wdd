@@ -9,7 +9,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,7 +20,6 @@ import pl.piomin.services.backend.audit.AuditActionType;
 import pl.piomin.services.backend.audit.AuditRequest;
 import pl.piomin.services.backend.audit.AuditRequestResponse;
 import pl.piomin.services.backend.audit.AuditService;
-import pl.piomin.services.backend.dto.CurrencyPairCreateRequest;
 import pl.piomin.services.backend.dto.CurrencyPairDeleteRequest;
 import pl.piomin.services.backend.dto.CurrencyPairResponse;
 import pl.piomin.services.backend.dto.CurrencyPairUpdateRequest;
@@ -32,10 +30,13 @@ import pl.piomin.services.backend.service.CurrencyPairService;
 /**
  * GET endpoints keep reading live, already-approved rows from
  * {@code currency_pair} directly and are unaffected by the audit-approval
- * delta. POST/PUT/DELETE no longer mutate {@code currency_pair} directly -
- * they submit a change request through the generic audit module
- * (specs/backend/audit.md) via {@link AuditService#submit} and return
- * {@code 202 Accepted} with the resulting {@link AuditRequestResponse}.
+ * delta. There is no {@code POST} route - a brand's {@code currency_pair}
+ * row can only come into existence via a global currency-pair-definition's
+ * fan-out (specs/backend/currency-pair-definition.md), never directly.
+ * PUT/DELETE no longer mutate {@code currency_pair} directly - they submit a
+ * change request through the generic audit module (specs/backend/audit.md)
+ * via {@link AuditService#submit} and return {@code 202 Accepted} with the
+ * resulting {@link AuditRequestResponse}.
  */
 @RestController
 @RequestMapping("/api/currency-pairs")
@@ -60,21 +61,6 @@ public class CurrencyPairController {
     @GetMapping("/{id}")
     public CurrencyPairResponse getById(@PathVariable Long id) {
         return CurrencyPairResponse.from(currencyPairService.getById(id));
-    }
-
-    @PostMapping
-    public ResponseEntity<AuditRequestResponse> create(@Valid @RequestBody CurrencyPairCreateRequest request) {
-        Map<String, Object> after = new LinkedHashMap<>();
-        after.put("brandId", request.getBrandId());
-        after.put("baseCurrencyId", request.getBaseCurrencyId());
-        after.put("quoteCurrencyId", request.getQuoteCurrencyId());
-        after.put("rateType", request.getRateType());
-        after.put("rate", request.getRate());
-        after.put("active", request.getActive() != null ? request.getActive() : Boolean.TRUE);
-
-        AuditRequest auditRequest = auditService.submit(CurrencyPairAuditHandler.ENTITY_TYPE, AuditActionType.CREATE,
-                null, after, request.getRequestedBy());
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(AuditRequestResponse.from(auditRequest));
     }
 
     @PutMapping("/{id}")

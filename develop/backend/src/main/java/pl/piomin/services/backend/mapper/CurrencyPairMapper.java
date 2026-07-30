@@ -18,6 +18,11 @@ public interface CurrencyPairMapper {
                                        @Param("baseCurrencyId") Long baseCurrencyId,
                                        @Param("quoteCurrencyId") Long quoteCurrencyId);
 
+    // Used by CurrencyPairDefinitionService.delete to guard against removing a
+    // definition while any brand still has this direction active.
+    List<CurrencyPair> findActiveByBaseQuote(@Param("baseCurrencyId") Long baseCurrencyId,
+                                              @Param("quoteCurrencyId") Long quoteCurrencyId);
+
     int insert(CurrencyPair currencyPair);
 
     int update(CurrencyPair currencyPair);

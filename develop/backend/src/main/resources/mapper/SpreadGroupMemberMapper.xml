@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="pl.piomin.services.backend.mapper.SpreadGroupMemberMapper">
+
+    <resultMap id="spreadGroupMemberResultMap" type="pl.piomin.services.backend.model.SpreadGroupMember">
+        <id property="id" column="id"/>
+        <result property="spreadGroupId" column="spread_group_id"/>
+        <result property="currencyPairId" column="currency_pair_id"/>
+        <result property="baseCurrencyCode" column="base_currency_code"/>
+        <result property="quoteCurrencyCode" column="quote_currency_code"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <sql id="enrichedColumns">
+        sgm.id, sgm.spread_group_id, sgm.currency_pair_id,
+        bc.code AS base_currency_code, qc.code AS quote_currency_code, sgm.created_at
+    </sql>
+
+    <sql id="enrichedJoin">
+        FROM spread_group_member sgm
+        JOIN currency_pair cp ON cp.id = sgm.currency_pair_id
+        JOIN currency bc ON bc.id = cp.base_currency_id
+        JOIN currency qc ON qc.id = cp.quote_currency_id
+    </sql>
+
+    <select id="findByGroupId" resultMap="spreadGroupMemberResultMap">
+        SELECT <include refid="enrichedColumns"/>
+        <include refid="enrichedJoin"/>
+        WHERE sgm.spread_group_id = #{groupId}
+        ORDER BY sgm.id
+    </select>
+
+    <select id="findByCurrencyPairId" resultMap="spreadGroupMemberResultMap">
+        SELECT <include refid="enrichedColumns"/>
+        <include refid="enrichedJoin"/>
+        WHERE sgm.currency_pair_id = #{currencyPairId}
+    </select>
+
+    <insert id="insert" parameterType="pl.piomin.services.backend.model.SpreadGroupMember"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO spread_group_member (spread_group_id, currency_pair_id)
+        VALUES (#{spreadGroupId}, #{currencyPairId})
+    </insert>
+
+    <delete id="deleteByCurrencyPairId">
+        DELETE FROM spread_group_member WHERE currency_pair_id = #{currencyPairId}
+    </delete>
+
+    <delete id="deleteByGroupId">
+        DELETE FROM spread_group_member WHERE spread_group_id = #{groupId}
+    </delete>
+
+    <delete id="deleteById">
+        DELETE FROM spread_group_member WHERE id = #{id}
+    </delete>
+
+    <!-- Used only by tests to reset the table; not exercised by the API -->
+    <select id="findAllIds" resultType="long">
+        SELECT id FROM spread_group_member
+    </select>
+
+</mapper>

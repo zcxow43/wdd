@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="pl.piomin.services.backend.mapper.CurrencyPairDefinitionMapper">
+
+    <resultMap id="currencyPairDefinitionResultMap" type="pl.piomin.services.backend.model.CurrencyPairDefinition">
+        <id property="id" column="id"/>
+        <result property="baseCurrencyId" column="base_currency_id"/>
+        <result property="baseCurrencyCode" column="base_currency_code"/>
+        <result property="quoteCurrencyId" column="quote_currency_id"/>
+        <result property="quoteCurrencyCode" column="quote_currency_code"/>
+        <result property="forwardPrecision" column="forward_precision"/>
+        <result property="reversePrecision" column="reverse_precision"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="enrichedColumns">
+        cpd.id, cpd.base_currency_id, bc.code AS base_currency_code,
+        cpd.quote_currency_id, qc.code AS quote_currency_code,
+        cpd.forward_precision, cpd.reverse_precision, cpd.created_at, cpd.updated_at
+    </sql>
+
+    <sql id="enrichedJoin">
+        FROM currency_pair_definition cpd
+        JOIN currency bc ON bc.id = cpd.base_currency_id
+        JOIN currency qc ON qc.id = cpd.quote_currency_id
+    </sql>
+
+    <select id="findAll" resultMap="currencyPairDefinitionResultMap">
+        SELECT <include refid="enrichedColumns"/>
+        <include refid="enrichedJoin"/>
+        <where>
+            <if test="baseCurrencyId != null">AND cpd.base_currency_id = #{baseCurrencyId}</if>
+            <if test="quoteCurrencyId != null">AND cpd.quote_currency_id = #{quoteCurrencyId}</if>
+        </where>
+        ORDER BY cpd.id
+    </select>
+
+    <select id="findById" resultMap="currencyPairDefinitionResultMap">
+        SELECT <include refid="enrichedColumns"/>
+        <include refid="enrichedJoin"/>
+        WHERE cpd.id = #{id}
+    </select>
+
+    <select id="findByEitherDirection" resultMap="currencyPairDefinitionResultMap">
+        SELECT <include refid="enrichedColumns"/>
+        <include refid="enrichedJoin"/>
+        WHERE (cpd.base_currency_id = #{currencyIdA} AND cpd.quote_currency_id = #{currencyIdB})
+           OR (cpd.base_currency_id = #{currencyIdB} AND cpd.quote_currency_id = #{currencyIdA})
+    </select>
+
+    <insert id="insert" parameterType="pl.piomin.services.backend.model.CurrencyPairDefinition"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO currency_pair_definition (base_currency_id, quote_currency_id, forward_precision, reverse_precision)
+        VALUES (#{baseCurrencyId}, #{quoteCurrencyId}, #{forwardPrecision}, #{reversePrecision})
+    </insert>
+
+    <update id="update" parameterType="pl.piomin.services.backend.model.CurrencyPairDefinition">
+        UPDATE currency_pair_definition
+        SET forward_precision = #{forwardPrecision},
+            reverse_precision = #{reversePrecision}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM currency_pair_definition WHERE id = #{id}
+    </delete>
+
+    <!-- Used only by tests to reset the table; not exercised by the API -->
+    <select id="findAllIds" resultType="long">
+        SELECT id FROM currency_pair_definition
+    </select>
+
+</mapper>

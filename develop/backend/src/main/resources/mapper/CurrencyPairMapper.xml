@@ -55,6 +55,15 @@
           AND quote_currency_id = #{quoteCurrencyId}
     </select>
 
+    <select id="findActiveByBaseQuote" resultMap="currencyPairResultMap">
+        SELECT <include refid="enrichedColumns"/>
+        <include refid="enrichedJoin"/>
+        WHERE cp.base_currency_id = #{baseCurrencyId}
+          AND cp.quote_currency_id = #{quoteCurrencyId}
+          AND cp.active = TRUE
+        ORDER BY cp.id
+    </select>
+
     <insert id="insert" parameterType="pl.piomin.services.backend.model.CurrencyPair"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO currency_pair (brand_id, base_currency_id, quote_currency_id, rate, rate_type, active)

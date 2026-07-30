@@ -60,13 +60,17 @@ const EXISTING: CurrencyPair = {
 }
 
 describe('CurrencyPairFormModal', () => {
-  it('shows validation errors when required fields are missing', async () => {
+  it('shows validation errors when required fields are cleared', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
     render(
-      <CurrencyPairFormModal mode="create" brands={BRANDS} currencies={CURRENCIES} onSubmit={onSubmit} onClose={vi.fn()} />,
+      <CurrencyPairFormModal initial={EXISTING} brands={BRANDS} currencies={CURRENCIES} onSubmit={onSubmit} onClose={vi.fn()} />,
     )
 
+    await user.selectOptions(screen.getByLabelText('品牌'), '')
+    await user.selectOptions(screen.getByLabelText('基準幣別'), '')
+    await user.selectOptions(screen.getByLabelText('對應幣別'), '')
+    await user.clear(screen.getByLabelText('匯率'))
     await user.click(screen.getByRole('button', { name: '儲存' }))
 
     expect(await screen.findByText('品牌為必填')).toBeInTheDocument()
@@ -79,27 +83,25 @@ describe('CurrencyPairFormModal', () => {
   it('shows an inline error and disables submit when base and quote currency are the same', async () => {
     const user = userEvent.setup()
     render(
-      <CurrencyPairFormModal mode="create" brands={BRANDS} currencies={CURRENCIES} onSubmit={vi.fn()} onClose={vi.fn()} />,
+      <CurrencyPairFormModal initial={EXISTING} brands={BRANDS} currencies={CURRENCIES} onSubmit={vi.fn()} onClose={vi.fn()} />,
     )
 
-    await user.selectOptions(screen.getByLabelText('基準幣別'), '2')
     await user.selectOptions(screen.getByLabelText('對應幣別'), '2')
 
     expect(await screen.findByText('基準幣別與對應幣別不可相同')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '儲存' })).toBeDisabled()
   })
 
-  it('submits a valid create form with numeric ids', async () => {
+  it('submits a valid edit form with numeric ids', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn().mockResolvedValue(undefined)
     render(
-      <CurrencyPairFormModal mode="create" brands={BRANDS} currencies={CURRENCIES} onSubmit={onSubmit} onClose={vi.fn()} />,
+      <CurrencyPairFormModal initial={EXISTING} brands={BRANDS} currencies={CURRENCIES} onSubmit={onSubmit} onClose={vi.fn()} />,
     )
 
-    await user.selectOptions(screen.getByLabelText('品牌'), '1')
-    await user.selectOptions(screen.getByLabelText('基準幣別'), '2')
-    await user.selectOptions(screen.getByLabelText('對應幣別'), '1')
-    await user.type(screen.getByLabelText('匯率'), '32.5')
+    const rateInput = screen.getByLabelText('匯率')
+    await user.clear(rateInput)
+    await user.type(rateInput, '33')
     await user.click(screen.getByRole('button', { name: '儲存' }))
 
     await waitFor(() =>
@@ -107,7 +109,7 @@ describe('CurrencyPairFormModal', () => {
         brandId: 1,
         baseCurrencyId: 2,
         quoteCurrencyId: 1,
-        rate: 32.5,
+        rate: 33,
         rateType: 'MANUAL',
         active: true,
       }),
@@ -117,7 +119,6 @@ describe('CurrencyPairFormModal', () => {
   it('pre-fills values in edit mode and shows the helper text for AUTO rate type', async () => {
     render(
       <CurrencyPairFormModal
-        mode="edit"
         initial={EXISTING}
         brands={BRANDS}
         currencies={CURRENCIES}
@@ -142,13 +143,9 @@ describe('CurrencyPairFormModal', () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn().mockRejectedValue(new ApiError(409, { error: 'Currency pair already exists for this brand' }, 'Conflict'))
     render(
-      <CurrencyPairFormModal mode="create" brands={BRANDS} currencies={CURRENCIES} onSubmit={onSubmit} onClose={vi.fn()} />,
+      <CurrencyPairFormModal initial={EXISTING} brands={BRANDS} currencies={CURRENCIES} onSubmit={onSubmit} onClose={vi.fn()} />,
     )
 
-    await user.selectOptions(screen.getByLabelText('品牌'), '1')
-    await user.selectOptions(screen.getByLabelText('基準幣別'), '2')
-    await user.selectOptions(screen.getByLabelText('對應幣別'), '1')
-    await user.type(screen.getByLabelText('匯率'), '32.5')
     await user.click(screen.getByRole('button', { name: '儲存' }))
 
     expect(await screen.findByText('此品牌已存在相同的幣種對')).toBeInTheDocument()
@@ -160,13 +157,9 @@ describe('CurrencyPairFormModal', () => {
       .fn()
       .mockRejectedValue(new ApiError(409, { error: 'A pending audit request already exists for this entity' }, 'Conflict'))
     render(
-      <CurrencyPairFormModal mode="create" brands={BRANDS} currencies={CURRENCIES} onSubmit={onSubmit} onClose={vi.fn()} />,
+      <CurrencyPairFormModal initial={EXISTING} brands={BRANDS} currencies={CURRENCIES} onSubmit={onSubmit} onClose={vi.fn()} />,
     )
 
-    await user.selectOptions(screen.getByLabelText('品牌'), '1')
-    await user.selectOptions(screen.getByLabelText('基準幣別'), '2')
-    await user.selectOptions(screen.getByLabelText('對應幣別'), '1')
-    await user.type(screen.getByLabelText('匯率'), '32.5')
     await user.click(screen.getByRole('button', { name: '儲存' }))
 
     expect(await screen.findByText('此幣種對已有待審核的異動申請')).toBeInTheDocument()
@@ -176,13 +169,9 @@ describe('CurrencyPairFormModal', () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn().mockRejectedValue(new Error('network down'))
     render(
-      <CurrencyPairFormModal mode="create" brands={BRANDS} currencies={CURRENCIES} onSubmit={onSubmit} onClose={vi.fn()} />,
+      <CurrencyPairFormModal initial={EXISTING} brands={BRANDS} currencies={CURRENCIES} onSubmit={onSubmit} onClose={vi.fn()} />,
     )
 
-    await user.selectOptions(screen.getByLabelText('品牌'), '1')
-    await user.selectOptions(screen.getByLabelText('基準幣別'), '2')
-    await user.selectOptions(screen.getByLabelText('對應幣別'), '1')
-    await user.type(screen.getByLabelText('匯率'), '32.5')
     await user.click(screen.getByRole('button', { name: '儲存' }))
 
     expect(await screen.findByText('網路錯誤，請稍後再試')).toBeInTheDocument()
@@ -191,14 +180,12 @@ describe('CurrencyPairFormModal', () => {
   it('disables and clears the rate input when AUTO is selected', async () => {
     const user = userEvent.setup()
     render(
-      <CurrencyPairFormModal mode="create" brands={BRANDS} currencies={CURRENCIES} onSubmit={vi.fn()} onClose={vi.fn()} />,
+      <CurrencyPairFormModal initial={EXISTING} brands={BRANDS} currencies={CURRENCIES} onSubmit={vi.fn()} onClose={vi.fn()} />,
     )
 
     const rateInput = screen.getByLabelText('匯率') as HTMLInputElement
     expect(rateInput).not.toBeDisabled()
-
-    await user.type(rateInput, '100.5')
-    expect(rateInput.value).toBe('100.5')
+    expect(rateInput.value).toBe('32.5')
 
     await user.selectOptions(screen.getByLabelText('匯率類型'), 'AUTO')
     expect(rateInput).toBeDisabled()
@@ -209,7 +196,7 @@ describe('CurrencyPairFormModal', () => {
   it('re-enables and requires rate when switching from AUTO to MANUAL', async () => {
     const user = userEvent.setup()
     render(
-      <CurrencyPairFormModal mode="create" brands={BRANDS} currencies={CURRENCIES} onSubmit={vi.fn()} onClose={vi.fn()} />,
+      <CurrencyPairFormModal initial={EXISTING} brands={BRANDS} currencies={CURRENCIES} onSubmit={vi.fn()} onClose={vi.fn()} />,
     )
 
     await user.selectOptions(screen.getByLabelText('匯率類型'), 'AUTO')
@@ -220,9 +207,6 @@ describe('CurrencyPairFormModal', () => {
     expect(rateInput).not.toBeDisabled()
     expect(rateInput.value).toBe('')
 
-    await user.selectOptions(screen.getByLabelText('品牌'), '1')
-    await user.selectOptions(screen.getByLabelText('基準幣別'), '2')
-    await user.selectOptions(screen.getByLabelText('對應幣別'), '1')
     await user.click(screen.getByRole('button', { name: '儲存' }))
 
     expect(await screen.findByText('匯率為必填，且須大於 0')).toBeInTheDocument()
@@ -231,12 +215,9 @@ describe('CurrencyPairFormModal', () => {
   it('does not show rate validation error when AUTO is selected and rate is blank', async () => {
     const user = userEvent.setup()
     render(
-      <CurrencyPairFormModal mode="create" brands={BRANDS} currencies={CURRENCIES} onSubmit={vi.fn()} onClose={vi.fn()} />,
+      <CurrencyPairFormModal initial={EXISTING} brands={BRANDS} currencies={CURRENCIES} onSubmit={vi.fn()} onClose={vi.fn()} />,
     )
 
-    await user.selectOptions(screen.getByLabelText('品牌'), '1')
-    await user.selectOptions(screen.getByLabelText('基準幣別'), '2')
-    await user.selectOptions(screen.getByLabelText('對應幣別'), '1')
     await user.selectOptions(screen.getByLabelText('匯率類型'), 'AUTO')
     await user.click(screen.getByRole('button', { name: '儲存' }))
 
@@ -247,12 +228,9 @@ describe('CurrencyPairFormModal', () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn().mockResolvedValue(undefined)
     render(
-      <CurrencyPairFormModal mode="create" brands={BRANDS} currencies={CURRENCIES} onSubmit={onSubmit} onClose={vi.fn()} />,
+      <CurrencyPairFormModal initial={EXISTING} brands={BRANDS} currencies={CURRENCIES} onSubmit={onSubmit} onClose={vi.fn()} />,
     )
 
-    await user.selectOptions(screen.getByLabelText('品牌'), '1')
-    await user.selectOptions(screen.getByLabelText('基準幣別'), '2')
-    await user.selectOptions(screen.getByLabelText('對應幣別'), '1')
     await user.selectOptions(screen.getByLabelText('匯率類型'), 'AUTO')
     await user.click(screen.getByRole('button', { name: '儲存' }))
 
@@ -276,7 +254,6 @@ describe('CurrencyPairFormModal', () => {
     }
     render(
       <CurrencyPairFormModal
-        mode="edit"
         initial={autoPair}
         brands={BRANDS}
         currencies={CURRENCIES}

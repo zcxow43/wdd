@@ -1,23 +1,29 @@
 ---
 status: done
 title: "Currency Pair as an Audit Consumer"
-requirement: "Currency pair create/update/delete must not apply directly — they must be submitted for approval through the standalone audit module, with before/after visible before approving"
+requirement: "Currency pair update/delete must not apply directly — they must be submitted for approval through the standalone audit module, with before/after visible before approving. Create was originally in scope here too, but per a later requirement a brand's currency_pair row can now only ever come into existence via specs/backend/currency-pair-definition.md's global-definition fan-out — POST /api/currency-pairs, and this handler's CREATE branch, have been removed."
 ---
 
 # Currency Pair as an Audit Consumer — Backend Spec
 
 ## Overview
-`POST /api/currency-pairs`, `PUT /api/currency-pairs/{id}`, and `DELETE /api/currency-pairs/{id}` (`specs/backend/currency-pair.md`) must not mutate `currency_pair` directly — they submit a request through the generic audit module (`specs/backend/audit.md`), applied only once approved. This spec covers **only** currency pair's plug-in into that module: implementing `AuditHandler` for `entityType = "CURRENCY_PAIR"` and wiring `CurrencyPairController` to submit through `AuditService` instead of mutating directly. The generic submit/list/approve/reject mechanism, the `/api/audit-requests` API, and the `audit_request` table are entirely specified in `specs/backend/audit.md` and `specs/dba/audit.md` — implement those first (or alongside this).
+`PUT /api/currency-pairs/{id}` and `DELETE /api/currency-pairs/{id}` (`specs/backend/currency-pair.md`) must not mutate `currency_pair` directly — they submit a request through the generic audit module (`specs/backend/audit.md`), applied only once approved. This spec covers **only** currency pair's plug-in into that module: implementing `AuditHandler` for `entityType = "CURRENCY_PAIR"` (`UPDATE`/`DELETE` only — see the Delta below) and wiring `CurrencyPairController` to submit through `AuditService` instead of mutating directly. The generic submit/list/approve/reject mechanism, the `/api/audit-requests` API, and the `audit_request` table are entirely specified in `specs/backend/audit.md` and `specs/dba/audit.md` — implement those first (or alongside this).
 
 This file previously (in an earlier, unimplemented iteration) defined the entire generic maker-checker mechanism itself, coupled to currency pairs. That generic machinery has been extracted into `specs/backend/audit.md`; this file now contains only what's genuinely currency-pair-specific.
 
 Read-only endpoints (`GET /api/currency-pairs`, `GET /api/currency-pairs/{id}`) are **unaffected** — they keep reading live, already-approved rows from `currency_pair` directly.
 
 ## Requirements
-- `POST`/`PUT`/`DELETE /api/currency-pairs...` submit through `AuditService.submit("CURRENCY_PAIR", ...)` (`specs/backend/audit.md`) instead of calling `CurrencyPairService.create`/`update`/`delete` directly, and return `202 Accepted` with the resulting `AuditRequestResponse`
-- A `CurrencyPairAuditHandler` implements `AuditHandler` for `entityType = "CURRENCY_PAIR"`, reusing `CurrencyPairService`'s existing brand/currency-existence, base≠quote, rate/rateType, and uniqueness validation
-- The handler's `CREATE` dedup rule (no live pair or `PENDING` `CREATE` request already exists for the same `(brandId, baseCurrencyId, quoteCurrencyId)`) is this handler's own responsibility, per `specs/backend/audit.md`'s note that natural-key dedup for `CREATE` isn't something the generic audit module can check on its own (there's no `entityId` yet)
-- `CurrencyPairCreateRequest`/`CurrencyPairUpdateRequest` gain an optional `requestedBy` (String) field, passed through to `AuditService.submit`
+- `PUT`/`DELETE /api/currency-pairs...` submit through `AuditService.submit("CURRENCY_PAIR", ...)` (`specs/backend/audit.md`) instead of calling `CurrencyPairService.update`/`delete` directly, and return `202 Accepted` with the resulting `AuditRequestResponse`
+- A `CurrencyPairAuditHandler` implements `AuditHandler` for `entityType = "CURRENCY_PAIR"`, reusing `CurrencyPairService`'s existing brand/currency-existence, base≠quote, rate/rateType, and uniqueness validation — for `UPDATE`/`DELETE` only, per the Delta below
+- `CurrencyPairUpdateRequest` has an optional `requestedBy` (String) field, passed through to `AuditService.submit`
+
+### Delta: no CREATE — a brand pair requires a global definition first
+Per a later requirement ("必須先有全域, 品牌幣種對才會有" — a brand currency pair can only exist once a global currency-pair-definition exists for that direction), `POST /api/currency-pairs` has been removed entirely (`specs/backend/currency-pair.md`) — not just moved behind approval. Consequently:
+- `CurrencyPairController` has no `create` method/route at all — not even one that only submits an audit request.
+- `CurrencyPairAuditHandler` handles `UPDATE`/`DELETE` only. Its `CREATE` branch (the natural-key dedup check described below, and the `apply(CREATE, ...)` insert branch) is dead code with no caller — remove it, along with `DuplicatePendingCurrencyPairCreateException` if nothing else references it, rather than leaving unreachable branches in place.
+- The sole remaining way a `currency_pair` row comes into existence is `CurrencyPairDefinitionService.create`'s per-brand fan-out (`specs/backend/currency-pair-definition.md`), which calls `CurrencyPairService.create` as a plain, unaudited method call — that mechanism is unchanged by this delta.
+- `CurrencyPairCreateRequest`'s `requestedBy` field (added for the now-removed `POST` route) is no longer meaningful at the controller level but the DTO itself stays, since `CurrencyPairDefinitionService` still constructs one internally to call `CurrencyPairService.create`; it just never carries a real `requestedBy` from that internal call site.
 
 ## `CurrencyPairAuditHandler` snapshot shape
 `before_snapshot`/`after_snapshot` (opaque JSON to the audit module, `specs/dba/audit.md`) for `entityType = "CURRENCY_PAIR"`:
@@ -34,18 +40,7 @@ Read-only endpoints (`GET /api/currency-pairs`, `GET /api/currency-pairs/{id}`) 
 
 ### Changes to the existing `/api/currency-pairs` endpoints
 
-#### `POST /api/currency-pairs` (submit a create request)
-Request body: unchanged from `specs/backend/currency-pair.md` (`brandId`, `baseCurrencyId`, `quoteCurrencyId`, `rate`, `rateType`, `active`), plus optional `requestedBy`.
-
-Behavior: `CurrencyPairController.create` builds the proposed snapshot map from the request and calls `auditService.submit("CURRENCY_PAIR", CREATE, null, afterSnapshot, requestedBy)`, which delegates validation to `CurrencyPairAuditHandler.validate(...)`. Nothing is inserted into `currency_pair`.
-
-Response **`202 Accepted`** (changed from `201`): `AuditRequestResponse` with `entityType: "CURRENCY_PAIR"`, `actionType: "CREATE"`, `entityId: null`, `status: "PENDING"`, `before: null`, `after: <submitted values, with codes resolved>`.
-
-Errors: same `400`/`404`/`409` shapes as `specs/backend/currency-pair.md`, plus:
-```json
-{ "error": "A pending create request already exists for this brand/base/quote combination" }
-```
-→ `409`
+There is no `POST /api/currency-pairs` — see the Delta above. Only `PUT`/`DELETE` submit audit requests.
 
 #### `PUT /api/currency-pairs/{id}` (submit an update request)
 Request body: unchanged (partial update), plus optional `requestedBy`.
@@ -54,7 +49,7 @@ Behavior: `CurrencyPairController.update` calls `auditService.submit("CURRENCY_P
 
 Response **`202 Accepted`** (changed from `200`): `AuditRequestResponse` with `actionType: "UPDATE"`, `entityId: id`, `status: "PENDING"`, `before: <pair's current values>`, `after: <merged proposed values>`.
 
-Errors: same as create, plus:
+Errors: `400`/`404` per `specs/backend/currency-pair.md`'s validation rules, `409` if the resulting (brand, base, quote) triple collides with a different existing row, plus:
 ```json
 { "error": "A pending change request already exists for this currency pair" }
 ```
@@ -74,15 +69,16 @@ The generic `/api/audit-requests` list/get/approve/reject endpoints used to revi
 ## Implementation Details
 
 ### `CurrencyPairAuditHandler` (implements `AuditHandler`, `entityType() = "CURRENCY_PAIR"`)
+Handles `UPDATE`/`DELETE` only — there is no `CREATE` case (see the Delta above; remove any pre-existing `CREATE` branch/dedup check rather than leaving it as dead code):
 - `snapshotOf(id)`: load the pair via `CurrencyPairMapper` (`404` via the existing `CurrencyPairNotFoundException` if missing), build the shape shown above.
-- `validate(actionType, entityId, after)`: extract the existing brand-existence / currency-existence / base≠quote / rate-rule / uniqueness checks out of `CurrencyPairService` (`specs/backend/currency-pair.md`) into package-visible helper methods (or a small shared component) reused by both `CurrencyPairService` and this handler, rather than duplicating that logic. For `CREATE`, additionally check no `PENDING` `CREATE` `audit_request` row exists with `entityType='CURRENCY_PAIR'` and a matching `(brandId, baseCurrencyId, quoteCurrencyId)` in its `after_snapshot` (via `AuditRequestMapper`, e.g. `JSON_EXTRACT` or by loading candidate rows and comparing in Java — either is fine given the small expected row count).
-- `apply(actionType, entityId, after)`: convert `after` back into a `CurrencyPairCreateRequest`/`CurrencyPairUpdateRequest`-shaped call into `CurrencyPairService.create`/`update`/`delete` (kept exactly as they are today — the actual insert/update/delete logic, just no longer called directly by `CurrencyPairController`). Returns the pair's id.
+- `validate(actionType, entityId, after)`: extract the existing brand-existence / currency-existence / base≠quote / rate-rule / uniqueness checks out of `CurrencyPairService` (`specs/backend/currency-pair.md`) into package-visible helper methods (or a small shared component) reused by both `CurrencyPairService` and this handler, rather than duplicating that logic. Only ever invoked with `UPDATE`.
+- `apply(actionType, entityId, after)`: for `UPDATE`, convert `after` back into a `CurrencyPairUpdateRequest`-shaped call into `CurrencyPairService.update` (kept exactly as it is today — the actual update logic, just no longer called directly by `CurrencyPairController`); for `DELETE`, call `CurrencyPairService.delete`. Returns the pair's id.
 - `summarize(snapshot)`: `"{brandCode} · {baseCurrencyCode}/{quoteCurrencyCode}"`.
 
 ### Required changes to the existing Currency Pair API (`specs/backend/currency-pair.md`)
-- `CurrencyPairController.create`/`update`/`delete`: no longer call `CurrencyPairService.create`/`update`/`delete` directly. Build the snapshot map and call `AuditService.submit("CURRENCY_PAIR", ...)`, returning `202` with `AuditRequestResponse`.
+- `CurrencyPairController` has no `create` method/route — see the Delta above. `update`/`delete` no longer call `CurrencyPairService.update`/`delete` directly; they build the snapshot map and call `AuditService.submit("CURRENCY_PAIR", ...)`, returning `202` with `AuditRequestResponse`.
 - `CurrencyPairController.list`/`getById` (`GET`): **unchanged**.
-- `CurrencyPairService.create`/`update`/`delete`: kept as-is, but now called only from `CurrencyPairAuditHandler.apply(...)`, never directly from `CurrencyPairController`.
+- `CurrencyPairService.create`/`update`/`delete`: kept as-is. `update`/`delete` are now called only from `CurrencyPairAuditHandler.apply(...)`, never directly from `CurrencyPairController`. `create` is called only from `CurrencyPairDefinitionService`'s fan-out (`specs/backend/currency-pair-definition.md`), never from `CurrencyPairAuditHandler` (which has no `CREATE` branch) or `CurrencyPairController`.
 - Brand/currency-existence, base≠quote, rate-rule, and uniqueness validation logic currently inline in `CurrencyPairService.create`/`update` is extracted into shared helpers reused by `CurrencyPairAuditHandler.validate`.
 
 ### Out of scope (explicitly)
@@ -99,6 +95,14 @@ The generic `/api/audit-requests` list/get/approve/reject endpoints used to revi
 - [x] Approving a `CURRENCY_PAIR` request whose re-validation now fails (e.g. brand disabled/removed, duplicate now exists) returns the appropriate `400`/`404`/`409` and leaves the request `PENDING`
 - [x] `GET /api/currency-pairs` and `GET /api/currency-pairs/{id}` behavior is unchanged (still reads live data directly)
 - [x] Unit tests for `CurrencyPairAuditHandler` (validate/apply/snapshotOf/summarize, all branches) and updated `CurrencyPairServiceTest`/`CurrencyPairControllerTest` reflecting the controller delegating to `AuditService`
+
+### Delta: no CREATE — a brand pair requires a global definition first
+(The `[x]` items above describing `POST`/`CURRENCY_PAIR`/`CREATE` behavior remain historically accurate for what was built and tested at the time; `POST /api/currency-pairs` no longer exists — see `specs/backend/currency-pair.md`.)
+- [x] `CurrencyPairAuditHandler` has no `CREATE` case in `validate`/`apply` — confirmed by inspection, not just by the route being gone
+- [x] `DuplicatePendingCurrencyPairCreateException` is removed if nothing else references it after the `CREATE` branch is removed
+- [x] `CurrencyPairAuditHandlerTest`'s `CREATE`-specific test cases (pending-duplicate dedup, apply-inserts-and-returns-id, etc.) are removed or repurposed — the handler no longer has that behavior to test
+- [x] `CurrencyPairControllerTest`'s `POST`-related tests (202/create-audit-request assertions, create-pending-duplicate 409, the `CREATE` leg of the approval round-trip suite) are removed, since the route no longer exists
+- [x] `UPDATE`/`DELETE` audit behavior (submit, approve, reject, re-validation-at-approval-time failure, pending-dedup) is completely unchanged by this delta
 
 ---
 ## Execution Result
@@ -128,3 +132,19 @@ The generic `/api/audit-requests` list/get/approve/reject endpoints used to revi
   - The `PUT` merge step (spec: "CurrencyPairController/CurrencyPairAuditHandler merge the request onto the pair's current values") is implemented in `CurrencyPairController.update` (reads the pair once via `currencyPairService.getById(id)`, builds the merged `after` map), not inside the handler — the spec explicitly allows either. `AuditService.submit` separately calls `handler.snapshotOf(id)` for the `before` snapshot, so the pair is read twice per `PUT`; this minor redundancy was accepted in favor of keeping `CurrencyPairController` and `CurrencyPairAuditHandler` independently simple, per the spec's explicit "either is fine" latitude.
   - `CurrencyPairAuditHandler.apply` for `UPDATE`/`CREATE` reconstructs a full `CurrencyPairCreateRequest`/`CurrencyPairUpdateRequest` from the (already fully-merged and validated) snapshot map and calls the unmodified `CurrencyPairService.create`/`update`, which re-runs its own full validation internally. This is intentionally redundant with `CurrencyPairAuditHandler.validate` (which already ran moments earlier in the same `submit`/`approve` transaction) — the spec explicitly says to keep `CurrencyPairService.create`/`update`/`delete` "exactly as they are today", and the redundant check is a harmless, cheap defense-in-depth rather than a correctness concern.
   - `CurrencyService.delete`'s in-use guard is unchanged (still checks only the live `currency_pair` table via `CurrencyPairMapper.existsByCurrencyId`, per the spec's explicit "Out of scope" note) — not touched by this increment.
+
+### Increment 1 — 2026-07-30
+- Status: DONE
+- Files changed:
+  - `develop/backend/src/main/java/pl/piomin/services/backend/service/CurrencyPairAuditHandler.java` (edited — removed the `CREATE` natural-key dedup check and the `isOriginalSubmission`/enrichment-signal logic from `validate(...)` (it is now only ever invoked with `UPDATE`, so no `actionType` branching is needed there anymore); removed the `checkNoPendingCreateDuplicate` helper, the `toCreateRequest` helper, and the `parseSnapshot` helper (all dead once `CREATE` was removed); `apply(...)`'s exhaustive `switch` over `AuditActionType` now handles `UPDATE`/`DELETE` and has a `case CREATE ->` that throws `UnsupportedOperationException` with a message pointing at the currency-pair-definition fan-out, rather than leaving the old insert branch in place or dropping exhaustiveness; removed the now-unused `AuditRequestMapper`/`ObjectMapper` constructor dependencies and their imports (`List`, `Objects`, `JsonProcessingException`, `TypeReference`, `ObjectMapper`, `AuditRequest`, `AuditRequestMapper`, `CurrencyPairCreateRequest`, `DuplicatePendingCurrencyPairCreateException`) since nothing in the class uses them anymore
+  - `develop/backend/src/main/java/pl/piomin/services/backend/exception/DuplicatePendingCurrencyPairCreateException.java` (deleted — confirmed via `grep` that nothing else in the codebase referenced it after the `CREATE` branch was removed from the handler)
+  - `develop/backend/src/main/java/pl/piomin/services/backend/exception/GlobalExceptionHandler.java` (edited — removed the `@ExceptionHandler(DuplicatePendingCurrencyPairCreateException.class)` method)
+  - `develop/backend/src/main/java/pl/piomin/services/backend/controller/CurrencyPairController.java` (edited — removed `create`/`@PostMapping` entirely; see `specs/backend/currency-pair.md`'s paired Increment 2 for the full description, since both specs' deltas are one atomic change)
+  - `develop/backend/src/test/java/pl/piomin/services/backend/service/CurrencyPairAuditHandlerTest.java` (rewritten — removed the `AuditRequestMapper` mock and `ObjectMapper` import (no longer needed by the handler's constructor); removed every `CREATE`-specific test (`validate_create_throwsDuplicate_whenPendingCreateExistsForSameTriple`, `validate_create_succeeds_whenPendingCreateExistsForDifferentTriple`, `validate_create_skipsPendingDuplicateCheck_whenSnapshotAlreadyEnriched_asAtApprovalTime`, `apply_create_insertsPairAndReturnsGeneratedId`); changed the remaining `validate(...)` test invocations from `AuditActionType.CREATE` to `AuditActionType.UPDATE` (matching the class's own new contract that `validate` is only ever invoked with `UPDATE`); removed the now-meaningless `validate_update_doesNotCheckPendingCreateDuplicate` test (there is no pending-create-duplicate check left to not-check); added `apply_create_throwsUnsupportedOperation` asserting `handler.apply(AuditActionType.CREATE, ...)` throws `UnsupportedOperationException`. All `UPDATE`/`DELETE` test bodies (`snapshotOf`, brand/currency 404s, base=quote 400, live-duplicate 409, AUTO-forces-null, MANUAL-missing-rate 400, `apply_update_*`, `apply_delete_*`, `summarize`) are otherwise untouched.
+  - `develop/backend/src/test/java/pl/piomin/services/backend/controller/CurrencyPairControllerTest.java` (edited — see `specs/backend/currency-pair.md`'s paired Increment 2 for the full description)
+  - `develop/backend/pom.xml`, `develop/backend/README.md` (edited — version bumped `0.0.7` → `0.0.8`; see `specs/backend/currency-pair.md`'s paired Increment 2)
+- Notes:
+  - This increment and `specs/backend/currency-pair.md`'s "Increment 2" were implemented together as a single atomic change (removing `POST /api/currency-pairs` end-to-end: controller route, audit-handler `CREATE` branch, and the now-dead dedup exception). They are recorded separately here only because they are two separate spec files.
+  - `CurrencyPairAuditHandler.apply(...)`'s `switch` remains exhaustive over `AuditActionType` (a `default`/missing-case compile error would have caught an incomplete removal) — `CREATE` is handled explicitly with `throw new UnsupportedOperationException(...)` rather than being silently omitted, so a future accidental re-wiring of a `CREATE` audit submission for `CURRENCY_PAIR` would fail loudly instead of writing corrupt data.
+  - Verified via `mvn -f develop/backend/pom.xml clean test`: `BUILD SUCCESS`, `256` tests, `0` failures/errors, including `CurrencyPairDefinitionServiceTest` (14) and `CurrencyPairDefinitionControllerTest` (15) — a completely different feature — passing unmodified, confirming `CurrencyPairService.create`'s plain-method fan-out call path is unaffected by removing `CurrencyPairAuditHandler`'s `CREATE` case and `CurrencyPairController`'s `POST` route.
+  - No changes were needed to `.circleci/config.yml` — the existing `mvn -f develop/backend/pom.xml -B test` step already covers this.

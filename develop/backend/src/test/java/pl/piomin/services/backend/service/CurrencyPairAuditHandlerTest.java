@@ -3,12 +3,10 @@ package pl.piomin.services.backend.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -17,18 +15,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import pl.piomin.services.backend.audit.AuditActionType;
-import pl.piomin.services.backend.audit.AuditRequest;
-import pl.piomin.services.backend.audit.AuditRequestMapper;
-import pl.piomin.services.backend.dto.CurrencyPairCreateRequest;
-import pl.piomin.services.backend.dto.CurrencyPairUpdateRequest;
 import pl.piomin.services.backend.exception.BrandNotFoundException;
 import pl.piomin.services.backend.exception.CurrencyNotFoundException;
 import pl.piomin.services.backend.exception.CurrencyPairExistsException;
 import pl.piomin.services.backend.exception.CurrencyPairNotFoundException;
-import pl.piomin.services.backend.exception.DuplicatePendingCurrencyPairCreateException;
 import pl.piomin.services.backend.exception.InvalidCurrencyPairException;
 import pl.piomin.services.backend.mapper.BrandMapper;
 import pl.piomin.services.backend.mapper.CurrencyMapper;
@@ -41,7 +32,10 @@ import pl.piomin.services.backend.model.CurrencyPair;
  * Unit tests for {@link CurrencyPairAuditHandler}: snapshotOf/validate/apply/summarize,
  * exercised with a real {@link CurrencyPairValidator} and {@link CurrencyPairService}
  * backed by mocked mappers, matching the layering convention used by
- * {@link CurrencyPairServiceTest}.
+ * {@link CurrencyPairServiceTest}. There is no CREATE case for this handler -
+ * see specs/backend/currency-pair-approval.md's "no CREATE" delta - so only
+ * UPDATE/DELETE (and validate's shared validation logic, exercised via UPDATE)
+ * are covered here.
  */
 @ExtendWith(MockitoExtension.class)
 class CurrencyPairAuditHandlerTest {
@@ -55,17 +49,13 @@ class CurrencyPairAuditHandlerTest {
     @Mock
     private CurrencyMapper currencyMapper;
 
-    @Mock
-    private AuditRequestMapper auditRequestMapper;
-
     private CurrencyPairAuditHandler handler;
 
     @BeforeEach
     void setUp() {
         CurrencyPairValidator validator = new CurrencyPairValidator(brandMapper, currencyMapper, currencyPairMapper);
         CurrencyPairService currencyPairService = new CurrencyPairService(currencyPairMapper, validator);
-        handler = new CurrencyPairAuditHandler(currencyPairMapper, validator, currencyPairService,
-                auditRequestMapper, new ObjectMapper());
+        handler = new CurrencyPairAuditHandler(currencyPairMapper, validator, currencyPairService);
     }
 
     private Brand sampleBrand(Long id, String code) {
@@ -143,7 +133,7 @@ class CurrencyPairAuditHandlerTest {
                 .isInstanceOf(CurrencyPairNotFoundException.class);
     }
 
-    // --- validate -------------------------------------------------------------
+    // --- validate (invoked with UPDATE only) -----------------------------------
 
     @Test
     void validate_succeeds_andEnrichesSnapshotWithCodes() {
@@ -153,7 +143,7 @@ class CurrencyPairAuditHandlerTest {
         when(currencyMapper.findById(1L)).thenReturn(sampleCurrency(1L, "TWD"));
         when(currencyPairMapper.findByBrandBaseQuote(3L, 2L, 1L)).thenReturn(null);
 
-        handler.validate(AuditActionType.CREATE, null, after);
+        handler.validate(AuditActionType.UPDATE, 7L, after);
 
         assertThat(after.get("brandCode")).isEqualTo("PUG");
         assertThat(after.get("baseCurrencyCode")).isEqualTo("USD");
@@ -166,7 +156,7 @@ class CurrencyPairAuditHandlerTest {
         Map<String, Object> after = sampleAfter();
         when(brandMapper.findById(3L)).thenReturn(null);
 
-        assertThatThrownBy(() -> handler.validate(AuditActionType.CREATE, null, after))
+        assertThatThrownBy(() -> handler.validate(AuditActionType.UPDATE, 7L, after))
                 .isInstanceOf(BrandNotFoundException.class);
     }
 
@@ -176,7 +166,7 @@ class CurrencyPairAuditHandlerTest {
         when(brandMapper.findById(3L)).thenReturn(sampleBrand(3L, "PUG"));
         when(currencyMapper.findById(2L)).thenReturn(null);
 
-        assertThatThrownBy(() -> handler.validate(AuditActionType.CREATE, null, after))
+        assertThatThrownBy(() -> handler.validate(AuditActionType.UPDATE, 7L, after))
                 .isInstanceOf(CurrencyNotFoundException.class);
     }
 
@@ -187,7 +177,7 @@ class CurrencyPairAuditHandlerTest {
         when(currencyMapper.findById(2L)).thenReturn(sampleCurrency(2L, "USD"));
         when(currencyMapper.findById(1L)).thenReturn(null);
 
-        assertThatThrownBy(() -> handler.validate(AuditActionType.CREATE, null, after))
+        assertThatThrownBy(() -> handler.validate(AuditActionType.UPDATE, 7L, after))
                 .isInstanceOf(CurrencyNotFoundException.class);
     }
 
@@ -199,7 +189,7 @@ class CurrencyPairAuditHandlerTest {
         when(brandMapper.findById(3L)).thenReturn(sampleBrand(3L, "PUG"));
         when(currencyMapper.findById(1L)).thenReturn(sampleCurrency(1L, "TWD"));
 
-        assertThatThrownBy(() -> handler.validate(AuditActionType.CREATE, null, after))
+        assertThatThrownBy(() -> handler.validate(AuditActionType.UPDATE, 7L, after))
                 .isInstanceOf(InvalidCurrencyPairException.class);
     }
 
@@ -211,7 +201,7 @@ class CurrencyPairAuditHandlerTest {
         when(currencyMapper.findById(1L)).thenReturn(sampleCurrency(1L, "TWD"));
         when(currencyPairMapper.findByBrandBaseQuote(3L, 2L, 1L)).thenReturn(samplePair(5L, 3L, 2L, 1L));
 
-        assertThatThrownBy(() -> handler.validate(AuditActionType.CREATE, null, after))
+        assertThatThrownBy(() -> handler.validate(AuditActionType.UPDATE, 7L, after))
                 .isInstanceOf(CurrencyPairExistsException.class);
     }
 
@@ -225,7 +215,7 @@ class CurrencyPairAuditHandlerTest {
         when(currencyMapper.findById(1L)).thenReturn(sampleCurrency(1L, "TWD"));
         when(currencyPairMapper.findByBrandBaseQuote(3L, 2L, 1L)).thenReturn(null);
 
-        handler.validate(AuditActionType.CREATE, null, after);
+        handler.validate(AuditActionType.UPDATE, 7L, after);
 
         assertThat(after.get("rate")).isNull();
     }
@@ -239,102 +229,11 @@ class CurrencyPairAuditHandlerTest {
         when(currencyMapper.findById(1L)).thenReturn(sampleCurrency(1L, "TWD"));
         when(currencyPairMapper.findByBrandBaseQuote(3L, 2L, 1L)).thenReturn(null);
 
-        assertThatThrownBy(() -> handler.validate(AuditActionType.CREATE, null, after))
+        assertThatThrownBy(() -> handler.validate(AuditActionType.UPDATE, 7L, after))
                 .isInstanceOf(InvalidCurrencyPairException.class);
     }
 
-    @Test
-    void validate_create_throwsDuplicate_whenPendingCreateExistsForSameTriple() {
-        Map<String, Object> after = sampleAfter();
-        when(brandMapper.findById(3L)).thenReturn(sampleBrand(3L, "PUG"));
-        when(currencyMapper.findById(2L)).thenReturn(sampleCurrency(2L, "USD"));
-        when(currencyMapper.findById(1L)).thenReturn(sampleCurrency(1L, "TWD"));
-        when(currencyPairMapper.findByBrandBaseQuote(3L, 2L, 1L)).thenReturn(null);
-
-        AuditRequest pendingCreate = new AuditRequest();
-        pendingCreate.setEntityType("CURRENCY_PAIR");
-        pendingCreate.setActionType("CREATE");
-        pendingCreate.setStatus("PENDING");
-        pendingCreate.setAfterSnapshot("{\"brandId\":3,\"baseCurrencyId\":2,\"quoteCurrencyId\":1}");
-        when(auditRequestMapper.findAll("CURRENCY_PAIR", "PENDING", "CREATE")).thenReturn(List.of(pendingCreate));
-
-        assertThatThrownBy(() -> handler.validate(AuditActionType.CREATE, null, after))
-                .isInstanceOf(DuplicatePendingCurrencyPairCreateException.class);
-    }
-
-    @Test
-    void validate_create_succeeds_whenPendingCreateExistsForDifferentTriple() {
-        Map<String, Object> after = sampleAfter();
-        when(brandMapper.findById(3L)).thenReturn(sampleBrand(3L, "PUG"));
-        when(currencyMapper.findById(2L)).thenReturn(sampleCurrency(2L, "USD"));
-        when(currencyMapper.findById(1L)).thenReturn(sampleCurrency(1L, "TWD"));
-        when(currencyPairMapper.findByBrandBaseQuote(3L, 2L, 1L)).thenReturn(null);
-
-        AuditRequest pendingCreate = new AuditRequest();
-        pendingCreate.setEntityType("CURRENCY_PAIR");
-        pendingCreate.setActionType("CREATE");
-        pendingCreate.setStatus("PENDING");
-        pendingCreate.setAfterSnapshot("{\"brandId\":9,\"baseCurrencyId\":2,\"quoteCurrencyId\":1}");
-        when(auditRequestMapper.findAll("CURRENCY_PAIR", "PENDING", "CREATE")).thenReturn(List.of(pendingCreate));
-
-        handler.validate(AuditActionType.CREATE, null, after);
-        // no exception
-    }
-
-    @Test
-    void validate_create_skipsPendingDuplicateCheck_whenSnapshotAlreadyEnriched_asAtApprovalTime() {
-        // Simulates AuditService.approve() re-validating a CREATE request: the
-        // snapshot passed in is the already-persisted (and therefore already
-        // code-enriched) one, so it already matches itself among PENDING creates.
-        Map<String, Object> after = sampleAfter();
-        after.put("brandCode", "PUG");
-        after.put("baseCurrencyCode", "USD");
-        after.put("quoteCurrencyCode", "TWD");
-        when(brandMapper.findById(3L)).thenReturn(sampleBrand(3L, "PUG"));
-        when(currencyMapper.findById(2L)).thenReturn(sampleCurrency(2L, "USD"));
-        when(currencyMapper.findById(1L)).thenReturn(sampleCurrency(1L, "TWD"));
-        when(currencyPairMapper.findByBrandBaseQuote(3L, 2L, 1L)).thenReturn(null);
-
-        handler.validate(AuditActionType.CREATE, null, after);
-        // no exception thrown - self-collision is correctly avoided
-
-        verify(auditRequestMapper, never()).findAll(any(), any(), any());
-    }
-
-    @Test
-    void validate_update_doesNotCheckPendingCreateDuplicate() {
-        Map<String, Object> after = sampleAfter();
-        when(brandMapper.findById(3L)).thenReturn(sampleBrand(3L, "PUG"));
-        when(currencyMapper.findById(2L)).thenReturn(sampleCurrency(2L, "USD"));
-        when(currencyMapper.findById(1L)).thenReturn(sampleCurrency(1L, "TWD"));
-        when(currencyPairMapper.findByBrandBaseQuote(3L, 2L, 1L)).thenReturn(samplePair(7L, 3L, 2L, 1L));
-
-        handler.validate(AuditActionType.UPDATE, 7L, after);
-
-        verify(auditRequestMapper, never()).findAll(any(), any(), any());
-    }
-
     // --- apply -------------------------------------------------------------
-
-    @Test
-    void apply_create_insertsPairAndReturnsGeneratedId() {
-        Map<String, Object> after = sampleAfter();
-        when(brandMapper.findById(3L)).thenReturn(sampleBrand(3L, "PUG"));
-        when(currencyMapper.findById(2L)).thenReturn(sampleCurrency(2L, "USD"));
-        when(currencyMapper.findById(1L)).thenReturn(sampleCurrency(1L, "TWD"));
-        when(currencyPairMapper.findByBrandBaseQuote(3L, 2L, 1L)).thenReturn(null);
-        org.mockito.Mockito.doAnswer(invocation -> {
-            CurrencyPair toInsert = invocation.getArgument(0);
-            toInsert.setId(42L);
-            return 1;
-        }).when(currencyPairMapper).insert(any(CurrencyPair.class));
-        when(currencyPairMapper.findById(42L)).thenReturn(samplePair(42L, 3L, 2L, 1L));
-
-        Long id = handler.apply(AuditActionType.CREATE, null, after);
-
-        assertThat(id).isEqualTo(42L);
-        verify(currencyPairMapper).insert(any(CurrencyPair.class));
-    }
 
     @Test
     void apply_update_updatesPairAndReturnsEntityId() {
@@ -368,6 +267,12 @@ class CurrencyPairAuditHandlerTest {
 
         assertThatThrownBy(() -> handler.apply(AuditActionType.UPDATE, 999L, sampleAfter()))
                 .isInstanceOf(CurrencyPairNotFoundException.class);
+    }
+
+    @Test
+    void apply_create_throwsUnsupportedOperation() {
+        assertThatThrownBy(() -> handler.apply(AuditActionType.CREATE, null, sampleAfter()))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     // --- summarize -----------------------------------------------------------

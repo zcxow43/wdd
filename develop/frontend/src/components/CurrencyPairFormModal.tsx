@@ -8,8 +8,7 @@ import type { Currency } from '../types/currency'
 import './CurrencyPairFormModal.css'
 
 interface CurrencyPairFormModalProps {
-  mode: 'create' | 'edit'
-  initial?: CurrencyPair
+  initial: CurrencyPair
   brands: Brand[]
   currencies: Currency[]
   onSubmit: (input: CurrencyPairInput) => Promise<void>
@@ -28,21 +27,20 @@ const LIVE_DUPLICATE_ERROR = 'Currency pair already exists for this brand'
 const PENDING_DUPLICATE_MESSAGE = '此幣種對已有待審核的異動申請'
 
 export function CurrencyPairFormModal({
-  mode,
   initial,
   brands,
   currencies,
   onSubmit,
   onClose,
 }: CurrencyPairFormModalProps) {
-  const [brandId, setBrandId] = useState<string>(initial ? String(initial.brandId) : '')
-  const [baseCurrencyId, setBaseCurrencyId] = useState<string>(initial ? String(initial.baseCurrencyId) : '')
-  const [quoteCurrencyId, setQuoteCurrencyId] = useState<string>(initial ? String(initial.quoteCurrencyId) : '')
-  const [rateType, setRateType] = useState<RateType>(initial?.rateType ?? 'MANUAL')
+  const [brandId, setBrandId] = useState<string>(String(initial.brandId))
+  const [baseCurrencyId, setBaseCurrencyId] = useState<string>(String(initial.baseCurrencyId))
+  const [quoteCurrencyId, setQuoteCurrencyId] = useState<string>(String(initial.quoteCurrencyId))
+  const [rateType, setRateType] = useState<RateType>(initial.rateType)
   const [rate, setRate] = useState<string>(
-    initial && initial.rate !== null && initial.rateType === 'MANUAL' ? String(initial.rate) : ''
+    initial.rate !== null && initial.rateType === 'MANUAL' ? String(initial.rate) : ''
   )
-  const [active, setActive] = useState(initial?.active ?? true)
+  const [active, setActive] = useState(initial.active)
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -108,7 +106,7 @@ export function CurrencyPairFormModal({
   }
 
   return (
-    <Modal title={mode === 'create' ? '新增幣種對' : '編輯幣種對'} onClose={onClose}>
+    <Modal title="編輯幣種對" onClose={onClose}>
       <form className="currency-pair-form" onSubmit={handleSubmit} noValidate>
         <div className="form-field">
           <label htmlFor="brandId">品牌</label>

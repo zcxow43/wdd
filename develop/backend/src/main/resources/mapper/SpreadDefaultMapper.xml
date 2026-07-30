@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="pl.piomin.services.backend.mapper.SpreadDefaultMapper">
+
+    <resultMap id="spreadDefaultResultMap" type="pl.piomin.services.backend.model.SpreadDefault">
+        <id property="id" column="id"/>
+        <result property="brandId" column="brand_id"/>
+        <result property="brandCode" column="brand_code"/>
+        <result property="depositSpread" column="deposit_spread"/>
+        <result property="withdrawSpread" column="withdraw_spread"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="enrichedColumns">
+        sd.id, sd.brand_id, br.code AS brand_code, sd.deposit_spread, sd.withdraw_spread,
+        sd.created_at, sd.updated_at
+    </sql>
+
+    <sql id="enrichedJoin">
+        FROM spread_default sd
+        JOIN brand br ON br.id = sd.brand_id
+    </sql>
+
+    <select id="findAll" resultMap="spreadDefaultResultMap">
+        SELECT <include refid="enrichedColumns"/>
+        <include refid="enrichedJoin"/>
+        <where>
+            <if test="brandId != null">AND sd.brand_id = #{brandId}</if>
+        </where>
+        ORDER BY sd.id
+    </select>
+
+    <select id="findById" resultMap="spreadDefaultResultMap">
+        SELECT <include refid="enrichedColumns"/>
+        <include refid="enrichedJoin"/>
+        WHERE sd.id = #{id}
+    </select>
+
+    <select id="findByBrandId" resultMap="spreadDefaultResultMap">
+        SELECT <include refid="enrichedColumns"/>
+        <include refid="enrichedJoin"/>
+        WHERE sd.brand_id = #{brandId}
+    </select>
+
+    <update id="update" parameterType="pl.piomin.services.backend.model.SpreadDefault">
+        UPDATE spread_default
+        SET deposit_spread = #{depositSpread},
+            withdraw_spread = #{withdrawSpread}
+        WHERE id = #{id}
+    </update>
+
+    <!-- Used only by tests to seed the fixed one-row-per-brand set; not exercised by the API -->
+    <insert id="insert" parameterType="pl.piomin.services.backend.model.SpreadDefault"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO spread_default (brand_id, deposit_spread, withdraw_spread)
+        VALUES (#{brandId}, #{depositSpread}, #{withdrawSpread})
+    </insert>
+
+    <delete id="deleteById">
+        DELETE FROM spread_default WHERE id = #{id}
+    </delete>
+
+    <!-- Used only by tests to reset the table; not exercised by the API -->
+    <select id="findAllIds" resultType="long">
+        SELECT id FROM spread_default
+    </select>
+
+</mapper>

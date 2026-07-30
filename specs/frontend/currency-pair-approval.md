@@ -1,21 +1,24 @@
 ---
 status: done
 title: "Currency Pair as an Audit Consumer"
-requirement: "Currency pair create/update/delete must not apply directly — they must be submitted for approval through the standalone audit module, with before/after visible before approving"
+requirement: "Currency pair update/delete must not apply directly — they must be submitted for approval through the standalone audit module, with before/after visible before approving. Create was originally in scope here too, but per a later requirement the page's create action (Add button/create modal) has been removed entirely — a brand's pair can now only come into existence via the global 幣種對主檔 page (specs/frontend/currency-pair-definition.md)."
 ---
 
 # Currency Pair as an Audit Consumer — Frontend Spec
 
 ## Overview
-Currency pair's create/update/delete now submit for approval instead of applying immediately, and are reviewed on the generic Audit page (`specs/frontend/audit.md`, route `/audit-requests`). This spec covers **only** currency pair's plug-in into that generic page — a `renderCurrencyPairDiff` renderer registered for `entityType: "CURRENCY_PAIR"` — and the required updates to the existing Currency Pair page (`develop/frontend/src/pages/CurrencyPairPage.tsx`) for the backend's new `202` responses (`specs/backend/currency-pair-approval.md`). The generic Audit page's route, table, modal chrome, and renderer registry mechanism are entirely specified in `specs/frontend/audit.md` — implement that first (or alongside this).
+Currency pair's update/delete submit for approval instead of applying immediately, and are reviewed on the generic Audit page (`specs/frontend/audit.md`, route `/audit-requests`). This spec covers **only** currency pair's plug-in into that generic page — a `renderCurrencyPairDiff` renderer registered for `entityType: "CURRENCY_PAIR"` — and the required updates to the existing Currency Pair page (`develop/frontend/src/pages/CurrencyPairPage.tsx`) for the backend's `202` responses on `PUT`/`DELETE` (`specs/backend/currency-pair-approval.md`). There is no create flow on this page at all — see the Delta below. The generic Audit page's route, table, modal chrome, and renderer registry mechanism are entirely specified in `specs/frontend/audit.md` — implement that first (or alongside this).
 
 This file previously (in an earlier, unimplemented iteration) defined the entire generic review page itself, coupled to currency pairs. That generic machinery has been extracted into `specs/frontend/audit.md`; this file now contains only what's genuinely currency-pair-specific.
 
 ## Requirements
-- A `renderCurrencyPairDiff(before, after)` function, registered against `entityType: "CURRENCY_PAIR"` in the Audit module's renderer registry (`specs/frontend/audit.md`), rendering the known field labels in a fixed order: 品牌/基準幣別/對應幣別/匯率/匯率類型/狀態
+- A `renderCurrencyPairDiff(before, after)` function, registered against `entityType: "CURRENCY_PAIR"` in the Audit module's renderer registry (`specs/frontend/audit.md`), rendering the known field labels in a fixed order: 品牌/基準幣別/對應幣別/匯率/匯率類型/狀態 — still renders correctly for historical `CREATE` audit requests that exist from before the create action was removed (the renderer itself is action-type-agnostic; it just formats whatever `before`/`after` it's given)
 - Registration happens once, at a point reachable during app startup (e.g. a side-effecting import from `App.tsx` alongside route registration, or from the currency-pair feature's own entry point) — implementer's choice of exact wiring, as long as it runs before the Audit page can be visited
-- Currency Pair page's create/edit/delete flows now show a "submitted for approval" confirmation instead of assuming the change applied immediately, and the table itself is not expected to change until the request is approved
+- Currency Pair page's edit/delete flows show a "submitted for approval" confirmation instead of assuming the change applied immediately, and the table itself is not expected to change until the request is approved
 - Currency Pair page rows with a `PENDING` request against them are marked (badge) and their Edit/Delete actions are disabled, to avoid the "already has a pending request" `409` in the common case
+
+### Delta: no create flow on this page
+Per a later requirement ("所以品牌幣種對不需新增按鈕" — the brand currency pair page doesn't need an Add button, since a brand pair now only ever comes from the global definition fan-out, `specs/frontend/currency-pair-definition.md`), the Currency Pair page's "+ Add" button and create modal have been removed entirely (`specs/frontend/currency-pair.md`) — not merely gated behind approval. There is no `currencyPairApi.create` call anywhere in this page, and `renderCurrencyPairDiff` is never invoked with a `CREATE` request going forward (though it must still render any that already exist in the audit history from before this change, per the Requirements above).
 
 ## `renderCurrencyPairDiff`
 
@@ -46,13 +49,12 @@ Rendering, reusing the audit module's generic before/after-column and changed-fi
 
 ## Required changes to the existing Currency Pair page
 
-`develop/frontend/src/pages/CurrencyPairPage.tsx`, `CurrencyPairFormModal.tsx`, and `currencyPairApi.ts` (`specs/frontend/currency-pair.md`) must be updated for the backend's new `202`-instead-of-`201`/`200`/`204` responses (`specs/backend/currency-pair-approval.md`):
+`develop/frontend/src/pages/CurrencyPairPage.tsx` and `currencyPairApi.ts` (`specs/frontend/currency-pair.md`) must be updated for the backend's `202`-instead-of-`200`/`204` responses on `PUT`/`DELETE` (`specs/backend/currency-pair-approval.md`). There is no `create` case — see the Delta above.
 
-- **Create**: on success (`202`), show toast "已送出新增申請，待審核" instead of assuming the pair now exists. Close the modal. The table does not need to (and should not be expected to) show the new pair, since it hasn't been approved.
 - **Edit**: on success (`202`), show toast "已送出修改申請，待審核". Close the modal. The row's displayed values remain the pre-change ones until approved.
 - **Delete**: on success (`202`), show toast "已送出刪除申請，待審核" instead of removing the row. Confirmation dialog copy should reflect that this submits a request, not an immediate delete, e.g. "確定要送出刪除 {brandCode} 品牌幣種對 {baseCode}/{quoteCode} 的申請嗎？"
 - **New 409** (duplicate pending request): toast "此幣種對已有待審核的異動申請"
-- **Pending-request badge**: on page load (and after each refetch), also fetch `GET /api/audit-requests?entityType=CURRENCY_PAIR&status=PENDING` (`specs/backend/audit.md`); for any pair whose `id` matches a pending request's `entityId`, render a "審核中" badge in the table row and disable that row's Edit/Delete buttons (they'd otherwise hit the new 409). The Add button is unaffected (creates are deduped by brand/base/quote, not by an existing row).
+- **Pending-request badge**: on page load (and after each refetch), also fetch `GET /api/audit-requests?entityType=CURRENCY_PAIR&status=PENDING` (`specs/backend/audit.md`); for any pair whose `id` matches a pending request's `entityId`, render a "審核中" badge in the table row and disable that row's Edit/Delete buttons (they'd otherwise hit the new 409).
 - The optional `requestedBy` field is not exposed as a form input in this iteration (no auth system to default it from) — omit it from the request payload; it will simply be `null`/absent on submitted requests.
 
 ## Acceptance Criteria
@@ -62,6 +64,12 @@ Rendering, reusing the audit module's generic before/after-column and changed-fi
 - [x] Currency Pair page's Add/Edit/Delete now show "已送出…申請，待審核" toasts instead of assuming the change applied, and no longer expect the table to reflect the change immediately
 - [x] Currency Pair page rows with a pending request show a "審核中" badge and disabled Edit/Delete buttons
 - [x] Currency Pair page surfaces the new 409 "此幣種對已有待審核的異動申請" message on create/edit/delete
+
+### Delta: no create flow on this page
+(The `[x]` items above mentioning `CREATE`/"Add" remain historically accurate for what was built and tested at the time.)
+- [x] The "+ Add" button and create modal no longer exist on `CurrencyPairPage` — see `specs/frontend/currency-pair.md`
+- [x] `renderCurrencyPairDiff` still renders correctly for a `CREATE` request already present in audit history (no regression to historical-record viewing), even though no new one can ever be submitted
+- [x] Edit/Delete toasts, the pending badge, and the 409 "此幣種對已有待審核的異動申請" message are all unchanged by this delta
 
 ---
 ## Execution Result
@@ -91,3 +99,25 @@ Rendering, reusing the audit module's generic before/after-column and changed-fi
   - **Pending-duplicate `409` classification is negative, not positive** (`error.body?.error !== 'Currency pair already exists for this brand'`) rather than matching the two known dedup strings verbatim. Chosen because the two dedup messages come from two different sources on the backend (`CurrencyPairAuditHandler`'s own CREATE-dedup exception vs. the generic audit module's UPDATE/DELETE-dedup exception) with independently-worded text, and a `409` from this API can only mean one of "live duplicate" or "pending duplicate already exists" per `specs/backend/currency-pair-approval.md`'s error contract — so excluding the one known non-pending case is more robust than hardcoding both dedup strings.
   - **Where the `409` pending-duplicate toast fires**: at the `CurrencyPairPage` level (alongside the existing 404 handling), not inside `CurrencyPairFormModal`, per the spec's explicit "toast" instruction (vs. the modal's existing inline-error convention for user-correctable input problems like the live-duplicate case). `CurrencyPairFormModal` still has its own fallback branch for this message in case an error somehow reaches it uncaught, but the page is the primary path.
   - Did not add a currency-pair-specific formatting for `匯率` beyond reusing the same `Number(rate.toFixed(8)).toString()` convention already used by `CurrencyPairTable.formatRate` (duplicated rather than extracted into a shared util, since it's a two-line function and extraction would add an import edge between two otherwise-independent modules for no real benefit at this size).
+
+### Increment 2 — 2026-07-30
+- Status: DONE
+- Delta implemented: no create flow on this page
+- Files changed:
+  - `develop/frontend/src/pages/CurrencyPairPage.tsx` (edited — removed `handleCreateSubmit` and the "+ Add" button; see `specs/frontend/currency-pair.md`'s Increment 2 for the full file-change list, since this is the shared implementation for both specs' Delta sections)
+  - `develop/frontend/src/components/CurrencyPairFormModal.tsx` (edited — dropped the `mode` prop; the component is edit-only going forward, so it is never invoked with a `CREATE` outcome again)
+  - `develop/frontend/src/api/currencyPairApi.ts` (edited — removed the `create` export; `currencyPairApi.create` is no longer callable from anywhere)
+  - `develop/frontend/src/components/CurrencyPairDiff.tsx` — **not modified**. `renderCurrencyPairDiff` remains entirely action-type-agnostic (it only ever looks at `before`/`after` field values, never `actionType`), so no code change was needed for it to keep rendering historical `CREATE` audit requests correctly.
+  - `develop/frontend/src/components/CurrencyPairDiff.test.tsx` — **not modified**; its existing CREATE-shaped (`before: null`) test case continues to pass unmodified, confirming no regression to historical-record viewing.
+  - `develop/frontend/src/pages/CurrencyPairPage.test.tsx` (edited — removed the create-flow test per `specs/frontend/currency-pair.md`'s Increment 2; every Edit/Delete/pending-badge/409-conflict test is untouched and still passes)
+- Acceptance criteria completed (all 3 Delta items now checked):
+  - [x] The "+ Add" button and create modal no longer exist on `CurrencyPairPage`
+  - [x] `renderCurrencyPairDiff` still renders correctly for a `CREATE` request already present in audit history
+  - [x] Edit/Delete toasts, the pending badge, and the 409 "此幣種對已有待審核的異動申請" message are all unchanged by this delta
+- Verification:
+  - `npm run build` (`tsc -b && vite build`) passes with 0 type errors.
+  - `npm test` (`vitest run`) passes: 23 test files, 168 tests, 0 failures — including `CurrencyPairDiff.test.tsx`'s unmodified CREATE-shaped-diff test and the Audit module's own `AuditReviewModal.test.tsx`, confirming the audit-consumption side of this delta needed no code changes.
+  - `npm run lint` (`oxlint`) passes with only the pre-existing `ToastProvider.tsx` fast-refresh warning.
+- Notes:
+  - This delta turned out to require zero changes to the audit-consumption code itself (`CurrencyPairDiff.tsx`, `diffRegistry.tsx`, `AuditReviewModal.tsx`): the renderer was already, by design, agnostic to which `actionType` produced the `before`/`after` it's handed, so a `CREATE` request already sitting in the audit history renders exactly as it did before this change. The only real work for this file's Delta was on the producer side (`CurrencyPairPage`/`CurrencyPairFormModal`/`currencyPairApi`), which is why the bulk of the file-change list mirrors `specs/frontend/currency-pair.md`'s Increment 2 — these two specs describe one atomic change from two angles (the page's own UI contract vs. this page's role as an audit producer/consumer), and were implemented together in a single pass.
+  - Confirmed by inspection that `registerDiffRenderer('CURRENCY_PAIR', renderCurrencyPairDiff)` still runs at `CurrencyPairPage` module scope unchanged, so the Audit page continues to render both historical `CREATE`/`UPDATE`/`DELETE` `CURRENCY_PAIR` requests with the dedicated layout — only new `CREATE` requests can no longer be produced, which is enforced entirely by the absence of any `create`-calling code path, not by any change to the audit module.

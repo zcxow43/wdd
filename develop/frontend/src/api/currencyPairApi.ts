@@ -10,10 +10,13 @@ export interface CurrencyPairListParams {
 }
 
 /**
- * Create/update/delete no longer apply directly — they submit a request
- * through the generic audit module and return `202 Accepted` with the
- * resulting `AuditRequest` instead of the currency pair itself, per
- * specs/frontend/currency-pair-approval.md. `list`/`getById` are unaffected.
+ * There is no create — a brand's pair can only come into existence via the
+ * global 幣種對主檔 page (specs/frontend/currency-pair-definition.md), which
+ * fans a new pair out to every brand. Update/delete no longer apply
+ * directly — they submit a request through the generic audit module and
+ * return `202 Accepted` with the resulting `AuditRequest` instead of the
+ * currency pair itself, per specs/frontend/currency-pair-approval.md.
+ * `list` is unaffected.
  */
 export const currencyPairApi = {
   list: (params?: CurrencyPairListParams) => {
@@ -23,7 +26,6 @@ export const currencyPairApi = {
     const qs = query.toString()
     return apiClient.get<CurrencyPair[]>(`${BASE_PATH}${qs ? `?${qs}` : ''}`)
   },
-  create: (input: CurrencyPairInput) => apiClient.post<AuditRequest>(BASE_PATH, input),
   update: (id: number, input: Partial<CurrencyPairInput>) =>
     apiClient.put<AuditRequest>(`${BASE_PATH}/${id}`, input),
   remove: (id: number) => apiClient.delete<AuditRequest>(`${BASE_PATH}/${id}`),

@@ -1,13 +1,13 @@
 ---
 status: done
 title: "Currency Pair API"
-requirement: "Provide REST API for currency pair CRUD (rate manual/auto), scoped per brand; lock currency code on update; block currency delete when referenced by a pair. Delta: when rateType is AUTO, clear any supplied rate to null; when rateType is MANUAL, rate is required. Delta 2: create/update/delete no longer apply directly — see specs/backend/currency-pair-approval.md."
+requirement: "Provide REST API for currency pair read/update/delete (rate manual/auto), scoped per brand; lock currency code on update; block currency delete when referenced by a pair. Update/delete submit an audit request instead of applying directly — see specs/backend/currency-pair-approval.md. There is no create endpoint: a brand's currency_pair row can only come into existence via specs/backend/currency-pair-definition.md's fan-out — a brand pair requires a global definition to exist first."
 ---
 
 # Currency Pair API — Backend Spec
 
-## Delta: create/update/delete now go through approval (implemented)
-**`POST /api/currency-pairs`, `PUT /api/currency-pairs/{id}`, and `DELETE /api/currency-pairs/{id}` no longer mutate `currency_pair` directly.** They now submit an audit request (`202 Accepted` instead of `201`/`200`/`204`) that must be approved before it takes effect. Implemented per `specs/backend/currency-pair-approval.md`'s "Required changes to the existing Currency Pair API" section (`CurrencyPairAuditHandler` + `CurrencyPairController` delegating to `AuditService.submit`, `specs/backend/audit.md`) — see that spec's Execution Result for details. `GET /api/currency-pairs` and `GET /api/currency-pairs/{id}` are unaffected and keep working exactly as documented below; the Acceptance Criteria below (all `[x]`, describing the pre-delta 201/200/204 contract) remain historically accurate for what they tested at the time and are superseded for POST/PUT/DELETE response codes by `specs/backend/currency-pair-approval.md`, per that file's own Acceptance Criteria.
+## Current state note
+`PUT`/`DELETE` below return `202 Accepted` (an `AuditRequestResponse`) and no longer mutate `currency_pair` directly — this is reflected inline in the "API Contract" section below. `GET` is unaffected. There is **no `POST /api/currency-pairs`** — a brand can only ever acquire a `currency_pair` row via `specs/backend/currency-pair-definition.md`'s fan-out (creating a global definition inserts one row per brand); no direct, ad-hoc, per-brand creation path exists at all, audited or otherwise. The `CurrencyPairAuditHandler` implementation details and the original design rationale for the UPDATE/DELETE audit flow live in `specs/backend/currency-pair-approval.md`; the Acceptance Criteria below (all `[x]`) describe the pre-approval, create-endpoint-still-existed contract and remain historically accurate for what they tested at the time.
 
 ## Overview
 Implement a REST API for managing currency pairs, each with an exchange rate that is either manually entered or automatically maintained, and each belonging to exactly one **brand**. Depends on the `currency_pair` table defined in `specs/dba/currency-pair.md`, the `brand` table/API (`specs/dba/brand.md`, `specs/backend/brand.md`), and the existing `currency` table/API (`specs/dba/currency.md`, `specs/backend/currency.md`).
@@ -17,7 +17,7 @@ This spec also requires two changes to the **existing** currency API (`pl.piomin
 2. **Currency delete must be blocked while it is referenced by any currency pair.** Before deleting, `CurrencyService.delete` must check whether the currency is used as `base_currency_id` or `quote_currency_id` in `currency_pair`, and if so, reject with `409`.
 
 ## Requirements
-- Full CRUD API for currency pairs
+- Read/Update/Delete API for currency pairs — **current state: `GET` reads live data directly; `PUT`/`DELETE` submit an audit request instead of mutating directly (`specs/backend/currency-pair-approval.md`); there is no `POST` — a `currency_pair` row is created only as a side effect of `specs/backend/currency-pair-definition.md`'s global-definition fan-out, never directly**
 - Every currency pair belongs to exactly one brand (`brandId`), referencing the `brand` table (`specs/backend/brand.md`)
 - `rate` field supports two modes via `rateType`: `MANUAL` (caller supplies the rate on every write) and `AUTO` (system-maintained; no automatic external rate-fetching job is in scope for this spec — that is future work)
 
@@ -84,73 +84,9 @@ Response `404`:
 }
 ```
 
-### 3. Create Currency Pair
+### 3. Create Currency Pair — does not exist
 
-```
-POST /api/currency-pairs
-```
-
-Request body:
-```json
-{
-    "brandId": 3,
-    "baseCurrencyId": 2,
-    "quoteCurrencyId": 1,
-    "rate": 32.5,
-    "rateType": "MANUAL",
-    "active": true
-}
-```
-
-Validation:
-| Field           | Rule                                                          |
-|-----------------|-----------------------------------------------------------------|
-| brandId         | Required, must reference an existing `brand.id`                 |
-| baseCurrencyId  | Required, must reference an existing `currency.id`              |
-| quoteCurrencyId | Required, must reference an existing `currency.id`, must differ from `baseCurrencyId` |
-| rate            | Required and must be numeric, > 0 **when `rateType` is `MANUAL`**. Ignored — persisted as `null` — **when `rateType` is `AUTO`**, even if supplied |
-| rateType        | Required, one of `MANUAL`, `AUTO`                                |
-| active          | Optional, defaults to true                                      |
-
-Response `201`: created currency pair object with generated `id`
-
-Response `404`: if `brandId`, `baseCurrencyId`, or `quoteCurrencyId` does not exist
-```json
-{
-    "error": "Currency not found",
-    "id": 999
-}
-```
-```json
-{
-    "error": "Brand not found",
-    "id": 999
-}
-```
-
-Response `409`: if the (brand, base, quote) pair already exists
-```json
-{
-    "error": "Currency pair already exists for this brand",
-    "brandId": 3,
-    "baseCurrencyId": 2,
-    "quoteCurrencyId": 1
-}
-```
-
-Response `400`: if `baseCurrencyId` equals `quoteCurrencyId`, or other validation failure
-```json
-{
-    "error": "Base and quote currency must differ"
-}
-```
-
-Response `400`: if `rateType` is `MANUAL` and `rate` is missing, `<= 0`, or non-numeric
-```json
-{
-    "error": "rate is required and must be greater than 0 when rateType is MANUAL"
-}
-```
+There is **no `POST /api/currency-pairs`**. A brand-scoped `currency_pair` row is created only as a side effect of `POST /api/currency-pair-definitions` (`specs/backend/currency-pair-definition.md`): creating a global definition for a (base, quote) direction inserts one `AUTO`/`rate=null`/`active=true` row per existing brand that doesn't already have one for that exact triple. There is no way — audited or direct — to create a single brand's `currency_pair` row ad hoc; a global definition for that (base, quote) direction must exist first. Once a row exists (via that fan-out), it is edited/deleted per-brand through `PUT`/`DELETE` below, same as always.
 
 ### 4. Update Currency Pair
 
@@ -158,17 +94,17 @@ Response `400`: if `rateType` is `MANUAL` and `rate` is missing, `<= 0`, or non-
 PUT /api/currency-pairs/{id}
 ```
 
-Request body: same shape as create. All fields optional (partial update). If `brandId`/`baseCurrencyId`/`quoteCurrencyId` are changed, re-validate existence, distinctness, and (brand, base, quote) uniqueness against other rows.
+Request body: `brandId`, `baseCurrencyId`, `quoteCurrencyId`, `rate`, `rateType`, `active` — all fields optional (partial update). If `brandId`/`baseCurrencyId`/`quoteCurrencyId` are changed, re-validate existence, distinctness, and (brand, base, quote) uniqueness against other rows.
 
 `rate`/`rateType` interaction on update (see Delta above): resolve the effective `rateType` (request value, or the existing row's value if omitted), then:
 - effective `rateType = MANUAL` → effective `rate` (request value, or existing row's value if the request didn't supply one) must be non-null and `> 0`, else `400`
 - effective `rateType = AUTO` → persisted `rate` is forced to `NULL`, regardless of what the request supplied or what the row previously had
 
-Response `200`: updated currency pair object
+**Current state: `202 Accepted`**, not `200` — this submits an audit request instead of updating directly (`specs/backend/currency-pair-approval.md`). Body is an `AuditRequestResponse` (`actionType: "UPDATE"`, `entityId: id`, `status: "PENDING"`, `before` the pair's current values, `after` the merged proposed values). The live row is unchanged until the request is approved.
 
 Response `404`: if `id`, `brandId`, `baseCurrencyId`, or `quoteCurrencyId` not found
 
-Response `409`: if the resulting (brand, base, quote) pair collides with a different existing row
+Response `409`: if the resulting (brand, base, quote) pair collides with a different existing row, or a `PENDING` request already exists for this pair
 
 Response `400`: validation failure (e.g. effective `rateType = MANUAL` with no effective `rate` or `rate <= 0`, invalid `rateType`, base == quote)
 
@@ -178,9 +114,11 @@ Response `400`: validation failure (e.g. effective `rateType = MANUAL` with no e
 DELETE /api/currency-pairs/{id}
 ```
 
-Response `204`: no content
+**Current state: `202 Accepted`**, not `204` — this submits an audit request instead of deleting directly (`specs/backend/currency-pair-approval.md`). Body is an `AuditRequestResponse` (`actionType: "DELETE"`, `entityId: id`, `status: "PENDING"`, `before` the pair's current values, `after: null`). The live row is unchanged until the request is approved.
 
 Response `404`: if id not found
+
+Response `409`: if a `PENDING` request already exists for this pair
 
 ## Implementation Details
 
@@ -194,7 +132,7 @@ Fields: `id`, `brandId`, `baseCurrencyId`, `quoteCurrencyId`, `rate` (`BigDecima
 `CurrencyPairResponse` includes `brandCode` (joined from `brand`) and `baseCurrencyCode` / `quoteCurrencyCode` (joined from `currency`) in addition to the raw ids, so the frontend does not need extra lookups to render the table. Populate this via a mapper query that joins `currency_pair` to `brand` and to `currency` twice (aliased), rather than N+1 lookups.
 
 ### Service logic
-- **Create**: validate brand existence (404 if missing), validate base/quote currency existence (404 if missing), validate base ≠ quote (400), check for existing pair with same (brand, base, quote) (409), apply the rate/rateType rule below, insert.
+- **Create** (`CurrencyPairService.create`): validate brand existence (404 if missing), validate base/quote currency existence (404 if missing), validate base ≠ quote (400), check for existing pair with same (brand, base, quote) (409), apply the rate/rateType rule below, insert. This method itself is unchanged and still does exactly this — it is simply **no longer reachable from `CurrencyPairController`** (no `POST` route calls it). Its only caller now is `CurrencyPairDefinitionService.create`'s per-brand fan-out (`specs/backend/currency-pair-definition.md`), which calls it as a plain method, bypassing the audit workflow entirely (by that spec's own explicit design).
 - **Update**: same validations as create, scoped to "any row other than this id" for the uniqueness check; rate/rateType rule below is applied against the *effective* (merged) `rateType`/`rate`.
 - **Delete**: straightforward delete by id (no downstream references to check).
 - **List/Get**: read-only, optional `brandId` and `active` filters on list.
@@ -253,6 +191,13 @@ Apply this immediately before persisting, after all other validations pass:
 - [x] `GET /api/currency-pairs` / `GET /api/currency-pairs/{id}` correctly serialize `rate: null` for `AUTO` pairs
 - [x] Unit/integration tests updated to cover all of the above rate/rateType branches
 
+### Delta: remove the create endpoint (brand pairs come only from a global definition)
+- [x] `POST /api/currency-pairs` no longer exists on `CurrencyPairController` — the route returns Spring's default `404`/`405` (no handler mapped), not a domain-specific error body
+- [x] `CurrencyPairService.create` itself is unchanged and still callable as a plain method — verified by `CurrencyPairDefinitionServiceTest`/`CurrencyPairDefinitionControllerTest` (`specs/backend/currency-pair-definition.md`) still passing unmodified, proving the fan-out path still works
+- [x] `CurrencyPairCreateRequest` DTO is unchanged and still used internally by `CurrencyPairDefinitionService`
+- [x] Existing `CurrencyPairControllerTest`/`CurrencyPairServiceTest` tests that exercised `POST /api/currency-pairs` directly (pre-audit-workflow tests, if any remain reachable, and the audit-workflow create tests in `specs/backend/currency-pair-approval.md`'s test suite) are removed or updated so the suite no longer asserts on a route that no longer exists
+- [x] `GET`/`PUT`/`DELETE /api/currency-pairs...` behavior is completely unchanged by this delta
+
 ---
 ## Execution Result
 - Status: DONE
@@ -309,3 +254,20 @@ Apply this immediately before persisting, after all other validations pass:
   - All 9 unchecked acceptance-criteria items from the delta are now checked and verified: `POST` MANUAL w/o rate → 400; `POST` MANUAL w/ rate ≤ 0 → 400 (bean validation layer); `POST` AUTO w/ rate → 201 rate null; `POST` AUTO w/o rate → 201 rate null; `PUT` MANUAL→AUTO clears rate; `PUT` AUTO→MANUAL w/o rate → 400; `PUT` AUTO→MANUAL w/ rate → success; `GET` serializes rate null for AUTO.
   - Ran `mvn -f develop/backend/pom.xml clean test` — BUILD SUCCESS, 94 tests (12 CurrencyServiceTest + 14 CurrencyControllerTest + 7 BrandServiceTest + 9 BrandControllerTest + 25 CurrencyPairServiceTest + 27 CurrencyPairControllerTest), 0 failures/errors. Test count increased from 75 → 94 (+19 new tests: 9 unit + 10 integration for the rate/rateType rule branches).
   - `.circleci/config.yml` already covers this via the existing `mvn -f develop/backend/pom.xml -B test` step — no change needed.
+
+### Increment 2 — 2026-07-30
+- Status: DONE
+- Files changed:
+  - `develop/backend/src/main/java/pl/piomin/services/backend/controller/CurrencyPairController.java` (edited — removed the `create` method and its `@PostMapping` route entirely; removed the now-unused `CurrencyPairCreateRequest`/`PostMapping` imports; updated the class Javadoc to note there is no `POST` route)
+  - `develop/backend/src/main/java/pl/piomin/services/backend/service/CurrencyPairAuditHandler.java` (edited — see the paired increment in `specs/backend/currency-pair-approval.md` for the full change; `apply(...)`'s `CREATE` case now throws `UnsupportedOperationException` instead of inserting)
+  - `develop/backend/src/main/java/pl/piomin/services/backend/exception/DuplicatePendingCurrencyPairCreateException.java` (deleted — dead code once the `CREATE` branch was removed from `CurrencyPairAuditHandler`; confirmed nothing else referenced it before deleting)
+  - `develop/backend/src/main/java/pl/piomin/services/backend/exception/GlobalExceptionHandler.java` (edited — removed the `DuplicatePendingCurrencyPairCreateException` handler)
+  - `develop/backend/src/test/java/pl/piomin/services/backend/controller/CurrencyPairControllerTest.java` (edited — removed all `POST`-related tests (`create_*`, `approve_createRequest_insertsRowAndSetsEntityId`); added `post_isNotMapped` asserting Spring's default `405` for `POST /api/currency-pairs`; updated the class-level Javadoc; all `GET`/`PUT`/`DELETE`/approval-round-trip tests for `UPDATE`/`DELETE` left untouched)
+  - `develop/backend/src/test/java/pl/piomin/services/backend/service/CurrencyPairAuditHandlerTest.java` (edited — removed all `CREATE`-specific tests (dedup checks, `apply_create_insertsPairAndReturnsGeneratedId`, etc.), removed the now-unused `AuditRequestMapper` mock/import and `ObjectMapper` dependency from the handler construction; changed remaining `validate(...)` tests to invoke `AuditActionType.UPDATE` instead of `CREATE` (since `validate` is now only ever invoked with `UPDATE`); added `apply_create_throwsUnsupportedOperation`)
+  - `develop/backend/pom.xml` (edited — version bumped `0.0.7` → `0.0.8`)
+  - `develop/backend/README.md` (edited — version bumped to `0.0.8`; removed the `POST /api/currency-pairs` row from the endpoint table and added a note that a brand pair can only come from the `/api/currency-pair-definitions` fan-out; updated the "Audit / approval workflow" paragraph to say `PUT`/`DELETE` only; added the `0.0.8` version history entry)
+- Notes:
+  - Implemented the "Delta: remove the create endpoint" section of this spec together with the paired "Delta: no CREATE" section of `specs/backend/currency-pair-approval.md` as one atomic change (both specs describe the same removal from complementary angles).
+  - `CurrencyPairService.create` and `CurrencyPairCreateRequest` were left completely untouched, per the spec's explicit instruction — `CurrencyPairDefinitionService.create`'s per-brand fan-out still calls `CurrencyPairService.create(...)` as a plain method, unaffected.
+  - Ran `mvn -f develop/backend/pom.xml clean test` — BUILD SUCCESS, 256 tests, 0 failures/errors, including `CurrencyPairDefinitionServiceTest` (14) and `CurrencyPairDefinitionControllerTest` (15) passing unmodified — proving the fan-out path (the sole remaining way a `currency_pair` row can be created) still works correctly after removing the endpoint.
+  - No `.circleci/config.yml` change was needed — the existing `mvn -f develop/backend/pom.xml -B test` step already covers this.

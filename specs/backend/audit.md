@@ -178,15 +178,15 @@ Fields map to `audit_request` 1:1: `id`, `entityType`, `actionType`, `entityId`,
 - No real authentication/authorization — `requestedBy`/`reviewedBy` are free-text fields; any caller can currently call both submit and approve/reject. Restricting who may approve, and which handler beans exist, remains a code-level concern.
 
 ## Acceptance Criteria
-- [ ] `AuditController`, `AuditService`, and `AuditHandler` compile and contain zero references to `currency_pair`, `brand`, `Currency`, or any other specific domain entity — verified by inspection, not just tests
-- [ ] `GET /api/audit-requests?entityType=X&status=PENDING` and `GET /api/audit-requests/{id}` work against a test-only fake `AuditHandler` registered purely for the test, proving the module works without any real consumer wired in
-- [ ] `POST /api/audit-requests/{id}/approve` on a `PENDING` request calls the correct handler's `validate` then `apply`, sets `status=APPROVED`, `reviewedBy`, `reviewedAt`, and (for `CREATE`) `entityId` from `apply`'s return value
-- [ ] Approving a request whose re-validation now fails returns the handler's error and leaves the request `PENDING`
-- [ ] `POST /api/audit-requests/{id}/reject` with a `rejectReason` marks the request `REJECTED`; missing `rejectReason` returns `400`
-- [ ] Approving or rejecting an already-`APPROVED`/`REJECTED` request returns `409`
-- [ ] Submitting a second request for the same `(entityType, entityId)` while one is `PENDING` returns `409` without any handler-specific code needed to make that check work
-- [ ] Unit tests for `AuditService` using a fake/test `AuditHandler` (not `CurrencyPairAuditHandler`) covering submit/approve/reject and all generic validation/dedup branches
-- [ ] Integration tests for `AuditController` endpoints
+- [x] `AuditController`, `AuditService`, and `AuditHandler` compile and contain zero references to `currency_pair`, `brand`, `Currency`, or any other specific domain entity — verified by inspection, not just tests
+- [x] `GET /api/audit-requests?entityType=X&status=PENDING` and `GET /api/audit-requests/{id}` work against a test-only fake `AuditHandler` registered purely for the test, proving the module works without any real consumer wired in
+- [x] `POST /api/audit-requests/{id}/approve` on a `PENDING` request calls the correct handler's `validate` then `apply`, sets `status=APPROVED`, `reviewedBy`, `reviewedAt`, and (for `CREATE`) `entityId` from `apply`'s return value
+- [x] Approving a request whose re-validation now fails returns the handler's error and leaves the request `PENDING`
+- [x] `POST /api/audit-requests/{id}/reject` with a `rejectReason` marks the request `REJECTED`; missing `rejectReason` returns `400`
+- [x] Approving or rejecting an already-`APPROVED`/`REJECTED` request returns `409`
+- [x] Submitting a second request for the same `(entityType, entityId)` while one is `PENDING` returns `409` without any handler-specific code needed to make that check work
+- [x] Unit tests for `AuditService` using a fake/test `AuditHandler` (not `CurrencyPairAuditHandler`) covering submit/approve/reject and all generic validation/dedup branches
+- [x] Integration tests for `AuditController` endpoints
 
 ---
 ## Execution Result

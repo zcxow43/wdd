@@ -26,7 +26,7 @@ import './CurrencyPairPage.css'
 // Audit page can be visited. See specs/frontend/currency-pair-approval.md.
 registerDiffRenderer('CURRENCY_PAIR', renderCurrencyPairDiff)
 
-type FormModalState = { mode: 'create' } | { mode: 'edit'; pair: CurrencyPair } | null
+type FormModalState = { pair: CurrencyPair } | null
 
 const NETWORK_ERROR_MESSAGE = '網路錯誤，請稍後再試'
 const PAIR_NOT_FOUND_MESSAGE = '幣種對不存在，請重新整理頁面'
@@ -114,29 +114,6 @@ export function CurrencyPairPage() {
     currencyApi.list().then(setCurrencies).catch(() => showToast(NETWORK_ERROR_MESSAGE))
   }, [showToast])
 
-  async function handleCreateSubmit(input: CurrencyPairInput) {
-    try {
-      await currencyPairApi.create(input)
-      setFormModal(null)
-      showToast('已送出新增申請，待審核', 'success')
-      await refresh()
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 404) {
-        showToast(notFoundMessage(error))
-        setFormModal(null)
-        await refresh()
-        return
-      }
-      if (error instanceof ApiError && error.status === 409 && isPendingDuplicateConflict(error)) {
-        showToast(PENDING_DUPLICATE_MESSAGE)
-        setFormModal(null)
-        await refresh()
-        return
-      }
-      throw error
-    }
-  }
-
   async function handleEditSubmit(id: number, input: CurrencyPairInput) {
     try {
       await currencyPairApi.update(id, input)
@@ -199,11 +176,6 @@ export function CurrencyPairPage() {
             <label className="filter-label">Status</label>
             <StatusFilter value={statusFilter} onChange={setStatusFilter} />
           </div>
-          <div className="filter-actions">
-            <button type="button" className="btn btn-primary" onClick={() => setFormModal({ mode: 'create' })}>
-              + Add
-            </button>
-          </div>
         </div>
       </div>
 
@@ -226,7 +198,7 @@ export function CurrencyPairPage() {
             <CurrencyPairTable
               pairs={pairs}
               pendingIds={pendingIds}
-              onEdit={(pair) => setFormModal({ mode: 'edit', pair })}
+              onEdit={(pair) => setFormModal({ pair })}
               onDelete={(pair) => setDeleteTarget(pair)}
             />
           )}
@@ -237,19 +209,8 @@ export function CurrencyPairPage() {
         </div>
       </div>
 
-      {formModal?.mode === 'create' && (
+      {formModal && (
         <CurrencyPairFormModal
-          mode="create"
-          brands={brands}
-          currencies={currencies}
-          onSubmit={handleCreateSubmit}
-          onClose={() => setFormModal(null)}
-        />
-      )}
-
-      {formModal?.mode === 'edit' && (
-        <CurrencyPairFormModal
-          mode="edit"
           initial={formModal.pair}
           brands={brands}
           currencies={currencies}

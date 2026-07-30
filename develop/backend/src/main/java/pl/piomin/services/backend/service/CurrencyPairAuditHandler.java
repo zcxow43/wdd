@@ -2,38 +2,32 @@ package pl.piomin.services.backend.service;
 
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import pl.piomin.services.backend.audit.AuditActionType;
 import pl.piomin.services.backend.audit.AuditHandler;
-import pl.piomin.services.backend.audit.AuditRequest;
-import pl.piomin.services.backend.audit.AuditRequestMapper;
-import pl.piomin.services.backend.dto.CurrencyPairCreateRequest;
 import pl.piomin.services.backend.dto.CurrencyPairUpdateRequest;
 import pl.piomin.services.backend.exception.BrandNotFoundException;
 import pl.piomin.services.backend.exception.CurrencyNotFoundException;
 import pl.piomin.services.backend.exception.CurrencyPairNotFoundException;
-import pl.piomin.services.backend.exception.DuplicatePendingCurrencyPairCreateException;
 import pl.piomin.services.backend.mapper.CurrencyPairMapper;
 import pl.piomin.services.backend.model.Brand;
 import pl.piomin.services.backend.model.Currency;
 import pl.piomin.services.backend.model.CurrencyPair;
 
 /**
- * Plugs {@code currency_pair} create/update/delete into the generic audit
- * module (specs/backend/audit.md) as {@code entityType = "CURRENCY_PAIR"}.
- * Reuses {@link CurrencyPairValidator} for the same brand/currency-existence,
- * base != quote, rate/rateType, and uniqueness rules already enforced by
- * {@link CurrencyPairService}, and reuses {@link CurrencyPairService} itself
- * to actually apply an approved change.
+ * Plugs {@code currency_pair} update/delete into the generic audit module
+ * (specs/backend/audit.md) as {@code entityType = "CURRENCY_PAIR"}. There is
+ * no CREATE case: a brand's {@code currency_pair} row can only come into
+ * existence via a global currency-pair-definition's fan-out
+ * (specs/backend/currency-pair-definition.md), which calls
+ * {@link CurrencyPairService#create} directly, bypassing this handler
+ * entirely. Reuses {@link CurrencyPairValidator} for the same
+ * brand/currency-existence, base != quote, rate/rateType, and uniqueness
+ * rules already enforced by {@link CurrencyPairService}, and reuses
+ * {@link CurrencyPairService} itself to actually apply an approved change.
  */
 @Component
 public class CurrencyPairAuditHandler implements AuditHandler {
@@ -43,17 +37,12 @@ public class CurrencyPairAuditHandler implements AuditHandler {
     private final CurrencyPairMapper currencyPairMapper;
     private final CurrencyPairValidator validator;
     private final CurrencyPairService currencyPairService;
-    private final AuditRequestMapper auditRequestMapper;
-    private final ObjectMapper objectMapper;
 
     public CurrencyPairAuditHandler(CurrencyPairMapper currencyPairMapper, CurrencyPairValidator validator,
-                                     CurrencyPairService currencyPairService, AuditRequestMapper auditRequestMapper,
-                                     ObjectMapper objectMapper) {
+                                     CurrencyPairService currencyPairService) {
         this.currencyPairMapper = currencyPairMapper;
         this.validator = validator;
         this.currencyPairService = currencyPairService;
-        this.auditRequestMapper = auditRequestMapper;
-        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -75,17 +64,6 @@ public class CurrencyPairAuditHandler implements AuditHandler {
         Long brandId = asLong(afterSnapshot.get("brandId"));
         Long baseCurrencyId = asLong(afterSnapshot.get("baseCurrencyId"));
         Long quoteCurrencyId = asLong(afterSnapshot.get("quoteCurrencyId"));
-
-        // AuditService calls validate(...) twice over a request's lifetime: once
-        // at submission (before the row is persisted) and once more to re-validate
-        // at approval time (after deserializing the already-persisted snapshot).
-        // A fresh submission's snapshot has not yet been enriched with codes below;
-        // the persisted/re-deserialized one at approval time already has them. Use
-        // that as the signal for whether this is the original submission, so the
-        // CREATE natural-key dedup check below (which only makes sense pre-insertion)
-        // does not spuriously match this very request against itself when the audit
-        // module re-validates it at approval time.
-        boolean isOriginalSubmission = !afterSnapshot.containsKey("brandCode");
 
         Brand brand = validator.getBrand(brandId);
         if (brand == null) {
@@ -115,16 +93,11 @@ public class CurrencyPairAuditHandler implements AuditHandler {
         afterSnapshot.put("brandCode", brand.getCode());
         afterSnapshot.put("baseCurrencyCode", baseCurrency.getCode());
         afterSnapshot.put("quoteCurrencyCode", quoteCurrency.getCode());
-
-        if (actionType == AuditActionType.CREATE && isOriginalSubmission) {
-            checkNoPendingCreateDuplicate(brandId, baseCurrencyId, quoteCurrencyId);
-        }
     }
 
     @Override
     public Long apply(AuditActionType actionType, Long entityId, Map<String, Object> afterSnapshot) {
         return switch (actionType) {
-            case CREATE -> currencyPairService.create(toCreateRequest(afterSnapshot)).getId();
             case UPDATE -> {
                 currencyPairService.update(entityId, toUpdateRequest(afterSnapshot));
                 yield entityId;
@@ -133,6 +106,9 @@ public class CurrencyPairAuditHandler implements AuditHandler {
                 currencyPairService.delete(entityId);
                 yield entityId;
             }
+            case CREATE -> throw new UnsupportedOperationException(
+                    "CURRENCY_PAIR has no CREATE audit action - a brand pair requires a global "
+                            + "currency-pair-definition first (specs/backend/currency-pair-definition.md)");
         };
     }
 
@@ -140,27 +116,6 @@ public class CurrencyPairAuditHandler implements AuditHandler {
     public String summarize(Map<String, Object> snapshot) {
         return snapshot.get("brandCode") + " · " + snapshot.get("baseCurrencyCode") + "/"
                 + snapshot.get("quoteCurrencyCode");
-    }
-
-    /**
-     * This handler's own responsibility per specs/backend/audit.md: the generic
-     * audit module can only dedup UPDATE/DELETE on (entityType, entityId); for
-     * CREATE there is no entityId yet, so the natural-key (brand, base, quote)
-     * dedup against other PENDING CREATE requests belongs here.
-     */
-    private void checkNoPendingCreateDuplicate(Long brandId, Long baseCurrencyId, Long quoteCurrencyId) {
-        List<AuditRequest> pendingCreates = auditRequestMapper.findAll(ENTITY_TYPE, "PENDING", "CREATE");
-        for (AuditRequest candidate : pendingCreates) {
-            Map<String, Object> candidateAfter = parseSnapshot(candidate.getAfterSnapshot());
-            if (candidateAfter == null) {
-                continue;
-            }
-            if (Objects.equals(asLong(candidateAfter.get("brandId")), brandId)
-                    && Objects.equals(asLong(candidateAfter.get("baseCurrencyId")), baseCurrencyId)
-                    && Objects.equals(asLong(candidateAfter.get("quoteCurrencyId")), quoteCurrencyId)) {
-                throw new DuplicatePendingCurrencyPairCreateException(brandId, baseCurrencyId, quoteCurrencyId);
-            }
-        }
     }
 
     private Map<String, Object> toSnapshot(CurrencyPair pair) {
@@ -177,17 +132,6 @@ public class CurrencyPairAuditHandler implements AuditHandler {
         return snapshot;
     }
 
-    private CurrencyPairCreateRequest toCreateRequest(Map<String, Object> snapshot) {
-        CurrencyPairCreateRequest request = new CurrencyPairCreateRequest();
-        request.setBrandId(asLong(snapshot.get("brandId")));
-        request.setBaseCurrencyId(asLong(snapshot.get("baseCurrencyId")));
-        request.setQuoteCurrencyId(asLong(snapshot.get("quoteCurrencyId")));
-        request.setRate(asBigDecimal(snapshot.get("rate")));
-        request.setRateType((String) snapshot.get("rateType"));
-        request.setActive(asBoolean(snapshot.get("active")));
-        return request;
-    }
-
     private CurrencyPairUpdateRequest toUpdateRequest(Map<String, Object> snapshot) {
         CurrencyPairUpdateRequest request = new CurrencyPairUpdateRequest();
         request.setBrandId(asLong(snapshot.get("brandId")));
@@ -197,18 +141,6 @@ public class CurrencyPairAuditHandler implements AuditHandler {
         request.setRateType((String) snapshot.get("rateType"));
         request.setActive(asBoolean(snapshot.get("active")));
         return request;
-    }
-
-    private Map<String, Object> parseSnapshot(String json) {
-        if (json == null) {
-            return null;
-        }
-        try {
-            return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {
-            });
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("Unable to deserialize audit snapshot", e);
-        }
     }
 
     private static Long asLong(Object value) {

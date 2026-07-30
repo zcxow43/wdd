@@ -150,7 +150,7 @@ interface AuditRequest {
 - [x] Approve/Reject buttons are hidden for already-reviewed requests; reviewedBy/reviewedAt/rejectReason shown instead
 - [x] Error states display correct Chinese messages for 400/404/409/network cases on both approve and reject
 - [x] The page component, generic table, and generic modal chrome contain zero references to currency pairs, brands, or rate types — verified by inspection
-- [ ] With `renderCurrencyPairDiff` registered (per `specs/frontend/currency-pair-approval.md`), a `CURRENCY_PAIR` request renders the proper labeled before/after comparison, not the generic fallback — **out of scope for this task**, deferred to `specs/frontend/currency-pair-approval.md` since no such renderer exists yet
+- [x] With `renderCurrencyPairDiff` registered (per `specs/frontend/currency-pair-approval.md`, now `status: done`), a `CURRENCY_PAIR` request renders the proper labeled before/after comparison, not the generic fallback
 
 ---
 ## Execution Result

@@ -59,3 +59,48 @@ CREATE TABLE audit_request (
     created_at      DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+DROP TABLE IF EXISTS spread_group_member;
+DROP TABLE IF EXISTS spread_group;
+DROP TABLE IF EXISTS spread_default;
+
+CREATE TABLE spread_default (
+    id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+    brand_id        BIGINT         NOT NULL,
+    deposit_spread  DECIMAL(18,8)  NOT NULL DEFAULT 0,
+    withdraw_spread DECIMAL(18,8)  NOT NULL DEFAULT 0,
+    created_at      DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_spread_default_brand UNIQUE (brand_id)
+);
+
+CREATE TABLE spread_group (
+    id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+    brand_id        BIGINT         NOT NULL,
+    name            VARCHAR(100)   NOT NULL,
+    deposit_spread  DECIMAL(18,8)  NOT NULL,
+    withdraw_spread DECIMAL(18,8)  NOT NULL,
+    created_at      DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_spread_group_brand_name UNIQUE (brand_id, name)
+);
+
+CREATE TABLE spread_group_member (
+    id                BIGINT   AUTO_INCREMENT PRIMARY KEY,
+    spread_group_id   BIGINT   NOT NULL,
+    currency_pair_id  BIGINT   NOT NULL,
+    created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_spread_group_member_currency_pair UNIQUE (currency_pair_id)
+);
+
+DROP TABLE IF EXISTS currency_pair_definition;
+
+CREATE TABLE currency_pair_definition (
+    id                 BIGINT   AUTO_INCREMENT PRIMARY KEY,
+    base_currency_id   BIGINT   NOT NULL,
+    quote_currency_id  BIGINT   NOT NULL,
+    forward_precision  TINYINT  NOT NULL,
+    reverse_precision  TINYINT  NOT NULL,
+    created_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

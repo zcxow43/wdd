@@ -16,7 +16,6 @@ import type { AuditRequest } from '../audit/types'
 vi.mock('../api/currencyPairApi', () => ({
   currencyPairApi: {
     list: vi.fn(),
-    create: vi.fn(),
     update: vi.fn(),
     remove: vi.fn(),
   },
@@ -192,24 +191,13 @@ describe('CurrencyPairPage', () => {
     )
   })
 
-  it('submits a create request through the add modal, closes it, and shows the pending-approval toast', async () => {
+  it('does not render an Add button', async () => {
     stubAncillary()
     mockedPairApi.list.mockResolvedValue([])
-    mockedPairApi.create.mockResolvedValue(pendingAuditRequest(null, 'CREATE'))
-    const user = userEvent.setup()
     renderPage()
     await screen.findByText('目前沒有符合條件的幣種對')
 
-    await user.click(screen.getByRole('button', { name: '+ Add' }))
-    await user.selectOptions(screen.getByLabelText('品牌'), '1')
-    await user.selectOptions(screen.getByLabelText('基準幣別'), '2')
-    await user.selectOptions(screen.getByLabelText('對應幣別'), '1')
-    await user.type(screen.getByLabelText('匯率'), '32.5')
-    await user.click(screen.getByRole('button', { name: '儲存' }))
-
-    await waitFor(() => expect(mockedPairApi.create).toHaveBeenCalled())
-    expect(await screen.findByText('已送出新增申請，待審核')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '儲存' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '+ Add' })).not.toBeInTheDocument()
   })
 
   it('submits an edit request and shows the pending-approval toast, leaving the row unchanged', async () => {

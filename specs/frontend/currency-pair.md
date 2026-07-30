@@ -1,13 +1,13 @@
 ---
 status: done
 title: "Currency Pair Table Page"
-requirement: "Display currency pairs in a table with CRUD operations, scoped per brand, exchange rate manual/auto; surface currency delete-blocked error. Delta: when rate type is AUTO, clear/disable the rate input; when MANUAL, rate is required. Delta 2: create/update/delete now submit for approval instead of applying directly — see specs/frontend/currency-pair-approval.md."
+requirement: "Display currency pairs in a table with read/update/delete operations, scoped per brand, exchange rate manual/auto; surface currency delete-blocked error. Delta: when rate type is AUTO, clear/disable the rate input; when MANUAL, rate is required. Delta 2: update/delete submit for approval instead of applying directly — see specs/frontend/currency-pair-approval.md. Delta 3: there is no Add button/create flow on this page at all — a brand's pair can only come into existence via the global 幣種對主檔 page (specs/frontend/currency-pair-definition.md); the '+ Add' button and create modal have been removed."
 ---
 
 # Currency Pair Table Page — Frontend Spec
 
-## Delta: create/update/delete now submit for approval (implemented)
-**Add/Edit/Delete on this page no longer apply immediately.** The backend endpoints they call now return `202 Accepted` with a pending audit request instead of directly creating/updating/removing the row. Implemented per `specs/frontend/currency-pair-approval.md`'s "Required changes to the existing Currency Pair page" section (toast copy, the 409 "pending request already exists" case, and the "審核中" badge/disabled-actions treatment) — see that spec's Execution Result for details. The Acceptance Criteria below (all `[x]`, describing the pre-delta immediate-apply contract) remain historically accurate for what they tested at the time; the immediate-apply behavior itself is superseded by `specs/frontend/currency-pair-approval.md`, per that file's own Acceptance Criteria.
+## Current state note
+Edit/Delete below submit for approval instead of applying immediately (backend returns `202` with a pending audit request) — this is reflected inline in "Edit Modal", "Delete Confirmation", and "Error Handling" below. Rows with a `PENDING` request show a "審核中" badge with Edit/Delete disabled. This page has **no create capability** — no "+ Add" button, no create modal, no `POST` call. A brand's currency pair is created only by the global "幣種對主檔" page (`specs/frontend/currency-pair-definition.md`), which fans a new pair out to every brand; this page only ever edits/deletes rows that already exist. The diff-renderer/registration implementation detail and design rationale for the UPDATE/DELETE audit flow live in `specs/frontend/currency-pair-approval.md`; the Acceptance Criteria below (all `[x]`) describe the pre-approval, create-still-existed contract and remain historically accurate for what they tested at the time.
 
 ## Overview
 Build a currency pair management page that displays all configured currency pairs (base → quote), each scoped to a brand, with their exchange rate. Users can view, add, edit, and delete pairs, filter by brand, and choose whether the rate is entered manually or maintained automatically. Consumes the API defined in `specs/backend/currency-pair.md`. Reuses the existing `currency` list (`GET /api/currencies`) to populate the base/quote currency dropdowns, and the brand list (`GET /api/brands`, see `specs/frontend/brand.md` / `specs/backend/brand.md`) to populate the brand filter and picker.
@@ -17,7 +17,7 @@ This spec also requires a small update to the existing Currency page (`develop/f
 ## Requirements
 - Table page showing all currency pairs, with their owning brand
 - Filter by brand, in addition to active/inactive status
-- Add new pair via modal form; brand, base/quote pickers sourced from `/api/brands` and `/api/currencies`
+- **No create action on this page** — no "+ Add" button, no create modal. A pair can only come into existence via the global "幣種對主檔" page (`specs/frontend/currency-pair-definition.md`), which provisions it to every brand at once
 - Edit existing pair via modal (brand, base/quote, and rate/rateType editable)
 - Delete with confirmation
 - Rate input behavior differs by `rateType`: `MANUAL` requires the user to type the rate; `AUTO` marks the rate as system-maintained (no automatic sync job exists yet — out of scope, per `specs/backend/currency-pair.md`)
@@ -41,7 +41,7 @@ This spec also requires a small update to the existing Currency page (`develop/f
 ┌────────────────────────────────────────────────────────┐
 │  Currency Pair Management                              │
 │                                                          │
-│  [Brand ▼]  [Active ▼]                     [+ Add]      │
+│  [Brand ▼]  [Active ▼]                                  │
 │                                                          │
 │  ┌──────────────────────────────────────────────────┐  │
 │  │ Brand │ Base │ Quote │ Rate     │ Type   │ Active │  │
@@ -68,11 +68,11 @@ This spec also requires a small update to the existing Currency page (`develop/f
 ### Filter Bar
 - **Brand filter**: dropdown populated from `GET /api/brands`, options: All / each brand code
 - **Status filter**: dropdown with options: All / Active / Inactive
-- **Add button**: opens create modal
+- No add button — this page has no create action (see "Current state note")
 
-### Add/Edit Modal
+### Edit Modal
 
-Form fields:
+Opened only from a row's 編輯 action — there is no create mode. Form fields:
 | Field      | Input Type              | Validation                                            |
 |------------|--------------------------|--------------------------------------------------------|
 | 品牌       | Select (from brand list)    | Required                                              |
@@ -85,8 +85,8 @@ Form fields:
 The brand dropdown is populated from `GET /api/brands` (all brands, active or not — a pair under a currently-disabled brand can still be viewed/edited). Currency dropdowns are populated from `GET /api/currencies` (active currencies only, or all — consistent with how the Currency page's own filters work). Selecting the same value for both base and quote shows an inline error and disables submit.
 
 ### Delete Confirmation
-- Show confirmation dialog: "確定要刪除 {brandCode} 品牌的幣種對 {baseCode}/{quoteCode} 嗎？"
-- On confirm: call DELETE API, refresh table
+- **Current state**: show confirmation dialog: "確定要送出刪除 {brandCode} 品牌幣種對 {baseCode}/{quoteCode} 的申請嗎？" (submits a request, does not delete immediately)
+- On confirm: call DELETE API (now `202`, an audit request — `specs/frontend/currency-pair-approval.md`), toast "已送出刪除申請，待審核", refresh pending-ids/table (the row itself is not removed until approved)
 
 ## API Integration
 
@@ -95,17 +95,21 @@ The brand dropdown is populated from `GET /api/brands` (all brands, active or no
 | List     | GET    | /api/currency-pairs (optionally `?brandId=`) | Page load, filter change |
 | Brands (for filter/picker) | GET | /api/brands       | Page load / modal open       |
 | Currencies (for pickers) | GET | /api/currencies   | Page load / modal open       |
-| Create   | POST   | /api/currency-pairs           | Modal submit                 |
-| Update   | PUT    | /api/currency-pairs/{id}      | Modal submit                 |
-| Delete   | DELETE | /api/currency-pairs/{id}      | Confirm dialog                |
+| Update   | PUT    | /api/currency-pairs/{id}      | Modal submit — **202**, resolves `AuditRequest` |
+| Delete   | DELETE | /api/currency-pairs/{id}      | Confirm dialog — **202**, resolves `AuditRequest` |
+
+No `POST` call exists from this page at all.
 
 ### Error Handling
-- **400 on create/update** (base == quote, rate ≤ 0, invalid type, or missing `rate` while `rateType` is `MANUAL`): show inline field error, e.g. "基準幣別與對應幣別不可相同" or "匯率為必填，且須大於 0"
-- **404 on create/update** (referenced currency or brand missing): show toast "幣種不存在，請重新整理頁面" or "品牌不存在，請重新整理頁面"
-- **409 on create/update** (duplicate pair within the same brand): show inline error "此品牌已存在相同的幣種對"
+- **Current state**: update/delete resolve `202` + an `AuditRequestResponse`, not the pair itself. On success, show "已送出修改申請，待審核" / "已送出刪除申請，待審核" instead of assuming the change applied; the table is not expected to reflect it until approved.
+- **400 on update** (base == quote, rate ≤ 0, invalid type, or missing `rate` while `rateType` is `MANUAL`): show inline field error, e.g. "基準幣別與對應幣別不可相同" or "匯率為必填，且須大於 0"
+- **404 on update** (referenced currency or brand missing): show toast "幣種不存在，請重新整理頁面" or "品牌不存在，請重新整理頁面"
+- **409 on update** (the edited triple collides with a different live pair): show inline error "此品牌已存在相同的幣種對"
+- **409 on update/delete** (a `PENDING` request already exists for this pair): show toast "此幣種對已有待審核的異動申請"
 - **404 on edit/delete** (pair itself missing): show toast "幣種對不存在，請重新整理頁面"
 - **Network error**: show toast "網路錯誤，請稍後再試"
 - **Loading state**: show skeleton/spinner while fetching
+- Rows with a `PENDING` request against them show a "審核中" badge and disabled Edit/Delete buttons (fetched via `GET /api/audit-requests?entityType=CURRENCY_PAIR&status=PENDING`)
 
 ## Required Update to Existing Currency Page
 
@@ -138,6 +142,14 @@ No change is required to the currency edit modal's code-field handling — it al
 - [x] Submitting the form with `自動` selected sends `rate: null` (or omits `rate`) rather than a stale typed value
 - [x] Table renders `—` in the `匯率` column for any pair with `rate: null`
 - [x] Edit modal correctly reflects a loaded `AUTO` pair (rate `null`) as disabled/blank, and a loaded `MANUAL` pair with its numeric rate, enabled
+
+### Delta: remove the create action (a brand pair requires a global definition first)
+(The `[x]` "Add modal" item above remains historically accurate for what was built and tested at the time; the create modal/button have since been removed.)
+- [x] The "+ Add" button no longer renders on this page
+- [x] `CurrencyPairFormModal` (or its replacement) supports edit mode only — no `mode: 'create'` code path remains reachable from `CurrencyPairPage`
+- [x] `currencyPairApi.ts` no longer exports a `create` function, or it is removed entirely if nothing else calls it
+- [x] Existing tests asserting the Add button/create flow (`CurrencyPairPage.test.tsx`, `CurrencyPairFormModal.test.tsx`) are removed or updated so the suite doesn't assert on removed UI
+- [x] Edit/Delete flows and their `202`/pending-badge/toast behavior are completely unchanged by this delta
 
 ---
 ## Execution Result
@@ -190,3 +202,28 @@ No change is required to the currency edit modal's code-field handling — it al
   - Switching rateType in either direction clears the rate field and any validation errors, ensuring no stale values are submitted.
   - Edit modal correctly initializes with blank/disabled rate for AUTO pairs loaded from the backend (rate: null) and numeric/enabled rate for MANUAL pairs.
   - The backend delta (AUTO pairs force rate to null, MANUAL pairs require rate > 0) was already implemented per `specs/backend/currency-pair.md`; this increment aligns the frontend UI with that behavior.
+
+### Increment 2 — 2026-07-30
+- Status: DONE
+- Delta implemented: remove the create action (a brand pair requires a global definition first)
+- Files changed:
+  - `develop/frontend/src/pages/CurrencyPairPage.tsx` (edited — removed the "+ Add" button from the filter bar's `filter-actions` div (and the now-empty wrapper), the `handleCreateSubmit` function, and the `mode: 'create'` branch of `FormModalState`/the conditional `CurrencyPairFormModal` render; `FormModalState` simplified to `{ pair: CurrencyPair } | null`, opened only from a row's Edit action)
+  - `develop/frontend/src/components/CurrencyPairFormModal.tsx` (edited — dropped the `mode: 'create' | 'edit'` prop entirely; `initial: CurrencyPair` is now a required prop instead of optional, since the component is edit-only going forward; all `initial?.x ?? default` fallbacks simplified to read directly from the now-required `initial`; the `Modal` title is now the fixed string `編輯幣種對` instead of a `mode`-conditional one)
+  - `develop/frontend/src/api/currencyPairApi.ts` (edited — removed the `create` export; confirmed via grep that no other module, including the unrelated `currencyPairDefinitionApi.ts`/`CurrencyPairDefinitionPage.tsx`, ever called `currencyPairApi.create`)
+  - `develop/frontend/src/pages/CurrencyPairPage.test.tsx` (edited — removed the `create` entry from the `currencyPairApi` mock; replaced the "submits a create request through the add modal…" test with a new "does not render an Add button" assertion; all Edit/Delete/pending-badge/404/409 tests left untouched)
+  - `develop/frontend/src/components/CurrencyPairFormModal.test.tsx` (rewritten — every test now renders with the required `initial={EXISTING}` prop instead of `mode="create"`/`mode="edit"`; the former "shows validation errors when required fields are missing" test now clears the pre-filled selects/rate before asserting the same four required-field messages, preserving that validation coverage under the edit-only contract; the former "submits a valid create form with numeric ids" test was renamed "submits a valid edit form with numeric ids" and now edits the rate on the pre-filled form rather than filling an empty one; the AUTO/MANUAL toggle, 409/network-error, and "loaded AUTO pair" tests were carried over unchanged in intent, just without the `mode` prop)
+- Acceptance criteria completed (all 5 Delta items now checked):
+  - [x] The "+ Add" button no longer renders on this page
+  - [x] `CurrencyPairFormModal` supports edit mode only — no `mode: 'create'` code path remains reachable from `CurrencyPairPage`
+  - [x] `currencyPairApi.ts` no longer exports a `create` function
+  - [x] Existing tests asserting the Add button/create flow are removed or updated so the suite doesn't assert on removed UI
+  - [x] Edit/Delete flows and their `202`/pending-badge/toast behavior are completely unchanged by this delta
+- Verification:
+  - `npm run build` (`tsc -b && vite build`) passes with 0 type errors.
+  - `npm test` (`vitest run`) passes: 23 test files, 168 tests, 0 failures.
+  - `npm run lint` (`oxlint`) passes with only the pre-existing `ToastProvider.tsx` fast-refresh warning.
+  - Verified `CurrencyPairDefinitionPage` (`develop/frontend/src/pages/CurrencyPairDefinitionPage.tsx`) and its own "+新增幣種對" button/`CurrencyPairDefinitionFormModal`/`currencyPairDefinitionApi` are a completely separate module tree with no reference to `currencyPairApi` or `CurrencyPairFormModal`; its dedicated test files (`CurrencyPairDefinitionPage.test.tsx`, `CurrencyPairDefinitionFormModal.test.tsx`, `CurrencyPairDefinitionTable.test.tsx`, 19 tests) all still pass unmodified.
+- Notes:
+  - Chose to drop the `mode` prop from `CurrencyPairFormModal` entirely (rather than keeping `mode: 'edit'` as a permanent single-value prop) since the component's only remaining caller always opens it in edit mode — keeping a single-value discriminant prop around would have been dead weight. `initial` becoming a required prop is the natural consequence: every field's initial state (`brandId`, `baseCurrencyId`, `quoteCurrencyId`, `rateType`, `rate`, `active`) now reads directly from it instead of through an `initial?.x ?? fallback` pattern intended for the no-`initial` create case.
+  - The backend's `POST /api/currency-pairs` route was already removed in a prior backend step (`405` now); no frontend call to that route remains anywhere in the codebase after this increment.
+  - This increment is one of two decomposed halves of a single atomic UI change; see `specs/frontend/currency-pair-approval.md`'s "Increment 2" for the companion delta removing the same create action's audit-flow implications (no new `CREATE` audit requests, historical `CREATE` rendering preserved).
