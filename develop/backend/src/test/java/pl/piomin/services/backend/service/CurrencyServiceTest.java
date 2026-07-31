@@ -49,28 +49,17 @@ class CurrencyServiceTest {
         currency.setCode(code);
         currency.setName("Sample Currency");
         currency.setDecimalPlaces(2);
-        currency.setActive(true);
         return currency;
     }
 
     @Test
     void list_returnsAllCurrenciesFromMapper() {
-        when(currencyMapper.findAll(null)).thenReturn(List.of(sampleCurrency(1L, "TWD")));
+        when(currencyMapper.findAll()).thenReturn(List.of(sampleCurrency(1L, "TWD")));
 
-        List<Currency> result = currencyService.list(null);
+        List<Currency> result = currencyService.list();
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getCode()).isEqualTo("TWD");
-    }
-
-    @Test
-    void list_filtersByActive() {
-        when(currencyMapper.findAll(true)).thenReturn(List.of(sampleCurrency(1L, "TWD")));
-
-        List<Currency> result = currencyService.list(true);
-
-        assertThat(result).hasSize(1);
-        verify(currencyMapper).findAll(true);
     }
 
     @Test
@@ -109,28 +98,6 @@ class CurrencyServiceTest {
 
         assertThat(result.getCode()).isEqualTo("KRW");
         verify(currencyMapper).insert(any(Currency.class));
-    }
-
-    @Test
-    void create_defaultsActiveToTrue_whenNotProvided() {
-        CurrencyCreateRequest request = new CurrencyCreateRequest();
-        request.setCode("KRW");
-        request.setName("South Korean Won");
-        request.setDecimalPlaces(0);
-
-        when(currencyMapper.findByCode("KRW")).thenReturn(null);
-        doAnswer(invocation -> {
-            Currency toInsert = invocation.getArgument(0);
-            toInsert.setId(1L);
-            return 1;
-        }).when(currencyMapper).insert(any(Currency.class));
-        when(currencyMapper.findById(1L)).thenReturn(sampleCurrency(1L, "KRW"));
-
-        currencyService.create(request);
-
-        org.mockito.ArgumentCaptor<Currency> captor = org.mockito.ArgumentCaptor.forClass(Currency.class);
-        verify(currencyMapper).insert(captor.capture());
-        assertThat(captor.getValue().getActive()).isTrue();
     }
 
     @Test

@@ -2,6 +2,7 @@
 status: done
 title: "Restyle Frontend to Match Demo"
 requirement: "frontend 畫面可以照 demo 的樣式做修改 (frontend screens can be restyled to follow the demo/ prototype's look)"
+depends_on: [currency, brand]
 ---
 
 # Restyle Frontend to Match Demo — Frontend Spec

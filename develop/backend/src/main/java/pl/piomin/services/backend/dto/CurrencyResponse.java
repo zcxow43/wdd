@@ -15,7 +15,6 @@ public class CurrencyResponse {
     private String nameZh;
     private String symbol;
     private Integer decimalPlaces;
-    private Boolean active;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -27,7 +26,6 @@ public class CurrencyResponse {
         response.nameZh = currency.getNameZh();
         response.symbol = currency.getSymbol();
         response.decimalPlaces = currency.getDecimalPlaces();
-        response.active = currency.getActive();
         response.createdAt = currency.getCreatedAt();
         response.updatedAt = currency.getUpdatedAt();
         return response;
@@ -55,10 +53,6 @@ public class CurrencyResponse {
 
     public Integer getDecimalPlaces() {
         return decimalPlaces;
-    }
-
-    public Boolean getActive() {
-        return active;
     }
 
     public LocalDateTime getCreatedAt() {

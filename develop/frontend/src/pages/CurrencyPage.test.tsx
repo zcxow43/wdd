@@ -25,7 +25,6 @@ const TWD: Currency = {
   nameZh: '新台幣',
   symbol: 'NT$',
   decimalPlaces: 0,
-  active: true,
   createdAt: '2025-01-01T00:00:00',
   updatedAt: '2025-01-01T00:00:00',
 }
@@ -37,7 +36,6 @@ const USD: Currency = {
   nameZh: '美元',
   symbol: '$',
   decimalPlaces: 2,
-  active: false,
   createdAt: '2025-01-01T00:00:00',
   updatedAt: '2025-01-01T00:00:00',
 }
@@ -61,20 +59,7 @@ describe('CurrencyPage', () => {
 
     expect(await screen.findByText('TWD')).toBeInTheDocument()
     expect(screen.getByText('USD')).toBeInTheDocument()
-    expect(mockedApi.list).toHaveBeenCalledWith(undefined)
-  })
-
-  it('refetches with the active filter when the status filter changes', async () => {
-    mockedApi.list.mockResolvedValue([TWD])
-    const user = userEvent.setup()
-    renderPage()
-    await screen.findByText('TWD')
-
-    await user.selectOptions(screen.getByLabelText('狀態篩選'), 'ACTIVE')
-    await waitFor(() => expect(mockedApi.list).toHaveBeenLastCalledWith(true))
-
-    await user.selectOptions(screen.getByLabelText('狀態篩選'), 'INACTIVE')
-    await waitFor(() => expect(mockedApi.list).toHaveBeenLastCalledWith(false))
+    expect(mockedApi.list).toHaveBeenCalledWith()
   })
 
   it('shows the empty state when no currencies match', async () => {

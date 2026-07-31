@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
@@ -31,8 +30,8 @@ public class CurrencyController {
     }
 
     @GetMapping
-    public List<CurrencyResponse> list(@RequestParam(required = false) Boolean active) {
-        return currencyService.list(active).stream()
+    public List<CurrencyResponse> list() {
+        return currencyService.list().stream()
                 .map(CurrencyResponse::from)
                 .toList();
     }

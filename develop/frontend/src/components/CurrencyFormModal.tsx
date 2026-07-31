@@ -28,7 +28,6 @@ export function CurrencyFormModal({ mode, initial, onSubmit, onClose }: Currency
   const [nameZh, setNameZh] = useState(initial?.nameZh ?? '')
   const [symbol, setSymbol] = useState(initial?.symbol ?? '')
   const [decimalPlaces, setDecimalPlaces] = useState(initial?.decimalPlaces ?? 2)
-  const [active, setActive] = useState(initial?.active ?? true)
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -81,7 +80,6 @@ export function CurrencyFormModal({ mode, initial, onSubmit, onClose }: Currency
         nameZh: nameZh.trim(),
         symbol: symbol.trim(),
         decimalPlaces,
-        active,
       })
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
@@ -160,16 +158,6 @@ export function CurrencyFormModal({ mode, initial, onSubmit, onClose }: Currency
             aria-invalid={Boolean(errors.decimalPlaces)}
           />
           {errors.decimalPlaces && <span className="field-error">{errors.decimalPlaces}</span>}
-        </div>
-
-        <div className="form-field form-field--toggle">
-          <label htmlFor="active">啟用</label>
-          <input
-            id="active"
-            type="checkbox"
-            checked={active}
-            onChange={(event) => setActive(event.target.checked)}
-          />
         </div>
 
         {submitError && <div className="form-error" role="alert">{submitError}</div>}

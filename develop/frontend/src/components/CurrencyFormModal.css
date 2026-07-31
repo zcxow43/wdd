@@ -35,17 +35,6 @@
   color: var(--color-text-placeholder);
 }
 
-.form-field--toggle {
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.form-field--toggle input {
-  width: 18px;
-  height: 18px;
-}
-
 .field-error {
   color: var(--color-danger);
   font-size: 12px;

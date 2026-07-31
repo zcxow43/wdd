@@ -5,7 +5,6 @@ export interface Currency {
   nameZh: string | null
   symbol: string | null
   decimalPlaces: number
-  active: boolean
   createdAt: string
   updatedAt: string
 }
@@ -16,7 +15,6 @@ export interface CurrencyInput {
   nameZh: string
   symbol: string
   decimalPlaces: number
-  active: boolean
 }
 
 export type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE'

@@ -2,6 +2,7 @@
 status: done
 title: "Spread (點差) Management Page"
 requirement: "每個品牌幣種對可以配置點差, 點差分為預設點差或客制點差, 有入金出金兩個欄位; 假設配置 0.1, 0.2, 可以拉 USD_JPY, USD_EUR 去到同一組客制點差中, 品牌幣種對最多被加入到一組點差中, 配置完後可以隨意 CRUD, 若沒有被配置到的則使用預設點差, 點差依品牌區分; 點差也需要加入審核功能"
+depends_on: [currency-pair, brand, audit]
 ---
 
 # Spread (點差) Management Page — Frontend Spec

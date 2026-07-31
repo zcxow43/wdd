@@ -102,7 +102,7 @@ class SpreadControllerTest {
         for (Long id : currencyPairMapper.findAllIds()) {
             currencyPairMapper.deleteById(id);
         }
-        for (Currency currency : currencyMapper.findAll(null)) {
+        for (Currency currency : currencyMapper.findAll()) {
             currencyMapper.deleteById(currency.getId());
         }
         for (Brand brand : brandMapper.findAll(null)) {
@@ -137,7 +137,6 @@ class SpreadControllerTest {
         currency.setCode(code);
         currency.setName(code);
         currency.setDecimalPlaces(2);
-        currency.setActive(true);
         currencyMapper.insert(currency);
         return currency.getId();
     }

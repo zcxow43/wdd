@@ -2,11 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { currencyApi } from '../api/currencyApi'
 import { ApiError } from '../api/client'
 import { CurrencyTable } from '../components/CurrencyTable'
-import { StatusFilter } from '../components/StatusFilter'
 import { CurrencyFormModal } from '../components/CurrencyFormModal'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useToast } from '../components/ToastProvider'
-import type { Currency, CurrencyInput, StatusFilter as StatusFilterValue } from '../types/currency'
+import type { Currency, CurrencyInput } from '../types/currency'
 import './CurrencyPage.css'
 
 type FormModalState = { mode: 'create' } | { mode: 'edit'; currency: Currency } | null
@@ -15,18 +14,11 @@ const NETWORK_ERROR_MESSAGE = '網路錯誤，請稍後再試'
 const NOT_FOUND_MESSAGE = '幣種不存在，請重新整理頁面'
 const IN_USE_MESSAGE = '此幣種已配置於幣種對，無法刪除'
 
-function toActiveParam(filter: StatusFilterValue): boolean | undefined {
-  if (filter === 'ACTIVE') return true
-  if (filter === 'INACTIVE') return false
-  return undefined
-}
-
 export function CurrencyPage() {
   const { showToast } = useToast()
   const [currencies, setCurrencies] = useState<Currency[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
-  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>('ALL')
   const [searchTerm, setSearchTerm] = useState('')
   const [formModal, setFormModal] = useState<FormModalState>(null)
   const [deleteTarget, setDeleteTarget] = useState<Currency | null>(null)
@@ -36,7 +28,7 @@ export function CurrencyPage() {
     setLoading(true)
     setLoadError(false)
     try {
-      const data = await currencyApi.list(toActiveParam(statusFilter))
+      const data = await currencyApi.list()
       setCurrencies(data)
     } catch {
       setLoadError(true)
@@ -44,7 +36,7 @@ export function CurrencyPage() {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, showToast])
+  }, [showToast])
 
   useEffect(() => {
     fetchCurrencies()
@@ -112,15 +104,11 @@ export function CurrencyPage() {
   return (
     <div className="currency-page">
       <div className="page-title">
-        <h1>Currency Management</h1>
+        <h1>幣種管理</h1>
       </div>
 
       <div className="filter-card">
         <div className="filter-row">
-          <div className="filter-group">
-            <label className="filter-label">Status</label>
-            <StatusFilter value={statusFilter} onChange={setStatusFilter} />
-          </div>
           <div className="filter-group filter-group--grow">
             <label className="filter-label">Search</label>
             <input

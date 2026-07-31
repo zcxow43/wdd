@@ -2,6 +2,7 @@
 status: done
 title: "Audit Module — Generic Approval Review Page"
 requirement: "Factor the approval/审核 mechanism out into its own independent audit module, so that any action needing approval can plug into it directly without adding anything to the audit module itself"
+depends_on: []
 ---
 
 # Audit Module — Generic Approval Review Page — Frontend Spec

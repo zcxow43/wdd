@@ -163,7 +163,7 @@ export function CurrencyPairPage() {
   return (
     <div className="currency-pair-page">
       <div className="page-title">
-        <h1>Currency Pair Management</h1>
+        <h1>品牌幣種對</h1>
       </div>
 
       <div className="filter-card">

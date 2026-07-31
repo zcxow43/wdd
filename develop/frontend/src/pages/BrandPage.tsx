@@ -69,7 +69,7 @@ export function BrandPage() {
   return (
     <div className="brand-page">
       <div className="page-title">
-        <h1>Brand Management</h1>
+        <h1>品牌管理</h1>
       </div>
 
       <div className="search-table-card">

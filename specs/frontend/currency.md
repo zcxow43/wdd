@@ -1,20 +1,21 @@
 ---
 status: done
 title: "Currency Table Page"
-requirement: "Display currencies in a table with CRUD operations"
+requirement: "Display currencies in a table with CRUD operations. Delta: currency has no enable/disable concept — remove the status filter, Active column, and Active toggle entirely."
+depends_on: []
 ---
 
 # Currency Table Page — Frontend Spec
 
 ## Overview
-Build a currency management page that displays all currencies in a table. Users can view, add, edit, and delete currencies. Consumes the API defined in `specs/backend/currency.md`.
+Build a currency management page that displays all currencies in a table. Users can view, add, edit, and delete currencies. Consumes the API defined in `specs/backend/currency.md`. **Current state: currencies have no active/inactive concept at all** — no status filter, no Active column, no Active toggle in the form. Every currency is simply present (usable) or deleted.
 
 ## Requirements
 - Table page showing all currencies
 - Add new currency via modal/dialog form
 - Edit existing currency inline or via modal
 - Delete with confirmation
-- Filter by active/inactive status
+- No status filter and no active/inactive concept anywhere on this page
 
 ## Page Layout
 
@@ -24,16 +25,16 @@ Build a currency management page that displays all currencies in a table. Users 
 ### Page Structure
 ```
 ┌──────────────────────────────────────────────┐
-│  Currency Management                         │
+│  幣種管理                                     │
 │                                              │
-│  [Active ▼]  [Search...]      [+ Add]        │
+│  [Search...]                  [+ Add]        │
 │                                              │
 │  ┌──────────────────────────────────────────┐│
-│  │ Code │ Name   │ 中文名 │ Symbol │ Active ││
-│  │──────│────────│────────│────────│────────││
-│  │ TWD  │ New..  │ 新台幣 │ NT$    │  ✓     ││
-│  │ USD  │ Unit.. │ 美元   │ $      │  ✓     ││
-│  │ ...  │ ...    │ ...    │ ...    │  ...   ││
+│  │ Code │ Name   │ 中文名 │ Symbol │ Actions ││
+│  │──────│────────│────────│────────│─────────││
+│  │ TWD  │ New..  │ 新台幣 │ NT$    │  ...    ││
+│  │ USD  │ Unit.. │ 美元   │ $      │  ...    ││
+│  │ ...  │ ...    │ ...    │ ...    │  ...    ││
 │  └──────────────────────────────────────────┘│
 └──────────────────────────────────────────────┘
 ```
@@ -47,11 +48,10 @@ Build a currency management page that displays all currencies in a table. Users 
 | 中文名稱       | nameZh         | 120px  | Fallback: dash if empty      |
 | Symbol         | symbol         | 80px   | Center aligned               |
 | Decimal Places | decimalPlaces  | 100px  | Center aligned               |
-| Active         | active         | 80px   | Green dot / grey dot         |
 | Actions        | —              | 120px  | Edit, Delete buttons         |
 
 ### Filter Bar
-- **Status filter**: dropdown with options: All / Active / Inactive
+- No status filter — this page has no active/inactive concept
 - **Add button**: opens create modal
 
 ### Add/Edit Modal
@@ -64,7 +64,6 @@ Form fields:
 | 中文名稱       | Text       | Optional, max 100                   |
 | Symbol         | Text       | Optional, max 10                    |
 | Decimal Places | Number     | Required, 0–8                       |
-| Active         | Toggle     | Default: on                         |
 
 ### Delete Confirmation
 - Show confirmation dialog: "確定要刪除幣種 {code} 嗎？"
@@ -74,7 +73,7 @@ Form fields:
 
 | Action   | Method | Endpoint                | Trigger           |
 |----------|--------|-------------------------|--------------------|
-| List     | GET    | /api/currencies         | Page load, filter change |
+| List     | GET    | /api/currencies         | Page load (no filter — always the full list) |
 | Create   | POST   | /api/currencies         | Modal submit       |
 | Update   | PUT    | /api/currencies/{id}    | Modal submit       |
 | Delete   | DELETE | /api/currencies/{id}    | Confirm dialog     |
@@ -95,6 +94,16 @@ Form fields:
 - [x] Error states display correct Chinese messages
 - [x] Table refreshes after create/update/delete
 - [x] Empty state shown when no currencies match filter
+
+### Delta: remove the active/inactive concept
+(The `[x]` "Status filter works" item above remains historically accurate for what was built and tested at the time; the filter, column, and toggle have since been removed.)
+- [x] No status filter renders on this page
+- [x] The table has no Active column
+- [x] The Add/Edit modal has no Active toggle
+- [x] `types/currency.ts`'s `Currency`/`CurrencyInput` have no `active` field; `StatusFilter` type/component usage is removed from this page specifically (the shared `StatusFilter` component itself stays, since `CurrencyPairPage` still uses it for `currency_pair.active` — do not remove or modify that component)
+- [x] `currencyApi.list()` no longer accepts/sends an `active` parameter
+- [x] Existing tests asserting the status filter/Active column/toggle (`CurrencyPage.test.tsx`, `CurrencyTable.test.tsx`, `CurrencyFormModal.test.tsx`) are removed or updated so the suite doesn't assert on removed UI
+- [x] Add/Edit/Delete flows and their toasts/error handling are completely unchanged by this delta
 
 ---
 ## Execution Result
@@ -128,4 +137,20 @@ Form fields:
   - 24 tests passing (`npm test` → Vitest): API client (success/204/409/404/network-error), `CurrencyTable` (rendering, dash fallback, empty state, action callbacks), `CurrencyFormModal` (validation, code normalization, disabled code on edit, 409 inline error, network error), and `CurrencyPage` integration (mount load, filter refetch, empty state, load-failure toast, create/edit/delete flows including 404 toast-and-refresh behavior).
   - `npm run build` (`tsc -b && vite build`) and `npm run lint` (Oxlint) both pass cleanly (one benign fast-refresh warning on the Toast context file, exit code 0).
   - End-to-end verified against the live backend + MySQL (`docker/docker-compose.yml` `wdd-mysql` container, already running, plus `mvn spring-boot:run`): started the Vite dev server and confirmed via curl and a Playwright screenshot that `/currencies` renders all 10 seeded currencies through the dev proxy, that the status/active filter and 404 paths work end-to-end, and that a POST-created test currency (`ZZZ`) appeared in the table on refetch; the test row was deleted afterward via the API to restore the original 10-row dataset. Observed pre-existing mojibake in the `symbol` column for EUR/JPY/GBP/CNY on the live data (e.g. `â‚¬` instead of `€`) — this is corrupted seed data in the already-applied DB migration (same root cause the backend agent previously found and partially fixed for `nameZh`), not a frontend rendering bug; out of scope for this frontend task.
+
+### Increment 2 — 2026-07-31
+- Status: DONE (Delta: remove the active/inactive concept)
+- Files changed:
+  - develop/frontend/src/types/currency.ts (removed `active` from `Currency` and `CurrencyInput`; kept the `StatusFilter` type export unchanged since `CurrencyPairPage.tsx` still imports/uses it for the unrelated `currency_pair.active` filter)
+  - develop/frontend/src/api/currencyApi.ts (`list()` no longer takes an `active` param or builds a query string; calls `GET /api/currencies` unconditionally)
+  - develop/frontend/src/pages/CurrencyPage.tsx (removed `StatusFilter` import/usage, `statusFilter` state, and the `toActiveParam` helper; `fetchCurrencies` now calls `currencyApi.list()` with no argument; filter bar now only has Search + Add)
+  - develop/frontend/src/components/CurrencyTable.tsx (removed the Active column header and the status-dot/badge cell)
+  - develop/frontend/src/components/CurrencyFormModal.tsx (removed the `active` state, the Active checkbox field, and `active` from the submitted payload)
+  - develop/frontend/src/components/CurrencyFormModal.css (removed the now-unused `.form-field--toggle` rules, scoped only to this file/the removed toggle)
+  - develop/frontend/src/pages/CurrencyPage.test.tsx (removed the status-filter refetch test; mock `Currency` fixtures no longer set `active`; mount assertion now expects `list()` called with no args)
+  - develop/frontend/src/components/CurrencyTable.test.tsx, develop/frontend/src/components/CurrencyFormModal.test.tsx (mock `Currency` fixtures no longer set `active`; the create-form submit assertion no longer expects `active: true` in the payload)
+  - develop/frontend/src/components/CurrencyPairFormModal.test.tsx, develop/frontend/src/components/CurrencyPairDefinitionFormModal.test.tsx, develop/frontend/src/pages/CurrencyPairDefinitionPage.test.tsx, develop/frontend/src/pages/CurrencyPairPage.test.tsx (mechanical fix only: removed the stray `active: true` field from `Currency`-typed mock fixtures — these files construct base/quote `Currency` objects, distinct from `Brand.active`/`CurrencyPair.active` which are untouched; this was a compile-time fallout of removing `active` from the shared `Currency` type, not a behavior change, and no assertions/logic in these files were altered)
+- Notes:
+  - `CurrencyPairPage.tsx`, the shared `StatusFilter` component/type, `BrandPage`/`BrandTable`, and `SpreadPage` were left untouched — they filter on `Brand.active`/`currency_pair.active`, which is unrelated to this delta.
+  - `npm run build` (tsc -b && vite build), `npm test -- --run` (169/169 tests passing across all 23 suites, including the full pre-existing `CurrencyPairPage`/`CurrencyPairDefinitionPage`/`SpreadPage`/`StatusFilter` suites with no regressions), and `npm run lint` (Oxlint, only the pre-existing unrelated `ToastProvider` fast-refresh warning) all pass cleanly.
 

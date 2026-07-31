@@ -8,11 +8,11 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { to: '/currencies', label: 'Currency Management' },
-  { to: '/currency-pairs', label: 'Currency Pair List' },
+  { to: '/brands', label: '品牌管理' },
+  { to: '/currencies', label: '幣種管理' },
   { to: '/currency-pair-definitions', label: '幣種對主檔' },
+  { to: '/currency-pairs', label: '品牌幣種對' },
   { to: '/spread-groups', label: '點差管理' },
-  { to: '/brands', label: 'Brand Management' },
   { to: '/audit-requests', label: '審核作業' },
 ]
 

@@ -2,6 +2,7 @@
 status: done
 title: "Brand API"
 requirement: "Provide REST API to list brands and toggle enable/disable; brands are a fixed seeded set (AU, MONETA, PUG, STAR, UM, VJP, VT)"
+depends_on: []
 ---
 
 # Brand API — Backend Spec

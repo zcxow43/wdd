@@ -12,7 +12,6 @@ const EXISTING: Currency = {
   nameZh: '新台幣',
   symbol: 'NT$',
   decimalPlaces: 0,
-  active: true,
   createdAt: '2025-01-01T00:00:00',
   updatedAt: '2025-01-01T00:00:00',
 }
@@ -59,7 +58,6 @@ describe('CurrencyFormModal', () => {
         nameZh: '韓元',
         symbol: '₩',
         decimalPlaces: 2,
-        active: true,
       }),
     )
   })

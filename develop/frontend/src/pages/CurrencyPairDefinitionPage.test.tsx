@@ -37,7 +37,6 @@ const TWD: Currency = {
   nameZh: '新台幣',
   symbol: 'NT$',
   decimalPlaces: 0,
-  active: true,
   createdAt: '2025-01-01T00:00:00',
   updatedAt: '2025-01-01T00:00:00',
 }
@@ -48,7 +47,6 @@ const USD: Currency = {
   nameZh: '美元',
   symbol: '$',
   decimalPlaces: 2,
-  active: true,
   createdAt: '2025-01-01T00:00:00',
   updatedAt: '2025-01-01T00:00:00',
 }

@@ -13,7 +13,6 @@ public class Currency {
     private String nameZh;
     private String symbol;
     private Integer decimalPlaces;
-    private Boolean active;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -63,14 +62,6 @@ public class Currency {
 
     public void setDecimalPlaces(Integer decimalPlaces) {
         this.decimalPlaces = decimalPlaces;
-    }
-
-    public Boolean getActive() {
-        return active;
-    }
-
-    public void setActive(Boolean active) {
-        this.active = active;
     }
 
     public LocalDateTime getCreatedAt() {

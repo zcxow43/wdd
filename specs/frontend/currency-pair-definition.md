@@ -2,6 +2,7 @@
 status: done
 title: "Currency Pair Definition (Global Master) Page"
 requirement: "幣種對可以被單獨建立, 建立完後所有品牌都有這一個幣種對, 幣種對可以設定正向與反向的精度, 幣種對如果建立正向, 反向就不可被建立. 全域幣種對, 需要確認全部品牌幣種對都關閉, 才可刪除."
+depends_on: [currency-pair, currency]
 ---
 
 # Currency Pair Definition (Global Master) Page — Frontend Spec

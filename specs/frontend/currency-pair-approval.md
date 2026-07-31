@@ -2,6 +2,7 @@
 status: done
 title: "Currency Pair as an Audit Consumer"
 requirement: "Currency pair update/delete must not apply directly — they must be submitted for approval through the standalone audit module, with before/after visible before approving. Create was originally in scope here too, but per a later requirement the page's create action (Add button/create modal) has been removed entirely — a brand's pair can now only come into existence via the global 幣種對主檔 page (specs/frontend/currency-pair-definition.md)."
+depends_on: [currency-pair, audit]
 ---
 
 # Currency Pair as an Audit Consumer — Frontend Spec

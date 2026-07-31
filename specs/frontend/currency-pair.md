@@ -2,6 +2,7 @@
 status: done
 title: "Currency Pair Table Page"
 requirement: "Display currency pairs in a table with read/update/delete operations, scoped per brand, exchange rate manual/auto; surface currency delete-blocked error. Delta: when rate type is AUTO, clear/disable the rate input; when MANUAL, rate is required. Delta 2: update/delete submit for approval instead of applying directly — see specs/frontend/currency-pair-approval.md. Delta 3: there is no Add button/create flow on this page at all — a brand's pair can only come into existence via the global 幣種對主檔 page (specs/frontend/currency-pair-definition.md); the '+ Add' button and create modal have been removed."
+depends_on: [brand, currency, audit]
 ---
 
 # Currency Pair Table Page — Frontend Spec
@@ -82,7 +83,7 @@ Opened only from a row's 編輯 action — there is no create mode. Form fields:
 | 匯率       | Number                   | **`手動`**: required, > 0, field enabled. **`自動`**: field disabled and cleared to empty/`null`, no validation error shown; helper text "系統將自動維護匯率" displayed instead |
 | 狀態       | Toggle                   | Default: on                                           |
 
-The brand dropdown is populated from `GET /api/brands` (all brands, active or not — a pair under a currently-disabled brand can still be viewed/edited). Currency dropdowns are populated from `GET /api/currencies` (active currencies only, or all — consistent with how the Currency page's own filters work). Selecting the same value for both base and quote shows an inline error and disables submit.
+The brand dropdown is populated from `GET /api/brands` (all brands, active or not — a pair under a currently-disabled brand can still be viewed/edited). Currency dropdowns are populated from `GET /api/currencies` (the full list — currencies have no active/inactive concept, `specs/backend/currency.md`). Selecting the same value for both base and quote shows an inline error and disables submit.
 
 ### Delete Confirmation
 - **Current state**: show confirmation dialog: "確定要送出刪除 {brandCode} 品牌幣種對 {baseCode}/{quoteCode} 的申請嗎？" (submits a request, does not delete immediately)

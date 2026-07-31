@@ -2,6 +2,7 @@
 status: done
 title: "Spread (點差) API"
 requirement: "每個品牌幣種對可以配置點差, 點差分為預設點差或客制點差, 有入金出金兩個欄位; 客制點差可將多個幣種對加入同一組, 每個幣種對最多屬於一組客制點差; 未配置的幣種對使用該品牌的預設點差; 配置完後可以隨意 CRUD; 點差依品牌區分; 點差也需要加入審核功能"
+depends_on: [brand, currency-pair, audit]
 ---
 
 # Spread (點差) API — Backend Spec

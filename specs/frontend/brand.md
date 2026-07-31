@@ -2,6 +2,7 @@
 status: done
 title: "Brand Management Page"
 requirement: "Display the fixed set of brands (AU, MONETA, PUG, STAR, UM, VJP, VT) with an enable/disable toggle"
+depends_on: []
 ---
 
 # Brand Management Page — Frontend Spec

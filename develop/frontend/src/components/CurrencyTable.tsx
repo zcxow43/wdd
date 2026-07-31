@@ -21,7 +21,6 @@ export function CurrencyTable({ currencies, onEdit, onDelete }: CurrencyTablePro
           <th style={{ width: 120 }}>中文名稱</th>
           <th style={{ width: 80 }}>Symbol</th>
           <th style={{ width: 100 }}>Decimal Places</th>
-          <th style={{ width: 110 }}>Active</th>
           <th style={{ width: 140 }}>Actions</th>
         </tr>
       </thead>
@@ -35,16 +34,6 @@ export function CurrencyTable({ currencies, onEdit, onDelete }: CurrencyTablePro
             <td>{currency.nameZh || '-'}</td>
             <td className="align-center">{currency.symbol || '-'}</td>
             <td className="align-center">{currency.decimalPlaces}</td>
-            <td className="align-center">
-              <span
-                className={`status-badge ${currency.active ? 'status-badge--active' : 'status-badge--inactive'}`}
-                role="img"
-                aria-label={currency.active ? '啟用' : '停用'}
-              >
-                <span className="status-dot" aria-hidden="true" />
-                {currency.active ? 'ACTIVE' : 'INACTIVE'}
-              </span>
-            </td>
             <td>
               <div className="action-buttons">
                 <button type="button" className="action-btn" onClick={() => onEdit(currency)}>

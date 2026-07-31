@@ -10,7 +10,7 @@ import pl.piomin.services.backend.model.Currency;
 @Mapper
 public interface CurrencyMapper {
 
-    List<Currency> findAll(@Param("active") Boolean active);
+    List<Currency> findAll();
 
     Currency findById(@Param("id") Long id);
 

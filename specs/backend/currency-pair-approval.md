@@ -2,6 +2,7 @@
 status: done
 title: "Currency Pair as an Audit Consumer"
 requirement: "Currency pair update/delete must not apply directly — they must be submitted for approval through the standalone audit module, with before/after visible before approving. Create was originally in scope here too, but per a later requirement a brand's currency_pair row can now only ever come into existence via specs/backend/currency-pair-definition.md's global-definition fan-out — POST /api/currency-pairs, and this handler's CREATE branch, have been removed."
+depends_on: [currency-pair, audit]
 ---
 
 # Currency Pair as an Audit Consumer — Backend Spec

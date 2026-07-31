@@ -73,7 +73,6 @@ class CurrencyPairAuditHandlerTest {
         currency.setCode(code);
         currency.setName(code);
         currency.setDecimalPlaces(2);
-        currency.setActive(true);
         return currency;
     }
 

@@ -7,7 +7,6 @@ CREATE TABLE currency (
     name_zh        VARCHAR(100)  NULL,
     symbol         VARCHAR(10)   NULL,
     decimal_places INT           NOT NULL DEFAULT 2,
-    active         TINYINT(1)    NOT NULL DEFAULT 1,
     created_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uk_currency_code UNIQUE (code)

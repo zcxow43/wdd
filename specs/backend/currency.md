@@ -1,17 +1,18 @@
 ---
 status: done
 title: "Currency API"
-requirement: "Provide REST API for currency CRUD operations"
+requirement: "Provide REST API for currency CRUD operations. Delta: currency has no enable/disable concept — remove the active field/filter entirely."
+depends_on: []
 ---
 
 # Currency API — Backend Spec
 
 ## Overview
-Implement a REST API for managing currencies. Provides list, get-by-id, create, update, and delete endpoints. Depends on the `currency` table defined in `specs/dba/currency.md`.
+Implement a REST API for managing currencies. Provides list, get-by-id, create, update, and delete endpoints. Depends on the `currency` table defined in `specs/dba/currency.md`. **Current state: currencies have no `active`/enable-disable concept at all** — there is no `active` field on the entity, request DTOs, response, or list filter. A currency is either present (usable everywhere) or deleted (rejected with `409` while still referenced by any `currency_pair`, per the existing in-use guard below) — there is no intermediate disabled state.
 
 ## Requirements
 - Full CRUD API for currencies
-- List endpoint supports optional filtering by `active` status
+- No `active`/enable-disable field or filter anywhere on this entity
 - Validation on create/update inputs
 - Proper error responses for not-found and validation failures
 
@@ -25,10 +26,7 @@ Base path: `/api/currencies`
 GET /api/currencies
 ```
 
-Query parameters:
-| Param  | Type    | Required | Description                    |
-|--------|---------|----------|--------------------------------|
-| active | Boolean | No       | Filter by active status        |
+No query parameters — the full list is always returned; there is no status filter.
 
 Response `200`:
 ```json
@@ -40,7 +38,6 @@ Response `200`:
         "nameZh": "新台幣",
         "symbol": "NT$",
         "decimalPlaces": 0,
-        "active": true,
         "createdAt": "2025-01-01T00:00:00",
         "updatedAt": "2025-01-01T00:00:00"
     }
@@ -76,8 +73,7 @@ Request body:
     "name": "South Korean Won",
     "nameZh": "韓元",
     "symbol": "₩",
-    "decimalPlaces": 0,
-    "active": true
+    "decimalPlaces": 0
 }
 ```
 
@@ -89,7 +85,6 @@ Validation:
 | nameZh        | Optional, max 100 chars                   |
 | symbol        | Optional, max 10 chars                    |
 | decimalPlaces | Required, integer 0–8                     |
-| active        | Optional, defaults to true                |
 
 Response `201`: created currency object with generated `id`
 
@@ -132,7 +127,7 @@ Response `404`: if id not found
 - **DTO**: request/response objects separate from entity
 
 ### Entity: `Currency`
-Fields map 1:1 to the `currency` table columns. Use camelCase in Java (`nameZh`, `decimalPlaces`, `createdAt`, `updatedAt`).
+Fields map 1:1 to the `currency` table columns (`id`, `code`, `name`, `nameZh`, `symbol`, `decimalPlaces`, `createdAt`, `updatedAt`) — no `active` field. Use camelCase in Java (`nameZh`, `decimalPlaces`, `createdAt`, `updatedAt`).
 
 ### Error Handling
 - Return `404` with JSON body when entity not found
@@ -150,6 +145,15 @@ Fields map 1:1 to the `currency` table columns. Use camelCase in Java (`nameZh`,
 - [x] Validation errors return 400 with details
 - [x] Unit tests for service layer (positive and negative cases)
 - [x] Integration tests for controller endpoints
+
+### Delta: remove the `active` enable/disable concept
+(The `[x]` "`GET /api/currencies?active=true` filters correctly" item above remains historically accurate for what was built and tested at the time; the `active` field/filter has since been removed entirely.)
+- [x] `Currency`/`CurrencyCreateRequest`/`CurrencyUpdateRequest`/`CurrencyResponse` have no `active` field
+- [x] `GET /api/currencies` no longer accepts an `active` query parameter — passing one is silently ignored (no error), and the response never includes an `active` field
+- [x] `POST`/`PUT /api/currencies...` silently ignore an `active` field if a client still sends one (Jackson's default unknown-property behavior, matching this codebase's existing convention for other removed fields)
+- [x] `CurrencyMapper`/`CurrencyMapper.xml`: `findAll` no longer takes or filters on an `active` parameter; `insert`/`update` no longer reference the (now-dropped, `specs/dba/currency.md`) `active` column
+- [x] Existing tests asserting `active`-filtering/field behavior (`CurrencyServiceTest`, `CurrencyControllerTest`) are removed or updated so the suite doesn't assert on removed behavior
+- [x] Create/update/delete/get/list behavior is otherwise completely unchanged by this delta — including the existing `CurrencyInUseException` `409` delete guard (`specs/backend/currency-pair.md`), which is unaffected
 
 ---
 ## Execution Result
@@ -182,3 +186,30 @@ Fields map 1:1 to the `currency` table columns. Use camelCase in Java (`nameZh`,
   - Tests run against an isolated in-memory H2 database (MySQL compatibility mode) via `src/test/resources/application.yml` + `schema.sql`, so `mvn test` never touches the live MySQL instance. 24 tests total (12 service unit tests with Mockito, 12 MockMvc controller tests), all passing (`mvn -f develop/backend/pom.xml test` → BUILD SUCCESS).
   - Verified `mvn -f develop/backend/pom.xml compile` succeeds, and manually smoke-tested every endpoint (200/201/204/404/409/400 paths) by running the app against the live MySQL `wdd` database.
   - During manual verification, discovered the live `currency` table's `name_zh` seed values were mojibake-corrupted (double-encoded via a Windows-1252-style misinterpretation, likely introduced when the DBA agent's seed script was executed through a client with a mismatched session charset). This is a data issue in the already-applied DBA migration, not in the migration SQL file itself (which is correct UTF-8). Corrected the 10 seed rows' `name_zh` values directly in the live database to match the intended Traditional Chinese text from `specs/dba/currency.md`, then re-verified the API returns correct UTF-8 text (e.g. `nameZh: "新台幣"`). No application/migration files needed changes for this; final live DB state confirmed at exactly 10 rows matching the original seed data.
+
+### Increment 2 — 2026-07-31
+- Status: DONE — Delta: remove the `active` enable/disable concept
+- Files changed:
+  - develop/backend/src/main/java/pl/piomin/services/backend/model/Currency.java (removed `active` field + getter/setter)
+  - develop/backend/src/main/java/pl/piomin/services/backend/dto/CurrencyCreateRequest.java (removed `active` field + getter/setter)
+  - develop/backend/src/main/java/pl/piomin/services/backend/dto/CurrencyUpdateRequest.java (removed `active` field + getter/setter)
+  - develop/backend/src/main/java/pl/piomin/services/backend/dto/CurrencyResponse.java (removed `active` field + getter/setter + `from(...)` mapping)
+  - develop/backend/src/main/java/pl/piomin/services/backend/controller/CurrencyController.java (`list()` no longer takes `active` query param)
+  - develop/backend/src/main/java/pl/piomin/services/backend/service/CurrencyService.java (`list()` no longer takes `active`; `create`/`update` no longer set/branch on `active`)
+  - develop/backend/src/main/java/pl/piomin/services/backend/mapper/CurrencyMapper.java (`findAll()` takes no parameters)
+  - develop/backend/src/main/resources/mapper/CurrencyMapper.xml (`findAll`/`findById`/`findByCode`/`insert`/`update`/result map no longer reference `active` column)
+  - develop/backend/src/test/resources/schema.sql (dropped `active TINYINT(1)` column from H2 `currency` table definition to match the already-migrated production schema; `brand`/`currency_pair`/`currency_pair_definition` tables untouched)
+  - develop/backend/src/test/java/pl/piomin/services/backend/service/CurrencyServiceTest.java (removed `active`-filtering test and the create-defaults-active test; `sampleCurrency` helper no longer sets `active`)
+  - develop/backend/src/test/java/pl/piomin/services/backend/controller/CurrencyControllerTest.java (removed `list_filtersByActiveTrue` test; setup fixtures/`findAll()` call/create-body no longer reference `active`)
+  - develop/backend/src/test/java/pl/piomin/services/backend/controller/CurrencyPairControllerTest.java (compile-only fix: `Currency` test fixture helper no longer calls `setActive`/`findAll(null)`)
+  - develop/backend/src/test/java/pl/piomin/services/backend/controller/CurrencyPairDefinitionControllerTest.java (same compile-only fix)
+  - develop/backend/src/test/java/pl/piomin/services/backend/controller/SpreadControllerTest.java (same compile-only fix)
+  - develop/backend/src/test/java/pl/piomin/services/backend/service/CurrencyPairAuditHandlerTest.java (same compile-only fix)
+  - develop/backend/src/test/java/pl/piomin/services/backend/service/CurrencyPairServiceTest.java (same compile-only fix)
+  - develop/backend/pom.xml (version 0.0.9 -> 0.0.10)
+  - develop/backend/README.md (version bump, `/api/currencies` doc no longer mentions `?active=`, new Version History entry)
+- Notes:
+  - Removed the `active` enable/disable concept from the `Currency` feature end-to-end (entity, both request DTOs, response DTO, controller query param, service filter/default/update logic, MyBatis mapper interface + XML, H2 test schema), matching the already-applied `V010` DB migration that dropped the column from the live MySQL schema.
+  - Did not touch `Brand.active` or `CurrencyPair.active` — verified via grep that only `Currency`-scoped code changed; the handful of other test files that constructed a `Currency` fixture via `setActive`/`findAll(null)` needed a mechanical compile-only fix (unrelated to their actual `CurrencyPair`/`Brand`/`Spread` test logic, which is untouched).
+  - Ran `mvn -f develop/backend/pom.xml clean test`: **259 tests, 0 failures, 0 errors, BUILD SUCCESS** — including `CurrencyPairServiceTest`, `CurrencyPairControllerTest`, `CurrencyPairDefinitionServiceTest`, `CurrencyPairDefinitionControllerTest`, `SpreadControllerTest`, `CurrencyPairAuditHandlerTest` (no regressions).
+  - Verified end-to-end against the live running dev backend: before the fix, both `GET /api/currencies` and `POST /api/currency-pair-definitions` returned `500` on the stale process (confirmed via `curl`, matching the DBA's flagged symptom of the compiled code still referencing the dropped `active` column). Killed the stale `mvn spring-boot:run` process, restarted it against the rebuilt code, and re-verified: `GET /api/currencies` now returns `200` with no `active` field in the payload, and `POST /api/currency-pair-definitions` now returns `201` and correctly fans out `currency_pair` rows. Cleaned up all verification artifacts afterward (disabled + deleted the 7 fanned-out `currency_pair` rows via the audit-approval workflow, then deleted the test `currency_pair_definition`), restoring the live dev DB to its prior state.

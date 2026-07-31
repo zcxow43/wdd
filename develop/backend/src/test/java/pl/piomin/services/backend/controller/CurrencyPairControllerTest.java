@@ -76,7 +76,7 @@ class CurrencyPairControllerTest {
         for (Long id : currencyPairMapper.findAllIds()) {
             currencyPairMapper.deleteById(id);
         }
-        for (Currency currency : currencyMapper.findAll(null)) {
+        for (Currency currency : currencyMapper.findAll()) {
             currencyMapper.deleteById(currency.getId());
         }
         for (Brand brand : brandMapper.findAll(null)) {
@@ -113,7 +113,6 @@ class CurrencyPairControllerTest {
         currency.setCode(code);
         currency.setName(code);
         currency.setDecimalPlaces(decimalPlaces);
-        currency.setActive(true);
         currencyMapper.insert(currency);
         return currency.getId();
     }

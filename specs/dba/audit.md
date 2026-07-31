@@ -9,7 +9,7 @@ requirement: "Factor the approval/审核 mechanism out into its own independent 
 ## Overview
 Create `audit_request`: a single, standalone, entity-agnostic table that is the persistence layer for **the** approval workflow used by this application — submit a proposed create/update/delete, hold it `PENDING`, let a reviewer see the before/after and **approve** (apply it) or **reject** (discard it) it. This is not part of the `currency_pair` feature; it is independent infrastructure that any feature can plug into.
 
-This table was previously specified (and not yet implemented) as `currency_pair_change_request`, then generalized to `change_request` while still living inside `specs/dba/currency-pair-approval.md`. This spec extracts it fully: `audit_request` now has its own identity, independent of any consumer. `specs/dba/currency-pair-approval.md` no longer creates any table — it is now a `status: skip` consumer note pointing here, since `currency_pair`'s participation in audit requires zero schema of its own.
+This table was previously specified (and not yet implemented) as `currency_pair_change_request`, then generalized to `change_request` while still living inside an earlier, currency-pair-coupled iteration of this spec. This spec extracts it fully: `audit_request` now has its own identity, independent of any consumer — `currency_pair`'s participation in audit (`specs/backend/currency-pair-approval.md`) requires zero schema of its own.
 
 **Nothing about this table may ever reference a specific consuming entity.** If a future change to this spec adds a `currency_pair_id` column, a `brand_id` column, or anything else named after a specific feature, that change is wrong and belongs in the consumer's own handler/snapshot instead — see "Extensibility" below.
 
@@ -52,7 +52,7 @@ Adding a new kind of approval-gated entity — e.g. the previously-discussed fut
 | created_at      | DATETIME      | NO       | CURRENT_TIMESTAMP  | Record creation time                                                             |
 | updated_at      | DATETIME      | NO       | CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | Last update time                                              |
 
-This spec does not define any entity type's snapshot shape — that belongs to the consumer. For example, `specs/dba/currency-pair-approval.md` (or, once implemented, `specs/backend/currency-pair-approval.md`) documents what `CURRENCY_PAIR`'s `before_snapshot`/`after_snapshot` looks like. `audit_request` itself only knows it stores JSON.
+This spec does not define any entity type's snapshot shape — that belongs to the consumer. For example, `specs/backend/currency-pair-approval.md` documents what `CURRENCY_PAIR`'s `before_snapshot`/`after_snapshot` looks like. `audit_request` itself only knows it stores JSON.
 
 ### Indexes / Constraints
 - PRIMARY KEY on `id`

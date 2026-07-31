@@ -25,8 +25,8 @@ public class CurrencyService {
         this.currencyPairMapper = currencyPairMapper;
     }
 
-    public List<Currency> list(Boolean active) {
-        return currencyMapper.findAll(active);
+    public List<Currency> list() {
+        return currencyMapper.findAll();
     }
 
     public Currency getById(Long id) {
@@ -49,7 +49,6 @@ public class CurrencyService {
         currency.setNameZh(request.getNameZh());
         currency.setSymbol(request.getSymbol());
         currency.setDecimalPlaces(request.getDecimalPlaces());
-        currency.setActive(request.getActive() != null ? request.getActive() : Boolean.TRUE);
 
         currencyMapper.insert(currency);
         return currencyMapper.findById(currency.getId());
@@ -73,9 +72,6 @@ public class CurrencyService {
         }
         if (request.getDecimalPlaces() != null) {
             existing.setDecimalPlaces(request.getDecimalPlaces());
-        }
-        if (request.getActive() != null) {
-            existing.setActive(request.getActive());
         }
 
         currencyMapper.update(existing);

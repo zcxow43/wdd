@@ -57,7 +57,7 @@ class CurrencyControllerTest {
             brandMapper.deleteById(brand.getId());
         }
 
-        List<Currency> existing = currencyMapper.findAll(null);
+        List<Currency> existing = currencyMapper.findAll();
         for (Currency currency : existing) {
             currencyMapper.deleteById(currency.getId());
         }
@@ -68,7 +68,6 @@ class CurrencyControllerTest {
         twd.setNameZh("新台幣");
         twd.setSymbol("NT$");
         twd.setDecimalPlaces(0);
-        twd.setActive(true);
         currencyMapper.insert(twd);
         twdId = twd.getId();
 
@@ -76,7 +75,6 @@ class CurrencyControllerTest {
         usd.setCode("USD");
         usd.setName("United States Dollar");
         usd.setDecimalPlaces(2);
-        usd.setActive(false);
         currencyMapper.insert(usd);
     }
 
@@ -85,14 +83,6 @@ class CurrencyControllerTest {
         mockMvc.perform(get("/api/currencies"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)));
-    }
-
-    @Test
-    void list_filtersByActiveTrue() throws Exception {
-        mockMvc.perform(get("/api/currencies").param("active", "true"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)))
-                .andExpect(jsonPath("$[0].code").value("TWD"));
     }
 
     @Test
@@ -119,7 +109,6 @@ class CurrencyControllerTest {
             put("nameZh", "韓元");
             put("symbol", "₩");
             put("decimalPlaces", 0);
-            put("active", true);
         }});
 
         mockMvc.perform(post("/api/currencies").contentType(MediaType.APPLICATION_JSON).content(body))

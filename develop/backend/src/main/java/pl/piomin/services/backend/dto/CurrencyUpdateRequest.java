@@ -25,8 +25,6 @@ public class CurrencyUpdateRequest {
     @Max(value = 8, message = "decimalPlaces must be between 0 and 8")
     private Integer decimalPlaces;
 
-    private Boolean active;
-
     public String getName() {
         return name;
     }
@@ -57,13 +55,5 @@ public class CurrencyUpdateRequest {
 
     public void setDecimalPlaces(Integer decimalPlaces) {
         this.decimalPlaces = decimalPlaces;
-    }
-
-    public Boolean getActive() {
-        return active;
-    }
-
-    public void setActive(Boolean active) {
-        this.active = active;
     }
 }

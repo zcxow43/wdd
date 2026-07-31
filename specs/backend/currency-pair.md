@@ -2,6 +2,7 @@
 status: done
 title: "Currency Pair API"
 requirement: "Provide REST API for currency pair read/update/delete (rate manual/auto), scoped per brand; lock currency code on update; block currency delete when referenced by a pair. Update/delete submit an audit request instead of applying directly — see specs/backend/currency-pair-approval.md. There is no create endpoint: a brand's currency_pair row can only come into existence via specs/backend/currency-pair-definition.md's fan-out — a brand pair requires a global definition to exist first."
+depends_on: [brand, currency, audit]
 ---
 
 # Currency Pair API — Backend Spec
