@@ -1,8 +1,0 @@
-.audit-page {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.audit-table-status--error {
-  color: var(--color-danger);
-}

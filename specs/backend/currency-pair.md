@@ -1,5 +1,5 @@
 ---
-status: done
+status: pending
 title: "Currency Pair API"
 requirement: "Provide REST API for currency pair read/update/delete (rate manual/auto), scoped per brand; lock currency code on update; block currency delete when referenced by a pair. Update/delete submit an audit request instead of applying directly — see specs/backend/currency-pair-approval.md. There is no create endpoint: a brand's currency_pair row can only come into existence via specs/backend/currency-pair-definition.md's fan-out — a brand pair requires a global definition to exist first."
 depends_on: [brand, currency, audit]
@@ -167,37 +167,37 @@ Apply this immediately before persisting, after all other validations pass:
 - Return `400` with field-level validation errors (base == quote, rate ≤ 0, invalid rateType, or `rate` missing while effective `rateType` is `MANUAL`)
 
 ## Acceptance Criteria
-- [x] `GET /api/currency-pairs` returns list of all pairs with brand/base/quote codes populated
-- [x] `GET /api/currency-pairs?brandId=3` filters correctly
-- [x] `GET /api/currency-pairs?active=true` filters correctly
-- [x] `GET /api/currency-pairs/{id}` returns single pair or 404
-- [x] `POST /api/currency-pairs` creates and returns 201
-- [x] `POST /api/currency-pairs` with base == quote returns 400
-- [x] `POST /api/currency-pairs` with nonexistent brand, base, or quote currency id returns 404
-- [x] `POST /api/currency-pairs` with duplicate (brand, base, quote) returns 409
-- [x] `POST /api/currency-pairs` with the same (base, quote) under a different brand succeeds (no false-positive 409)
-- [x] `PUT /api/currency-pairs/{id}` updates and returns 200
-- [x] `DELETE /api/currency-pairs/{id}` deletes and returns 204
-- [x] `PUT /api/currencies/{id}` no longer accepts/changes `code` (field removed from update DTO)
-- [x] `DELETE /api/currencies/{id}` returns 409 when the currency is referenced by a currency pair, and succeeds once no pair references it
-- [x] Unit tests for `CurrencyPairService` (positive and negative cases) and updated `CurrencyServiceTest` covering the immutable-code and delete-guard behavior
-- [x] Integration tests for `CurrencyPairController` endpoints and the updated currency delete/update endpoints
-- [x] `POST /api/currency-pairs` with `rateType: MANUAL` and no `rate` returns 400
-- [x] `POST /api/currency-pairs` with `rateType: MANUAL` and `rate: 0` or negative returns 400
-- [x] `POST /api/currency-pairs` with `rateType: AUTO` and a `rate` supplied succeeds with 201, and the persisted/returned `rate` is `null`
-- [x] `POST /api/currency-pairs` with `rateType: AUTO` and no `rate` succeeds with 201 and `rate: null`
-- [x] `PUT /api/currency-pairs/{id}` switching an existing `MANUAL` pair to `rateType: AUTO` clears its `rate` to `null`, even if a `rate` value is also supplied in the same request
-- [x] `PUT /api/currency-pairs/{id}` switching an existing `AUTO` pair (rate `null`) to `rateType: MANUAL` without supplying `rate` returns 400
-- [x] `PUT /api/currency-pairs/{id}` switching to `MANUAL` while supplying a valid `rate` in the same request succeeds
-- [x] `GET /api/currency-pairs` / `GET /api/currency-pairs/{id}` correctly serialize `rate: null` for `AUTO` pairs
-- [x] Unit/integration tests updated to cover all of the above rate/rateType branches
+- [ ] `GET /api/currency-pairs` returns list of all pairs with brand/base/quote codes populated
+- [ ] `GET /api/currency-pairs?brandId=3` filters correctly
+- [ ] `GET /api/currency-pairs?active=true` filters correctly
+- [ ] `GET /api/currency-pairs/{id}` returns single pair or 404
+- [ ] `POST /api/currency-pairs` creates and returns 201
+- [ ] `POST /api/currency-pairs` with base == quote returns 400
+- [ ] `POST /api/currency-pairs` with nonexistent brand, base, or quote currency id returns 404
+- [ ] `POST /api/currency-pairs` with duplicate (brand, base, quote) returns 409
+- [ ] `POST /api/currency-pairs` with the same (base, quote) under a different brand succeeds (no false-positive 409)
+- [ ] `PUT /api/currency-pairs/{id}` updates and returns 200
+- [ ] `DELETE /api/currency-pairs/{id}` deletes and returns 204
+- [ ] `PUT /api/currencies/{id}` no longer accepts/changes `code` (field removed from update DTO)
+- [ ] `DELETE /api/currencies/{id}` returns 409 when the currency is referenced by a currency pair, and succeeds once no pair references it
+- [ ] Unit tests for `CurrencyPairService` (positive and negative cases) and updated `CurrencyServiceTest` covering the immutable-code and delete-guard behavior
+- [ ] Integration tests for `CurrencyPairController` endpoints and the updated currency delete/update endpoints
+- [ ] `POST /api/currency-pairs` with `rateType: MANUAL` and no `rate` returns 400
+- [ ] `POST /api/currency-pairs` with `rateType: MANUAL` and `rate: 0` or negative returns 400
+- [ ] `POST /api/currency-pairs` with `rateType: AUTO` and a `rate` supplied succeeds with 201, and the persisted/returned `rate` is `null`
+- [ ] `POST /api/currency-pairs` with `rateType: AUTO` and no `rate` succeeds with 201 and `rate: null`
+- [ ] `PUT /api/currency-pairs/{id}` switching an existing `MANUAL` pair to `rateType: AUTO` clears its `rate` to `null`, even if a `rate` value is also supplied in the same request
+- [ ] `PUT /api/currency-pairs/{id}` switching an existing `AUTO` pair (rate `null`) to `rateType: MANUAL` without supplying `rate` returns 400
+- [ ] `PUT /api/currency-pairs/{id}` switching to `MANUAL` while supplying a valid `rate` in the same request succeeds
+- [ ] `GET /api/currency-pairs` / `GET /api/currency-pairs/{id}` correctly serialize `rate: null` for `AUTO` pairs
+- [ ] Unit/integration tests updated to cover all of the above rate/rateType branches
 
 ### Delta: remove the create endpoint (brand pairs come only from a global definition)
-- [x] `POST /api/currency-pairs` no longer exists on `CurrencyPairController` — the route returns Spring's default `404`/`405` (no handler mapped), not a domain-specific error body
-- [x] `CurrencyPairService.create` itself is unchanged and still callable as a plain method — verified by `CurrencyPairDefinitionServiceTest`/`CurrencyPairDefinitionControllerTest` (`specs/backend/currency-pair-definition.md`) still passing unmodified, proving the fan-out path still works
-- [x] `CurrencyPairCreateRequest` DTO is unchanged and still used internally by `CurrencyPairDefinitionService`
-- [x] Existing `CurrencyPairControllerTest`/`CurrencyPairServiceTest` tests that exercised `POST /api/currency-pairs` directly (pre-audit-workflow tests, if any remain reachable, and the audit-workflow create tests in `specs/backend/currency-pair-approval.md`'s test suite) are removed or updated so the suite no longer asserts on a route that no longer exists
-- [x] `GET`/`PUT`/`DELETE /api/currency-pairs...` behavior is completely unchanged by this delta
+- [ ] `POST /api/currency-pairs` no longer exists on `CurrencyPairController` — the route returns Spring's default `404`/`405` (no handler mapped), not a domain-specific error body
+- [ ] `CurrencyPairService.create` itself is unchanged and still callable as a plain method — verified by `CurrencyPairDefinitionServiceTest`/`CurrencyPairDefinitionControllerTest` (`specs/backend/currency-pair-definition.md`) still passing unmodified, proving the fan-out path still works
+- [ ] `CurrencyPairCreateRequest` DTO is unchanged and still used internally by `CurrencyPairDefinitionService`
+- [ ] Existing `CurrencyPairControllerTest`/`CurrencyPairServiceTest` tests that exercised `POST /api/currency-pairs` directly (pre-audit-workflow tests, if any remain reachable, and the audit-workflow create tests in `specs/backend/currency-pair-approval.md`'s test suite) are removed or updated so the suite no longer asserts on a route that no longer exists
+- [ ] `GET`/`PUT`/`DELETE /api/currency-pairs...` behavior is completely unchanged by this delta
 
 ---
 ## Execution Result
@@ -272,3 +272,6 @@ Apply this immediately before persisting, after all other validations pass:
   - `CurrencyPairService.create` and `CurrencyPairCreateRequest` were left completely untouched, per the spec's explicit instruction — `CurrencyPairDefinitionService.create`'s per-brand fan-out still calls `CurrencyPairService.create(...)` as a plain method, unaffected.
   - Ran `mvn -f develop/backend/pom.xml clean test` — BUILD SUCCESS, 256 tests, 0 failures/errors, including `CurrencyPairDefinitionServiceTest` (14) and `CurrencyPairDefinitionControllerTest` (15) passing unmodified — proving the fan-out path (the sole remaining way a `currency_pair` row can be created) still works correctly after removing the endpoint.
   - No `.circleci/config.yml` change was needed — the existing `mvn -f develop/backend/pom.xml -B test` step already covers this.
+
+### Teardown — 2026-08-03
+Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.

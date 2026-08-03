@@ -1,5 +1,5 @@
 ---
-status: done
+status: pending
 title: "Currency Table"
 requirement: "Create currency table with seed data for the currency API. Delta: currency has no enable/disable concept — the active column is dropped; currencies are always usable once created."
 ---
@@ -90,17 +90,17 @@ Apply directly against the live database when `/dev` executes this spec (see `.c
 2. `V010__drop_currency_active_column.sql` (this delta)
 
 ## Acceptance Criteria
-- [x] `currency` table created with all columns and correct types
-- [x] Unique constraint on `code` column
-- [x] 10 seed records inserted successfully
-- [x] `active` defaults to 1, `decimal_places` defaults to 2 (historical — describes the table before this delta; see below)
-- [x] Timestamps auto-populate on insert and update
+- [ ] `currency` table created with all columns and correct types
+- [ ] Unique constraint on `code` column
+- [ ] 10 seed records inserted successfully
+- [ ] `active` defaults to 1, `decimal_places` defaults to 2 (historical — describes the table before this delta; see below)
+- [ ] Timestamps auto-populate on insert and update
 
 ### Delta: drop the `active` column
-- [x] `currency.active` column no longer exists — confirmed via `DESCRIBE currency`
-- [x] Existing seed rows are unaffected by the drop (all other columns/values unchanged) — confirmed via `SELECT * FROM currency`
-- [x] No other table (`brand`, `currency_pair`, `currency_pair_definition`, `spread_*`) is altered by this migration
-- [x] `V010` applied directly against the live database (historical — at the time this also wrote a copy to `develop/backend/src/main/resources/db/migration/` and `docker/mysql/initdb/`; both locations have since been retired, see Increment 3)
+- [ ] `currency.active` column no longer exists — confirmed via `DESCRIBE currency`
+- [ ] Existing seed rows are unaffected by the drop (all other columns/values unchanged) — confirmed via `SELECT * FROM currency`
+- [ ] No other table (`brand`, `currency_pair`, `currency_pair_definition`, `spread_*`) is altered by this migration
+- [ ] `V010` applied directly against the live database (historical — at the time this also wrote a copy to `develop/backend/src/main/resources/db/migration/` and `docker/mysql/initdb/`; both locations have since been retired, see Increment 3)
 
 ---
 ## Execution Result
@@ -121,3 +121,6 @@ Apply directly against the live database when `/dev` executes this spec (see `.c
 ### Increment 3 — 2026-08-03
 - Status: DONE
 - Change: retired the `docker/mysql/initdb/` mechanism project-wide — removed its volume mount from `docker/docker-compose.yml`, deleted the `docker/mysql/initdb/` directory (all `V001`–`V011` files), and updated `.claude/agents/dba.md`/`.claude/commands/dev.md` so migration SQL now lives only inside each spec's `## Migration SQL` section and is applied directly against the live database when `/dev` runs — no standalone `.sql` artifact is ever written. No schema or data change; this table's already-applied `V001`/`V010` are unaffected.
+
+### Teardown — 2026-08-03
+Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.

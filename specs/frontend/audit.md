@@ -1,5 +1,5 @@
 ---
-status: done
+status: pending
 title: "Audit Module — Generic Approval Review Page"
 requirement: "Factor the approval/审核 mechanism out into its own independent audit module, so that any action needing approval can plug into it directly without adding anything to the audit module itself"
 depends_on: []
@@ -142,16 +142,16 @@ interface AuditRequest {
 - The registry is populated via consumer modules being imported somewhere reachable at app startup (e.g. from `App.tsx`, alongside the route registration) — implementer's choice of exact wiring, as long as `renderCurrencyPairDiff` (`specs/frontend/currency-pair-approval.md`) is actually registered before the audit page can render a `CURRENCY_PAIR` request.
 
 ## Acceptance Criteria
-- [x] New "審核作業" nav item and `/audit-requests` route render the page
-- [x] Request table loads from `GET /api/audit-requests?status=PENDING` by default; status and entity-type filters work
-- [x] Clicking 查看 opens the review modal and calls `renderAuditDiff` with the request's `entityType`/`before`/`after`
-- [x] A request whose `entityType` has no registered renderer (simulate in a test by not registering anything and feeding a fake entityType) renders the generic key/value fallback instead of crashing or showing a blank modal
-- [x] 核准 on a `PENDING` request calls the approve API, shows success, closes the modal, refreshes the list
-- [x] 拒絕 requires a non-empty reason, calls the reject API, shows success, refreshes the list
-- [x] Approve/Reject buttons are hidden for already-reviewed requests; reviewedBy/reviewedAt/rejectReason shown instead
-- [x] Error states display correct Chinese messages for 400/404/409/network cases on both approve and reject
-- [x] The page component, generic table, and generic modal chrome contain zero references to currency pairs, brands, or rate types — verified by inspection
-- [x] With `renderCurrencyPairDiff` registered (per `specs/frontend/currency-pair-approval.md`, now `status: done`), a `CURRENCY_PAIR` request renders the proper labeled before/after comparison, not the generic fallback
+- [ ] New "審核作業" nav item and `/audit-requests` route render the page
+- [ ] Request table loads from `GET /api/audit-requests?status=PENDING` by default; status and entity-type filters work
+- [ ] Clicking 查看 opens the review modal and calls `renderAuditDiff` with the request's `entityType`/`before`/`after`
+- [ ] A request whose `entityType` has no registered renderer (simulate in a test by not registering anything and feeding a fake entityType) renders the generic key/value fallback instead of crashing or showing a blank modal
+- [ ] 核准 on a `PENDING` request calls the approve API, shows success, closes the modal, refreshes the list
+- [ ] 拒絕 requires a non-empty reason, calls the reject API, shows success, refreshes the list
+- [ ] Approve/Reject buttons are hidden for already-reviewed requests; reviewedBy/reviewedAt/rejectReason shown instead
+- [ ] Error states display correct Chinese messages for 400/404/409/network cases on both approve and reject
+- [ ] The page component, generic table, and generic modal chrome contain zero references to currency pairs, brands, or rate types — verified by inspection
+- [ ] With `renderCurrencyPairDiff` registered (per `specs/frontend/currency-pair-approval.md`, now `status: done`), a `CURRENCY_PAIR` request renders the proper labeled before/after comparison, not the generic fallback
 
 ---
 ## Execution Result
@@ -179,3 +179,6 @@ interface AuditRequest {
   - **Entity-type filter**: implemented literally as specified — options are derived from `entityType` values in the currently-loaded (already status-filtered, not yet entity-type-filtered) result set, since only one entity type exists in the running system today; this is called out in the spec itself as an acceptable simplification until a second entity type ships.
   - **Modal width**: added a small, generic `size` prop to the shared `Modal` component (default unchanged) rather than a one-off audit-specific modal shell, since a wider dialog is a reasonable general capability and keeps `Modal.tsx` itself free of any audit-specific knowledge.
   - No `registerDiffRenderer` call for `CURRENCY_PAIR` (or any entity) exists yet, as instructed — that is reserved for the future `specs/frontend/currency-pair-approval.md` consumer task. Today, any `CURRENCY_PAIR` audit request would render via the generic fallback.
+
+### Teardown — 2026-08-03
+Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.

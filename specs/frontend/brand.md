@@ -1,5 +1,5 @@
 ---
-status: done
+status: pending
 title: "Brand Management Page"
 requirement: "Display the fixed set of brands (AU, MONETA, PUG, STAR, UM, VJP, VT) with an enable/disable toggle"
 depends_on: []
@@ -62,12 +62,12 @@ Toggling immediately calls `PUT /api/brands/{id}` with the new `active` value; o
 - **Loading state**: show skeleton/spinner while fetching
 
 ## Acceptance Criteria
-- [x] Brand table renders all 7 brands with code, name, and active toggle
-- [x] Brands load from API on page mount
-- [x] Toggling a row calls `PUT /api/brands/{id}` and updates state on success
-- [x] Toggle reverts and shows a toast on network/API failure
-- [x] No add/edit-name/delete controls are present on this page
-- [x] Error states display correct Chinese messages
+- [ ] Brand table renders all 7 brands with code, name, and active toggle
+- [ ] Brands load from API on page mount
+- [ ] Toggling a row calls `PUT /api/brands/{id}` and updates state on success
+- [ ] Toggle reverts and shows a toast on network/API failure
+- [ ] No add/edit-name/delete controls are present on this page
+- [ ] Error states display correct Chinese messages
 
 ---
 ## Execution Result
@@ -87,3 +87,6 @@ Toggling immediately calls `PUT /api/brands/{id}` with the new `active` value; o
   - `brandApi` was written as a small, standalone module (not page-specific) precisely so the Currency Pair page's brand picker (per `specs/frontend/currency-pair.md`) can import `brandApi.list()` directly without duplication.
   - 36 tests passing (`npm test` → Vitest): all pre-existing 24 currency tests plus 5 new `BrandTable` tests and 7 new `BrandPage` tests. `npm run build` (`tsc -b && vite build`) and `npm run lint` (Oxlint) both pass cleanly (the sole lint warning is pre-existing and unrelated, in `ToastProvider.tsx`).
   - End-to-end verified against the live backend + MySQL (`wdd-mysql` docker container, already running, plus `mvn spring-boot:run`): started the Vite dev server and used curl through the dev proxy to confirm `GET /api/brands` returns all 7 seeded brands (AU, MONETA, PUG, STAR, UM, VJP, VT, all initially active), that `PUT /api/brands/3` with `{"active": false}` toggles PUG off and is reflected in the subsequent list call, and that `PUT /api/brands/999` returns the expected `404` body — exercising the exact request/response shapes the page's toggle handler depends on. Restored PUG back to `active: true` afterward to leave the seed data unchanged; both the dev server and backend processes were stopped after verification.
+
+### Teardown — 2026-08-03
+Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.

@@ -1,5 +1,5 @@
 ---
-status: done
+status: pending
 title: "Spread (點差) Management Page"
 requirement: "每個品牌幣種對可以配置點差, 點差分為預設點差或客制點差, 有入金出金兩個欄位; 假設配置 0.1, 0.2, 可以拉 USD_JPY, USD_EUR 去到同一組客制點差中, 品牌幣種對最多被加入到一組點差中, 配置完後可以隨意 CRUD, 若沒有被配置到的則使用預設點差, 點差依品牌區分; 點差也需要加入審核功能"
 depends_on: [currency-pair, brand, audit]
@@ -151,18 +151,18 @@ Presentational table, props `{ groups: SpreadGroup[], pendingIds: Set<number>, o
 Reuse `ConfirmDialog`. Message updated for the audit workflow: `確定要送出刪除點差群組「{name}」的申請嗎？核准後，其幣種對將回復為預設點差。` On confirm, `spreadGroupApi.remove(id)`. On success (`202`): toast `已送出點差群組刪除申請，待審核`, refresh. On `409`: toast `此項目已有待審核的異動申請`, refresh.
 
 ## Acceptance Criteria
-- [x] `/spread-groups` route renders `SpreadPage`, reachable via the "點差管理" sidebar link
-- [x] Selecting a brand loads and displays that brand's live default spread and its live custom spread groups
-- [x] Editing the default spread shows a "已送出…待審核" toast and does **not** change the displayed 入金/出金 values immediately; approving the resulting request on the Audit page (`/audit-requests`) then updates the displayed values
-- [x] Creating a group with two pairs (e.g. USD/JPY, USD/EUR) and deposit/withdraw `0.1`/`0.2` submits a request and shows a toast; the group only appears in the table after the request is approved
-- [x] Assigning a pair already in Group A to Group B, via the two-panel assigner in a Group B update request, only removes it from Group A's member list **after that request is approved**
-- [x] Submitting a group name that collides with another **live** group in the same brand shows an inline "此名稱已被使用" error and does not close the modal
-- [x] Submitting a second create/update/delete for the same default-spread row, or the same group, while one is already `PENDING`, closes the modal/dialog and toasts "此項目已有待審核的異動申請" rather than showing a raw error
-- [x] Deleting a group shows an updated confirm-dialog message reflecting that this submits a request; the group and its members remain visible/unchanged until the request is approved
-- [x] The default spread card and any spread-group row with a `PENDING` request show a "審核中" badge and disable their mutating actions
-- [x] On the Audit page, a `SPREAD_DEFAULT` request shows 品牌/入金點差/出金點差 in the labeled diff view (not the generic fallback); a `SPREAD_GROUP` request shows 品牌/名稱/入金點差/出金點差/幣種對, with 幣種對 rendered as `BASE/QUOTE` badges and highlighted when membership changes
-- [x] Loading and error states match the existing page conventions (載入中…, 資料載入失敗 + 重試)
-- [x] No new runtime dependency (e.g. a drag-and-drop library) is added to `package.json` for this feature
+- [ ] `/spread-groups` route renders `SpreadPage`, reachable via the "點差管理" sidebar link
+- [ ] Selecting a brand loads and displays that brand's live default spread and its live custom spread groups
+- [ ] Editing the default spread shows a "已送出…待審核" toast and does **not** change the displayed 入金/出金 values immediately; approving the resulting request on the Audit page (`/audit-requests`) then updates the displayed values
+- [ ] Creating a group with two pairs (e.g. USD/JPY, USD/EUR) and deposit/withdraw `0.1`/`0.2` submits a request and shows a toast; the group only appears in the table after the request is approved
+- [ ] Assigning a pair already in Group A to Group B, via the two-panel assigner in a Group B update request, only removes it from Group A's member list **after that request is approved**
+- [ ] Submitting a group name that collides with another **live** group in the same brand shows an inline "此名稱已被使用" error and does not close the modal
+- [ ] Submitting a second create/update/delete for the same default-spread row, or the same group, while one is already `PENDING`, closes the modal/dialog and toasts "此項目已有待審核的異動申請" rather than showing a raw error
+- [ ] Deleting a group shows an updated confirm-dialog message reflecting that this submits a request; the group and its members remain visible/unchanged until the request is approved
+- [ ] The default spread card and any spread-group row with a `PENDING` request show a "審核中" badge and disable their mutating actions
+- [ ] On the Audit page, a `SPREAD_DEFAULT` request shows 品牌/入金點差/出金點差 in the labeled diff view (not the generic fallback); a `SPREAD_GROUP` request shows 品牌/名稱/入金點差/出金點差/幣種對, with 幣種對 rendered as `BASE/QUOTE` badges and highlighted when membership changes
+- [ ] Loading and error states match the existing page conventions (載入中…, 資料載入失敗 + 重試)
+- [ ] No new runtime dependency (e.g. a drag-and-drop library) is added to `package.json` for this feature
 
 ---
 ## Execution Result
@@ -186,3 +186,6 @@ Reuse `ConfirmDialog`. Message updated for the audit workflow: `確定要送出�
   - **Brand selector defaults to `null` (not `'ALL'`) until the first active brand auto-selects**, rather than initializing `brandId` directly to `'ALL'` as a placeholder. Initializing to `'ALL'` caused a real, intermittent race under test-suite load: `fetchData`'s `'ALL'` guard branch (which clears `defaultSpread`/`groups`/`pairs`) could run *after* the brand-specific fetch had already resolved and set real data, if the mount-time `'ALL'`-branch effect and the subsequent auto-selected-brand effect were scheduled close together — occasionally reproducing as a `此品牌尚未設定預設點差` flash where a passing assertion was expected. Distinguishing "not yet decided" (`null`) from "user explicitly chose All" (`'ALL'`, reachable only via `BrandFilter`'s built-in "All" option after mount) removes the race entirely, since the clearing branch is then only ever reached deliberately. `BrandFilter`'s `value` prop (which only accepts `number | 'ALL'`) is fed `brandId ?? 'ALL'`.
   - **`SpreadGroupFormModal`/`SpreadDefaultFormModal` only ever see the live-duplicate `409` and non-`ApiError` failures**, per the spec's own wording ("close modal, toast, refresh ... rather than an inline form error"): `SpreadPage`'s page-level submit handlers pre-filter and swallow the `404`/pending-duplicate-`409` cases (closing the modal, toasting, and refreshing themselves, exactly mirroring `CurrencyPairPage.handleCreateSubmit`/`handleEditSubmit`'s `isPendingDuplicateConflict` pattern) before those errors could ever reach the modal's own `catch`; only an actual live-duplicate `409` or a genuine network failure propagates up to the modal for inline handling. This keeps the modal components' own error branches simple and matches the existing `currency-pair` precedent exactly.
   - Selecting `BrandFilter`'s built-in "All" option on this page shows a `請選擇品牌` placeholder instead of fetching (this page is explicitly brand-scoped and never a multi-brand view per the spec); this is a deliberate, minimal-code way to reuse `BrandFilter` unmodified rather than forking it to remove the "All" option.
+
+### Teardown — 2026-08-03
+Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.

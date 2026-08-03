@@ -1,5 +1,5 @@
 ---
-status: done
+status: pending
 title: "Sidebar Nav Menu — Reorder and Full Chinese Translation"
 requirement: "前端根據這個順序調整, 翻譯成中文 — reorder the sidebar nav to: 品牌管理(Brand), 幣種管理(Currency), 幣種對主檔(Currency Pair Definition), 品牌幣種對(Currency Pair List), 點差管理(Spread), 審核作業(Audit); translate the remaining English nav labels/page titles to Traditional Chinese"
 depends_on: [brand, currency, currency-pair, currency-pair-definition, spread, audit]
@@ -50,11 +50,11 @@ const NAV_ITEMS: NavItem[] = [
 - No change to any test asserting route navigation by `to` path (unaffected). Tests asserting the old English `<h1>` text or nav label text (e.g. any `getByText('Brand Management')`/`getByText('Currency Pair List')`-style assertions in `AppShell`/page test files) must be updated to the new Chinese text so the suite doesn't regress — check `BrandPage.test.tsx`, `CurrencyPage.test.tsx`, `CurrencyPairPage.test.tsx`, and any `AppShell`-level test for these strings.
 
 ## Acceptance Criteria
-- [x] Sidebar renders the six nav items in the exact order: 品牌管理, 幣種管理, 幣種對主檔, 品牌幣種對, 點差管理, 審核作業
-- [x] All six nav labels are Traditional Chinese — no English label remains
-- [x] Each page's `<h1>` matches its nav label exactly (品牌管理/幣種管理/幣種對主檔/品牌幣種對/點差管理/審核作業)
-- [x] No route path, page component, or API integration changed — verified by the full existing frontend test suite still passing (aside from any test updated per "Out of scope" above to expect the new Chinese text)
-- [x] `npm run build`/`npm test`/`npm run lint` all pass with no new warnings
+- [ ] Sidebar renders the six nav items in the exact order: 品牌管理, 幣種管理, 幣種對主檔, 品牌幣種對, 點差管理, 審核作業
+- [ ] All six nav labels are Traditional Chinese — no English label remains
+- [ ] Each page's `<h1>` matches its nav label exactly (品牌管理/幣種管理/幣種對主檔/品牌幣種對/點差管理/審核作業)
+- [ ] No route path, page component, or API integration changed — verified by the full existing frontend test suite still passing (aside from any test updated per "Out of scope" above to expect the new Chinese text)
+- [ ] `npm run build`/`npm test`/`npm run lint` all pass with no new warnings
 
 ---
 ## Execution Result
@@ -69,3 +69,6 @@ const NAV_ITEMS: NavItem[] = [
   - `CurrencyPairDefinitionPage.tsx`, `SpreadPage.tsx`, `AuditPage.tsx` already had the correct Chinese `<h1>` and required no change.
   - Searched all page/AppShell test files for assertions on the old English strings (`Brand Management`, `Currency Management`, `Currency Pair List`, `Currency Pair Management`) and on nav labels — none exist (no `AppShell.test.tsx` file present, and no page test asserts `<h1>` text), so no test files needed updating.
   - Verification: `npm run build` succeeded; `npm test -- --run` — 23 test files / 170 tests passed; `npm run lint` (oxlint) — only one pre-existing, unrelated warning in `ToastProvider.tsx` (file not touched by this change), no new warnings introduced.
+
+### Teardown — 2026-08-03
+Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.

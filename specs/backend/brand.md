@@ -1,5 +1,5 @@
 ---
-status: done
+status: pending
 title: "Brand API"
 requirement: "Provide REST API to list brands and toggle enable/disable; brands are a fixed seeded set (AU, MONETA, PUG, STAR, UM, VJP, VT)"
 depends_on: []
@@ -110,16 +110,16 @@ Fields map 1:1 to the `brand` table columns: `id`, `code`, `name`, `active`, `cr
 - Add `BrandNotFoundException` → `404` handler in `GlobalExceptionHandler`, following the existing pattern for `CurrencyNotFoundException`
 
 ## Acceptance Criteria
-- [x] `GET /api/brands` returns all 7 seeded brands
-- [x] `GET /api/brands?active=true` filters correctly
-- [x] `GET /api/brands/{id}` returns single brand or 404
-- [x] `PUT /api/brands/{id}` with `{"active": false}` disables the brand and returns 200
-- [x] `PUT /api/brands/{id}` with `{"active": true}` re-enables the brand and returns 200
-- [x] `PUT /api/brands/{id}` with missing/invalid `active` returns 400
-- [x] `PUT /api/brands/{id}` for nonexistent id returns 404
-- [x] No endpoint exists to create or delete a brand
-- [x] Unit tests for `BrandService` (positive and negative cases)
-- [x] Integration tests for `BrandController` endpoints
+- [ ] `GET /api/brands` returns all 7 seeded brands
+- [ ] `GET /api/brands?active=true` filters correctly
+- [ ] `GET /api/brands/{id}` returns single brand or 404
+- [ ] `PUT /api/brands/{id}` with `{"active": false}` disables the brand and returns 200
+- [ ] `PUT /api/brands/{id}` with `{"active": true}` re-enables the brand and returns 200
+- [ ] `PUT /api/brands/{id}` with missing/invalid `active` returns 400
+- [ ] `PUT /api/brands/{id}` for nonexistent id returns 404
+- [ ] No endpoint exists to create or delete a brand
+- [ ] Unit tests for `BrandService` (positive and negative cases)
+- [ ] Integration tests for `BrandController` endpoints
 
 ---
 ## Execution Result
@@ -147,3 +147,6 @@ Fields map 1:1 to the `brand` table columns: `id`, `code`, `name`, `active`, `cr
   - Added `GlobalExceptionHandler.handleNotFound(BrandNotFoundException)` returning `{"error": "Brand not found", "id": ...}` with `404`, alongside the existing `CurrencyNotFoundException` handler (both handler methods are legally overloaded by exception type). Bean Validation on `BrandUpdateRequest.active` (`@NotNull`) drives the existing `MethodArgumentNotValidException` handler to return `400` with `details.active` when `active` is missing or not a boolean.
   - Ran `mvn -f develop/backend/pom.xml compile` (BUILD SUCCESS) and `mvn -f develop/backend/pom.xml test` (BUILD SUCCESS, 40 tests total: 12 CurrencyServiceTest + 12 CurrencyControllerTest + 7 BrandServiceTest + 9 BrandControllerTest, 0 failures/errors). No changes were needed to `.circleci/config.yml` — the existing `build-and-test` job already runs `mvn test` against the whole backend module, so the new Brand tests are picked up automatically.
   - Bumped the Maven project version to `0.0.2` (PATCH bump per project convention, following the currency feature's `0.0.1`) and updated `README.md` with the Brand API table and version history entry.
+
+### Teardown — 2026-08-03
+Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.

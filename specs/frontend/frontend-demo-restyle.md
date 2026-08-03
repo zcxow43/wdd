@@ -1,5 +1,5 @@
 ---
-status: done
+status: pending
 title: "Restyle Frontend to Match Demo"
 requirement: "frontend 畫面可以照 demo 的樣式做修改 (frontend screens can be restyled to follow the demo/ prototype's look)"
 depends_on: [currency, brand]
@@ -69,19 +69,19 @@ The AppShell, design tokens, and restyled shared primitives (buttons, Modal, Con
 - After restyling, run the existing test suite (`npm test`) to confirm nothing broke, and `npm run build` / `npm run lint` to confirm the app still compiles cleanly.
 
 ## Acceptance Criteria
-- [x] `develop/frontend/src/index.css` defines the token palette above as CSS custom properties, and existing `.btn*` classes are restyled to use them
-- [x] A new `AppShell` renders a sidebar (OWS logo + nav) and top header on every page, matching the demo's structure and colors
-- [x] Sidebar nav links only to real app pages (Currency Management now; Currency Pair / Brand once their specs ship); no dead links to demo-only placeholder items
-- [x] The current route's nav item is visually highlighted
-- [x] `CurrencyPage`'s filter/search toolbar is wrapped in a `.filter-card`-style container
-- [x] `CurrencyTable` is wrapped in a `.search-table-card`-style container and its `<table>` matches the demo's data-table styling (header background, cell padding, row divider, row hover, green monospace currency code)
-- [x] Active/inactive is shown as a colored dot + text label ("ACTIVE"/"INACTIVE"), accessible name preserved
-- [x] Edit/Delete actions are restyled but keep their existing accessible names
-- [x] A "Total N items" footer bar is shown on the table; no non-functional pagination controls are added
-- [x] Modal, ConfirmDialog, and Toast are restyled to the token palette and demo's card look
-- [x] `npm test` passes unchanged (no test file needs to change to accommodate the restyle)
-- [x] `npm run build` and `npm run lint` pass
-- [x] Manual check: `/currencies` in the dev server visually matches the demo's color palette, spacing, and card/table/badge language (side-by-side with `demo/index.html`)
+- [ ] `develop/frontend/src/index.css` defines the token palette above as CSS custom properties, and existing `.btn*` classes are restyled to use them
+- [ ] A new `AppShell` renders a sidebar (OWS logo + nav) and top header on every page, matching the demo's structure and colors
+- [ ] Sidebar nav links only to real app pages (Currency Management now; Currency Pair / Brand once their specs ship); no dead links to demo-only placeholder items
+- [ ] The current route's nav item is visually highlighted
+- [ ] `CurrencyPage`'s filter/search toolbar is wrapped in a `.filter-card`-style container
+- [ ] `CurrencyTable` is wrapped in a `.search-table-card`-style container and its `<table>` matches the demo's data-table styling (header background, cell padding, row divider, row hover, green monospace currency code)
+- [ ] Active/inactive is shown as a colored dot + text label ("ACTIVE"/"INACTIVE"), accessible name preserved
+- [ ] Edit/Delete actions are restyled but keep their existing accessible names
+- [ ] A "Total N items" footer bar is shown on the table; no non-functional pagination controls are added
+- [ ] Modal, ConfirmDialog, and Toast are restyled to the token palette and demo's card look
+- [ ] `npm test` passes unchanged (no test file needs to change to accommodate the restyle)
+- [ ] `npm run build` and `npm run lint` pass
+- [ ] Manual check: `/currencies` in the dev server visually matches the demo's color palette, spacing, and card/table/badge language (side-by-side with `demo/index.html`)
 
 ---
 ## Execution Result
@@ -104,3 +104,6 @@ The AppShell, design tokens, and restyled shared primitives (buttons, Modal, Con
   - `npm test`: all 56 tests across 9 files pass unchanged.
   - `npm run build` (`tsc -b && vite build`) and `npm run lint` (`oxlint`) both pass; the only lint output is a pre-existing, unrelated warning on `ToastProvider.tsx` (fast-refresh export rule), not introduced by this change.
   - Manually smoke-tested via `npm run dev`: server boots and serves `index.html`/`main.tsx` without runtime errors.
+
+### Teardown — 2026-08-03
+Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.

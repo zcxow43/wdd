@@ -1,5 +1,5 @@
 ---
-status: done
+status: pending
 title: "Currency Pair Definition (Global Master) Page"
 requirement: "幣種對可以被單獨建立, 建立完後所有品牌都有這一個幣種對, 幣種對可以設定正向與反向的精度, 幣種對如果建立正向, 反向就不可被建立. 全域幣種對, 需要確認全部品牌幣種對都關閉, 才可刪除."
 depends_on: [currency-pair, currency]
@@ -106,20 +106,20 @@ Reuse `ConfirmDialog`. Message: `確定要刪除幣種對主檔「{baseCode}/{qu
 - `404`/network failure: same fallback pattern as other pages (`網路錯誤，請稍後再試`).
 
 ## Acceptance Criteria
-- [x] `/currency-pair-definitions` route renders `CurrencyPairDefinitionPage`, reachable via the "幣種對主檔" sidebar link
-- [x] Creating a definition for USD/JPY with precision `2`/`5` succeeds, shows the confirmation toast, and the new row appears in the table immediately (no approval step)
-- [x] Attempting to create the reverse (JPY/USD) of an existing definition shows an inline "此幣種對（或其反向）已存在" error and does not close the modal
-- [x] Editing a definition only exposes 正向精度/反向精度 as editable fields; 基準幣別/對應幣別 are visibly disabled/read-only
-- [x] Deleting a definition shows the updated confirm-dialog copy and removes it from this page's table; the existing Currency Pair List page (`/currency-pairs`) is unaffected by the deletion — its rows for that pair (if previously provisioned) remain exactly as they were (verified by inspection: no shared state/component/API between this page and `CurrencyPairPage.tsx`/`currencyPairApi.ts` was touched or introduced)
-- [x] Loading and error states match the existing page conventions (載入中…, 資料載入失敗 + 重試)
-- [x] No pending/"審核中" badge or diff-renderer registration is added for this feature — confirmed it is not wired into the audit module in any way
+- [ ] `/currency-pair-definitions` route renders `CurrencyPairDefinitionPage`, reachable via the "幣種對主檔" sidebar link
+- [ ] Creating a definition for USD/JPY with precision `2`/`5` succeeds, shows the confirmation toast, and the new row appears in the table immediately (no approval step)
+- [ ] Attempting to create the reverse (JPY/USD) of an existing definition shows an inline "此幣種對（或其反向）已存在" error and does not close the modal
+- [ ] Editing a definition only exposes 正向精度/反向精度 as editable fields; 基準幣別/對應幣別 are visibly disabled/read-only
+- [ ] Deleting a definition shows the updated confirm-dialog copy and removes it from this page's table; the existing Currency Pair List page (`/currency-pairs`) is unaffected by the deletion — its rows for that pair (if previously provisioned) remain exactly as they were (verified by inspection: no shared state/component/API between this page and `CurrencyPairPage.tsx`/`currencyPairApi.ts` was touched or introduced)
+- [ ] Loading and error states match the existing page conventions (載入中…, 資料載入失敗 + 重試)
+- [ ] No pending/"審核中" badge or diff-renderer registration is added for this feature — confirmed it is not wired into the audit module in any way
 
 ### Delta: block deletion while any brand's pair is still active
 (The `[x]` delete item above remains accurate for the unguarded case; the backend now guards it — see `specs/backend/currency-pair-definition.md`.)
-- [x] The delete confirm-dialog copy mentions that deletion is blocked while any brand still has the pair active
-- [x] Attempting to delete a definition while at least one brand's pair is active shows a toast naming exactly which brands (`activeBrandCodes`) still need to be disabled, and does not remove the row from the table
-- [x] Deleting a definition succeeds normally once every brand's pair for that direction is inactive
-- [x] A generic fallback toast is shown if the `409` response is missing `activeBrandCodes` for any reason (defensive, should not normally happen)
+- [ ] The delete confirm-dialog copy mentions that deletion is blocked while any brand still has the pair active
+- [ ] Attempting to delete a definition while at least one brand's pair is active shows a toast naming exactly which brands (`activeBrandCodes`) still need to be disabled, and does not remove the row from the table
+- [ ] Deleting a definition succeeds normally once every brand's pair for that direction is inactive
+- [ ] A generic fallback toast is shown if the `409` response is missing `activeBrandCodes` for any reason (defensive, should not normally happen)
 
 ---
 ## Execution Result
@@ -154,3 +154,6 @@ Reuse `ConfirmDialog`. Message: `確定要刪除幣種對主檔「{baseCode}/{qu
 - Notes:
   - Scope was strictly limited to the Delta section per instructions — no changes to `CurrencyPairFormModal`, `CurrencyPairPage`/`currencyPairApi`, `CurrencyPairDefinitionFormModal`/Table, routing, or the audit module. This feature remains fully non-audit-gated, as before.
   - Verification performed: `npm run build` succeeds with no errors; `npm test` passes all 23 test files / 170 tests (168 pre-existing + 2 new); `npm run lint` (oxlint) reports only the pre-existing unrelated `ToastProvider.tsx` fast-refresh warning, no new issues, no regressions.
+
+### Teardown — 2026-08-03
+Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.

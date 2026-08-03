@@ -1,5 +1,5 @@
 ---
-status: done
+status: pending
 title: "Currency Pair Definition (Global Master) API"
 requirement: "幣種對可以被單獨建立, 建立完後所有品牌都有這一個幣種對, 幣種對可以設定正向與反向的精度, 幣種對如果建立正向, 反向就不可被建立. 全域幣種對, 需要確認全部品牌幣種對都關閉, 才可刪除."
 depends_on: [currency-pair, brand, currency]
@@ -165,26 +165,26 @@ Add to `GlobalExceptionHandler`, following the existing pattern:
 - No brand-`active` filtering during fan-out — every brand row (`brand` table, unfiltered) gets a `currency_pair` row provisioned, per the literal requirement "所有品牌都有這一個幣種對".
 
 ## Acceptance Criteria
-- [x] `POST /api/currency-pair-definitions` for (USD, JPY) creates the definition and a `currency_pair` row (`AUTO`, `rate=null`, `active=true`) for all seeded brands (verified with 2 brands in the H2 test fixture; fan-out logic iterates `brandMapper.findAll(null)` unconditionally, so it applies identically regardless of brand count, including the 7 seeded in the live MySQL `wdd` database)
-- [x] `POST /api/currency-pair-definitions` for (USD, JPY) when brand PUG already has a live `USD/JPY` `currency_pair` row leaves PUG's existing row completely unchanged (rate/rateType/active untouched) while still provisioning the other brand(s)
-- [x] `POST /api/currency-pair-definitions` for (JPY, USD) after (USD, JPY) already has a definition returns `409` and inserts nothing
-- [x] `POST /api/currency-pair-definitions` for (USD, JPY) a second time (exact same direction) returns `409`
-- [x] `POST /api/currency-pair-definitions` with `baseCurrencyId == quoteCurrencyId` returns `400`
-- [x] `PUT /api/currency-pair-definitions/{id}` updates `forwardPrecision`/`reversePrecision` and rejects values outside `0`–`8` with `400`; does not accept/alter `baseCurrencyId`/`quoteCurrencyId` (DTO has no such fields at all)
-- [x] `DELETE /api/currency-pair-definitions/{id}` removes the definition; all previously-provisioned `currency_pair` rows remain, unchanged, in `GET /api/currency-pairs`
-- [x] After deleting a (USD, JPY) definition, `POST /api/currency-pair-definitions` for (JPY, USD) now succeeds
-- [x] None of `CurrencyPairController`'s existing endpoints, `CurrencyPairService`'s existing methods' behavior, or the audit-approval workflow for `currency_pair` change as a result of this feature — verified by the existing `CurrencyPairControllerTest`/`CurrencyPairServiceTest`/`CurrencyPairAuditHandlerTest` suites still passing unmodified (no edits made to any of those three files or to `CurrencyPairService`/`CurrencyPairValidator`/`CurrencyPairController`)
-- [x] Unit tests for `CurrencyPairDefinitionService` (positive and negative cases, including the "skip brand with existing row" fan-out behavior)
-- [x] Integration tests for `CurrencyPairDefinitionController` endpoints
+- [ ] `POST /api/currency-pair-definitions` for (USD, JPY) creates the definition and a `currency_pair` row (`AUTO`, `rate=null`, `active=true`) for all seeded brands (verified with 2 brands in the H2 test fixture; fan-out logic iterates `brandMapper.findAll(null)` unconditionally, so it applies identically regardless of brand count, including the 7 seeded in the live MySQL `wdd` database)
+- [ ] `POST /api/currency-pair-definitions` for (USD, JPY) when brand PUG already has a live `USD/JPY` `currency_pair` row leaves PUG's existing row completely unchanged (rate/rateType/active untouched) while still provisioning the other brand(s)
+- [ ] `POST /api/currency-pair-definitions` for (JPY, USD) after (USD, JPY) already has a definition returns `409` and inserts nothing
+- [ ] `POST /api/currency-pair-definitions` for (USD, JPY) a second time (exact same direction) returns `409`
+- [ ] `POST /api/currency-pair-definitions` with `baseCurrencyId == quoteCurrencyId` returns `400`
+- [ ] `PUT /api/currency-pair-definitions/{id}` updates `forwardPrecision`/`reversePrecision` and rejects values outside `0`–`8` with `400`; does not accept/alter `baseCurrencyId`/`quoteCurrencyId` (DTO has no such fields at all)
+- [ ] `DELETE /api/currency-pair-definitions/{id}` removes the definition; all previously-provisioned `currency_pair` rows remain, unchanged, in `GET /api/currency-pairs`
+- [ ] After deleting a (USD, JPY) definition, `POST /api/currency-pair-definitions` for (JPY, USD) now succeeds
+- [ ] None of `CurrencyPairController`'s existing endpoints, `CurrencyPairService`'s existing methods' behavior, or the audit-approval workflow for `currency_pair` change as a result of this feature — verified by the existing `CurrencyPairControllerTest`/`CurrencyPairServiceTest`/`CurrencyPairAuditHandlerTest` suites still passing unmodified (no edits made to any of those three files or to `CurrencyPairService`/`CurrencyPairValidator`/`CurrencyPairController`)
+- [ ] Unit tests for `CurrencyPairDefinitionService` (positive and negative cases, including the "skip brand with existing row" fan-out behavior)
+- [ ] Integration tests for `CurrencyPairDefinitionController` endpoints
 
 ### Delta: deletion requires every brand's pair to be inactive first
 (The `[x]` "`DELETE` removes the definition..." item above remains accurate for when the new guard passes — it did not previously need to check anything first.)
-- [x] `DELETE /api/currency-pair-definitions/{id}` returns `409` with `activeBrandCodes` listing every brand still `active = true` for that pair, and deletes nothing, when at least one brand's `currency_pair` row for that direction is active
-- [x] `DELETE /api/currency-pair-definitions/{id}` succeeds (`204`) once every brand's row for that pair has been set `active = false` (via the existing per-brand edit/audit flow)
-- [x] `DELETE /api/currency-pair-definitions/{id}` succeeds when zero `currency_pair` rows exist at all for that pair (e.g. all were independently deleted) — absence of a row never blocks deletion, only an active one does
-- [x] `CurrencyPairMapper.findActiveByBaseQuote` is purely additive — no existing `CurrencyPairMapper`/`CurrencyPairService`/`CurrencyPairController` method's behavior changes, verified by the existing `CurrencyPairControllerTest`/`CurrencyPairServiceTest`/`CurrencyPairAuditHandlerTest` suites still passing unmodified
-- [x] Unit tests for `CurrencyPairDefinitionService.delete`'s new guard (blocked with one/multiple active brands, allowed once all inactive, allowed with zero rows)
-- [x] Integration test for `DELETE /api/currency-pair-definitions/{id}` returning `409` with the correct `activeBrandCodes` list
+- [ ] `DELETE /api/currency-pair-definitions/{id}` returns `409` with `activeBrandCodes` listing every brand still `active = true` for that pair, and deletes nothing, when at least one brand's `currency_pair` row for that direction is active
+- [ ] `DELETE /api/currency-pair-definitions/{id}` succeeds (`204`) once every brand's row for that pair has been set `active = false` (via the existing per-brand edit/audit flow)
+- [ ] `DELETE /api/currency-pair-definitions/{id}` succeeds when zero `currency_pair` rows exist at all for that pair (e.g. all were independently deleted) — absence of a row never blocks deletion, only an active one does
+- [ ] `CurrencyPairMapper.findActiveByBaseQuote` is purely additive — no existing `CurrencyPairMapper`/`CurrencyPairService`/`CurrencyPairController` method's behavior changes, verified by the existing `CurrencyPairControllerTest`/`CurrencyPairServiceTest`/`CurrencyPairAuditHandlerTest` suites still passing unmodified
+- [ ] Unit tests for `CurrencyPairDefinitionService.delete`'s new guard (blocked with one/multiple active brands, allowed once all inactive, allowed with zero rows)
+- [ ] Integration test for `DELETE /api/currency-pair-definitions/{id}` returning `409` with the correct `activeBrandCodes` list
 
 ---
 ## Execution Result
@@ -232,3 +232,6 @@ Add to `GlobalExceptionHandler`, following the existing pattern:
   - No DBA/migration work needed — reuses the existing `currency_pair.active` column, per instructions.
   - `CurrencyPairDefinitionController` required no code changes — `DELETE /{id}` already just calls `currencyPairDefinitionService.delete(id)` and lets the new exception type propagate to `GlobalExceptionHandler`.
   - Status set to `done` — every Delta acceptance criterion above is now checked, and all pre-existing checked items remain valid (unmodified, still passing).
+
+### Teardown — 2026-08-03
+Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.

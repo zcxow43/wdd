@@ -1,5 +1,5 @@
 ---
-status: done
+status: pending
 title: "Currency Table Page"
 requirement: "Display currencies in a table with CRUD operations. Delta: currency has no enable/disable concept — remove the status filter, Active column, and Active toggle entirely."
 depends_on: []
@@ -85,25 +85,25 @@ Form fields:
 - **Loading state**: show skeleton/spinner while fetching
 
 ## Acceptance Criteria
-- [x] Currency table renders with all columns
-- [x] Currencies load from API on page mount
-- [x] Status filter works (All / Active / Inactive)
-- [x] Add modal opens, validates, and creates via API
-- [x] Edit modal pre-fills data, code field disabled, updates via API
-- [x] Delete shows confirmation and deletes via API
-- [x] Error states display correct Chinese messages
-- [x] Table refreshes after create/update/delete
-- [x] Empty state shown when no currencies match filter
+- [ ] Currency table renders with all columns
+- [ ] Currencies load from API on page mount
+- [ ] Status filter works (All / Active / Inactive)
+- [ ] Add modal opens, validates, and creates via API
+- [ ] Edit modal pre-fills data, code field disabled, updates via API
+- [ ] Delete shows confirmation and deletes via API
+- [ ] Error states display correct Chinese messages
+- [ ] Table refreshes after create/update/delete
+- [ ] Empty state shown when no currencies match filter
 
 ### Delta: remove the active/inactive concept
 (The `[x]` "Status filter works" item above remains historically accurate for what was built and tested at the time; the filter, column, and toggle have since been removed.)
-- [x] No status filter renders on this page
-- [x] The table has no Active column
-- [x] The Add/Edit modal has no Active toggle
-- [x] `types/currency.ts`'s `Currency`/`CurrencyInput` have no `active` field; `StatusFilter` type/component usage is removed from this page specifically (the shared `StatusFilter` component itself stays, since `CurrencyPairPage` still uses it for `currency_pair.active` — do not remove or modify that component)
-- [x] `currencyApi.list()` no longer accepts/sends an `active` parameter
-- [x] Existing tests asserting the status filter/Active column/toggle (`CurrencyPage.test.tsx`, `CurrencyTable.test.tsx`, `CurrencyFormModal.test.tsx`) are removed or updated so the suite doesn't assert on removed UI
-- [x] Add/Edit/Delete flows and their toasts/error handling are completely unchanged by this delta
+- [ ] No status filter renders on this page
+- [ ] The table has no Active column
+- [ ] The Add/Edit modal has no Active toggle
+- [ ] `types/currency.ts`'s `Currency`/`CurrencyInput` have no `active` field; `StatusFilter` type/component usage is removed from this page specifically (the shared `StatusFilter` component itself stays, since `CurrencyPairPage` still uses it for `currency_pair.active` — do not remove or modify that component)
+- [ ] `currencyApi.list()` no longer accepts/sends an `active` parameter
+- [ ] Existing tests asserting the status filter/Active column/toggle (`CurrencyPage.test.tsx`, `CurrencyTable.test.tsx`, `CurrencyFormModal.test.tsx`) are removed or updated so the suite doesn't assert on removed UI
+- [ ] Add/Edit/Delete flows and their toasts/error handling are completely unchanged by this delta
 
 ---
 ## Execution Result
@@ -154,3 +154,6 @@ Form fields:
   - `CurrencyPairPage.tsx`, the shared `StatusFilter` component/type, `BrandPage`/`BrandTable`, and `SpreadPage` were left untouched — they filter on `Brand.active`/`currency_pair.active`, which is unrelated to this delta.
   - `npm run build` (tsc -b && vite build), `npm test -- --run` (169/169 tests passing across all 23 suites, including the full pre-existing `CurrencyPairPage`/`CurrencyPairDefinitionPage`/`SpreadPage`/`StatusFilter` suites with no regressions), and `npm run lint` (Oxlint, only the pre-existing unrelated `ToastProvider` fast-refresh warning) all pass cleanly.
 
+
+### Teardown — 2026-08-03
+Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.

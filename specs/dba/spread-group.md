@@ -1,5 +1,5 @@
 ---
-status: done
+status: pending
 title: "Spread Group Table"
 requirement: "客制點差可將多個幣種對加入同一組, 有入金出金兩個欄位; 點差依品牌區分"
 ---
@@ -64,10 +64,10 @@ CREATE TABLE IF NOT EXISTS `spread_group` (
 `spread_group` create/update/delete now go through the existing generic `audit_request` table (`specs/dba/audit.md`, already migrated as `V005`) instead of applying directly — see `specs/backend/spread.md`. **No schema change is needed for this**: `audit_request` is entity-agnostic (`entity_type`/`before_snapshot`/`after_snapshot` already accommodate a new `SPREAD_GROUP` consumer with zero migration). `spread_group` itself is unchanged by this addendum — it is only ever mutated by the backend's audit-handler `apply(...)` step now, never directly.
 
 ## Acceptance Criteria
-- [x] `spread_group` created with UNIQUE (`brand_id`, `name`) and non-negative CHECK constraints on both spread columns
-- [x] Deleting a `spread_group` cascades to remove its `spread_group_member` rows (`specs/dba/spread-group-member.md`)
-- [x] Attempting to delete a `brand` referenced by `spread_group` is rejected
-- [x] No new migration is added for the audit-approval addendum — confirmed `audit_request` (`V005`) already accommodates `SPREAD_GROUP` as a new `entity_type` value with no schema change
+- [ ] `spread_group` created with UNIQUE (`brand_id`, `name`) and non-negative CHECK constraints on both spread columns
+- [ ] Deleting a `spread_group` cascades to remove its `spread_group_member` rows (`specs/dba/spread-group-member.md`)
+- [ ] Attempting to delete a `brand` referenced by `spread_group` is rejected
+- [ ] No new migration is added for the audit-approval addendum — confirmed `audit_request` (`V005`) already accommodates `SPREAD_GROUP` as a new `entity_type` value with no schema change
 
 ---
 ## Execution Result
@@ -93,3 +93,6 @@ CREATE TABLE IF NOT EXISTS `spread_group` (
 ### Increment 2 — 2026-08-03
 - Status: DONE
 - Change: retired the `docker/mysql/initdb/` mechanism project-wide (superseding Increment 1's note above) — removed its volume mount from `docker/docker-compose.yml`, deleted the `docker/mysql/initdb/` directory (all `V001`–`V011` files), and updated `.claude/agents/dba.md`/`.claude/commands/dev.md` so migration SQL now lives only inside each spec's `## Migration SQL` section and is applied directly against the live database when `/dev` runs — no standalone `.sql` artifact is ever written. No schema or data change; `V007` (already applied) is unaffected.
+
+### Teardown — 2026-08-03
+Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.

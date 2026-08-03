@@ -1,5 +1,5 @@
 ---
-status: done
+status: pending
 title: "Currency Pair as an Audit Consumer"
 requirement: "Currency pair update/delete must not apply directly — they must be submitted for approval through the standalone audit module, with before/after visible before approving. Create was originally in scope here too, but per a later requirement a brand's currency_pair row can now only ever come into existence via specs/backend/currency-pair-definition.md's global-definition fan-out — POST /api/currency-pairs, and this handler's CREATE branch, have been removed."
 depends_on: [currency-pair, audit]
@@ -86,24 +86,24 @@ Handles `UPDATE`/`DELETE` only — there is no `CREATE` case (see the Delta abov
 - No changes to `CurrencyService.delete`'s in-use guard — it continues to check only the live `currency_pair` table, not `audit_request`. A currency referenced only by a `PENDING`/historical audit request remains deletable; if later deleted while a `PENDING` request still references it, approval will correctly fail with `404` at re-validation time, leaving the request `PENDING` for a reviewer to reject or for someone to resubmit.
 
 ## Acceptance Criteria
-- [x] `POST /api/currency-pairs` creates a `PENDING` `CURRENCY_PAIR`/`CREATE` audit request via `AuditService` and returns `202`; no row is inserted into `currency_pair`
-- [x] `PUT /api/currency-pairs/{id}` creates a `PENDING` `CURRENCY_PAIR`/`UPDATE` audit request and returns `202`, with `before` matching the pair's current state and `after` matching the merged proposed state; the live pair is unchanged
-- [x] `DELETE /api/currency-pairs/{id}` creates a `PENDING` `CURRENCY_PAIR`/`DELETE` audit request and returns `202`; the live pair is unchanged
-- [x] Submitting a second create/update/delete for the same pair (or same brand/base/quote triple for create) while one is still `PENDING` returns `409`
-- [x] Approving a `CURRENCY_PAIR`/`CREATE` request (via `specs/backend/audit.md`'s generic approve endpoint) inserts the row into `currency_pair` and sets the request's `entityId`
-- [x] Approving a `CURRENCY_PAIR`/`UPDATE` request overwrites the target pair with the `after` snapshot
-- [x] Approving a `CURRENCY_PAIR`/`DELETE` request deletes the target pair
-- [x] Approving a `CURRENCY_PAIR` request whose re-validation now fails (e.g. brand disabled/removed, duplicate now exists) returns the appropriate `400`/`404`/`409` and leaves the request `PENDING`
-- [x] `GET /api/currency-pairs` and `GET /api/currency-pairs/{id}` behavior is unchanged (still reads live data directly)
-- [x] Unit tests for `CurrencyPairAuditHandler` (validate/apply/snapshotOf/summarize, all branches) and updated `CurrencyPairServiceTest`/`CurrencyPairControllerTest` reflecting the controller delegating to `AuditService`
+- [ ] `POST /api/currency-pairs` creates a `PENDING` `CURRENCY_PAIR`/`CREATE` audit request via `AuditService` and returns `202`; no row is inserted into `currency_pair`
+- [ ] `PUT /api/currency-pairs/{id}` creates a `PENDING` `CURRENCY_PAIR`/`UPDATE` audit request and returns `202`, with `before` matching the pair's current state and `after` matching the merged proposed state; the live pair is unchanged
+- [ ] `DELETE /api/currency-pairs/{id}` creates a `PENDING` `CURRENCY_PAIR`/`DELETE` audit request and returns `202`; the live pair is unchanged
+- [ ] Submitting a second create/update/delete for the same pair (or same brand/base/quote triple for create) while one is still `PENDING` returns `409`
+- [ ] Approving a `CURRENCY_PAIR`/`CREATE` request (via `specs/backend/audit.md`'s generic approve endpoint) inserts the row into `currency_pair` and sets the request's `entityId`
+- [ ] Approving a `CURRENCY_PAIR`/`UPDATE` request overwrites the target pair with the `after` snapshot
+- [ ] Approving a `CURRENCY_PAIR`/`DELETE` request deletes the target pair
+- [ ] Approving a `CURRENCY_PAIR` request whose re-validation now fails (e.g. brand disabled/removed, duplicate now exists) returns the appropriate `400`/`404`/`409` and leaves the request `PENDING`
+- [ ] `GET /api/currency-pairs` and `GET /api/currency-pairs/{id}` behavior is unchanged (still reads live data directly)
+- [ ] Unit tests for `CurrencyPairAuditHandler` (validate/apply/snapshotOf/summarize, all branches) and updated `CurrencyPairServiceTest`/`CurrencyPairControllerTest` reflecting the controller delegating to `AuditService`
 
 ### Delta: no CREATE — a brand pair requires a global definition first
 (The `[x]` items above describing `POST`/`CURRENCY_PAIR`/`CREATE` behavior remain historically accurate for what was built and tested at the time; `POST /api/currency-pairs` no longer exists — see `specs/backend/currency-pair.md`.)
-- [x] `CurrencyPairAuditHandler` has no `CREATE` case in `validate`/`apply` — confirmed by inspection, not just by the route being gone
-- [x] `DuplicatePendingCurrencyPairCreateException` is removed if nothing else references it after the `CREATE` branch is removed
-- [x] `CurrencyPairAuditHandlerTest`'s `CREATE`-specific test cases (pending-duplicate dedup, apply-inserts-and-returns-id, etc.) are removed or repurposed — the handler no longer has that behavior to test
-- [x] `CurrencyPairControllerTest`'s `POST`-related tests (202/create-audit-request assertions, create-pending-duplicate 409, the `CREATE` leg of the approval round-trip suite) are removed, since the route no longer exists
-- [x] `UPDATE`/`DELETE` audit behavior (submit, approve, reject, re-validation-at-approval-time failure, pending-dedup) is completely unchanged by this delta
+- [ ] `CurrencyPairAuditHandler` has no `CREATE` case in `validate`/`apply` — confirmed by inspection, not just by the route being gone
+- [ ] `DuplicatePendingCurrencyPairCreateException` is removed if nothing else references it after the `CREATE` branch is removed
+- [ ] `CurrencyPairAuditHandlerTest`'s `CREATE`-specific test cases (pending-duplicate dedup, apply-inserts-and-returns-id, etc.) are removed or repurposed — the handler no longer has that behavior to test
+- [ ] `CurrencyPairControllerTest`'s `POST`-related tests (202/create-audit-request assertions, create-pending-duplicate 409, the `CREATE` leg of the approval round-trip suite) are removed, since the route no longer exists
+- [ ] `UPDATE`/`DELETE` audit behavior (submit, approve, reject, re-validation-at-approval-time failure, pending-dedup) is completely unchanged by this delta
 
 ---
 ## Execution Result
@@ -149,3 +149,6 @@ Handles `UPDATE`/`DELETE` only — there is no `CREATE` case (see the Delta abov
   - `CurrencyPairAuditHandler.apply(...)`'s `switch` remains exhaustive over `AuditActionType` (a `default`/missing-case compile error would have caught an incomplete removal) — `CREATE` is handled explicitly with `throw new UnsupportedOperationException(...)` rather than being silently omitted, so a future accidental re-wiring of a `CREATE` audit submission for `CURRENCY_PAIR` would fail loudly instead of writing corrupt data.
   - Verified via `mvn -f develop/backend/pom.xml clean test`: `BUILD SUCCESS`, `256` tests, `0` failures/errors, including `CurrencyPairDefinitionServiceTest` (14) and `CurrencyPairDefinitionControllerTest` (15) — a completely different feature — passing unmodified, confirming `CurrencyPairService.create`'s plain-method fan-out call path is unaffected by removing `CurrencyPairAuditHandler`'s `CREATE` case and `CurrencyPairController`'s `POST` route.
   - No changes were needed to `.circleci/config.yml` — the existing `mvn -f develop/backend/pom.xml -B test` step already covers this.
+
+### Teardown — 2026-08-03
+Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.

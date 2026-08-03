@@ -1,5 +1,5 @@
 ---
-status: done
+status: pending
 title: "Brand Table"
 requirement: "Create brand table (fixed set: AU, MONETA, PUG, STAR, UM, VJP, VT — uppercase codes), toggleable active flag; each brand owns its own currency pairs"
 ---
@@ -70,11 +70,11 @@ INSERT INTO `brand` (`code`, `name`, `active`) VALUES
 3. `V003__create_currency_pair_table.sql` (`specs/dba/currency-pair.md`) — must run after this migration since it FKs to `brand`
 
 ## Acceptance Criteria
-- [x] `brand` table created with all columns and correct types
-- [x] Unique constraint on `code`
-- [x] CHECK constraint enforces `code` is uppercase
-- [x] 7 seed rows inserted: AU, MONETA, PUG, STAR, UM, VJP, VT, all `active = 1`
-- [x] Timestamps auto-populate on insert and update
+- [ ] `brand` table created with all columns and correct types
+- [ ] Unique constraint on `code`
+- [ ] CHECK constraint enforces `code` is uppercase
+- [ ] 7 seed rows inserted: AU, MONETA, PUG, STAR, UM, VJP, VT, all `active = 1`
+- [ ] Timestamps auto-populate on insert and update
 
 ---
 ## Execution Result
@@ -91,3 +91,6 @@ INSERT INTO `brand` (`code`, `name`, `active`) VALUES
 ### Increment 1 — 2026-08-03
 - Status: DONE
 - Change: retired the `docker/mysql/initdb/` mechanism project-wide — removed its volume mount from `docker/docker-compose.yml`, deleted the `docker/mysql/initdb/` directory (all `V001`–`V011` files), and updated `.claude/agents/dba.md`/`.claude/commands/dev.md` so migration SQL now lives only inside each spec's `## Migration SQL` section and is applied directly against the live database when `/dev` runs — no standalone `.sql` artifact is ever written. No schema or data change; `V002` (already applied) is unaffected.
+
+### Teardown — 2026-08-03
+Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.

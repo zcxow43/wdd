@@ -1,5 +1,5 @@
 ---
-status: done
+status: pending
 title: "Currency API"
 requirement: "Provide REST API for currency CRUD operations. Delta: currency has no enable/disable concept — remove the active field/filter entirely."
 depends_on: []
@@ -135,25 +135,25 @@ Fields map 1:1 to the `currency` table columns (`id`, `code`, `name`, `nameZh`, 
 - Return `400` with field-level validation errors
 
 ## Acceptance Criteria
-- [x] `GET /api/currencies` returns list of all currencies
-- [x] `GET /api/currencies?active=true` filters correctly
-- [x] `GET /api/currencies/{id}` returns single currency or 404
-- [x] `POST /api/currencies` creates and returns 201
-- [x] `POST /api/currencies` with duplicate code returns 409
-- [x] `PUT /api/currencies/{id}` updates and returns 200
-- [x] `DELETE /api/currencies/{id}` deletes and returns 204
-- [x] Validation errors return 400 with details
-- [x] Unit tests for service layer (positive and negative cases)
-- [x] Integration tests for controller endpoints
+- [ ] `GET /api/currencies` returns list of all currencies
+- [ ] `GET /api/currencies?active=true` filters correctly
+- [ ] `GET /api/currencies/{id}` returns single currency or 404
+- [ ] `POST /api/currencies` creates and returns 201
+- [ ] `POST /api/currencies` with duplicate code returns 409
+- [ ] `PUT /api/currencies/{id}` updates and returns 200
+- [ ] `DELETE /api/currencies/{id}` deletes and returns 204
+- [ ] Validation errors return 400 with details
+- [ ] Unit tests for service layer (positive and negative cases)
+- [ ] Integration tests for controller endpoints
 
 ### Delta: remove the `active` enable/disable concept
 (The `[x]` "`GET /api/currencies?active=true` filters correctly" item above remains historically accurate for what was built and tested at the time; the `active` field/filter has since been removed entirely.)
-- [x] `Currency`/`CurrencyCreateRequest`/`CurrencyUpdateRequest`/`CurrencyResponse` have no `active` field
-- [x] `GET /api/currencies` no longer accepts an `active` query parameter — passing one is silently ignored (no error), and the response never includes an `active` field
-- [x] `POST`/`PUT /api/currencies...` silently ignore an `active` field if a client still sends one (Jackson's default unknown-property behavior, matching this codebase's existing convention for other removed fields)
-- [x] `CurrencyMapper`/`CurrencyMapper.xml`: `findAll` no longer takes or filters on an `active` parameter; `insert`/`update` no longer reference the (now-dropped, `specs/dba/currency.md`) `active` column
-- [x] Existing tests asserting `active`-filtering/field behavior (`CurrencyServiceTest`, `CurrencyControllerTest`) are removed or updated so the suite doesn't assert on removed behavior
-- [x] Create/update/delete/get/list behavior is otherwise completely unchanged by this delta — including the existing `CurrencyInUseException` `409` delete guard (`specs/backend/currency-pair.md`), which is unaffected
+- [ ] `Currency`/`CurrencyCreateRequest`/`CurrencyUpdateRequest`/`CurrencyResponse` have no `active` field
+- [ ] `GET /api/currencies` no longer accepts an `active` query parameter — passing one is silently ignored (no error), and the response never includes an `active` field
+- [ ] `POST`/`PUT /api/currencies...` silently ignore an `active` field if a client still sends one (Jackson's default unknown-property behavior, matching this codebase's existing convention for other removed fields)
+- [ ] `CurrencyMapper`/`CurrencyMapper.xml`: `findAll` no longer takes or filters on an `active` parameter; `insert`/`update` no longer reference the (now-dropped, `specs/dba/currency.md`) `active` column
+- [ ] Existing tests asserting `active`-filtering/field behavior (`CurrencyServiceTest`, `CurrencyControllerTest`) are removed or updated so the suite doesn't assert on removed behavior
+- [ ] Create/update/delete/get/list behavior is otherwise completely unchanged by this delta — including the existing `CurrencyInUseException` `409` delete guard (`specs/backend/currency-pair.md`), which is unaffected
 
 ---
 ## Execution Result
@@ -213,3 +213,6 @@ Fields map 1:1 to the `currency` table columns (`id`, `code`, `name`, `nameZh`, 
   - Did not touch `Brand.active` or `CurrencyPair.active` — verified via grep that only `Currency`-scoped code changed; the handful of other test files that constructed a `Currency` fixture via `setActive`/`findAll(null)` needed a mechanical compile-only fix (unrelated to their actual `CurrencyPair`/`Brand`/`Spread` test logic, which is untouched).
   - Ran `mvn -f develop/backend/pom.xml clean test`: **259 tests, 0 failures, 0 errors, BUILD SUCCESS** — including `CurrencyPairServiceTest`, `CurrencyPairControllerTest`, `CurrencyPairDefinitionServiceTest`, `CurrencyPairDefinitionControllerTest`, `SpreadControllerTest`, `CurrencyPairAuditHandlerTest` (no regressions).
   - Verified end-to-end against the live running dev backend: before the fix, both `GET /api/currencies` and `POST /api/currency-pair-definitions` returned `500` on the stale process (confirmed via `curl`, matching the DBA's flagged symptom of the compiled code still referencing the dropped `active` column). Killed the stale `mvn spring-boot:run` process, restarted it against the rebuilt code, and re-verified: `GET /api/currencies` now returns `200` with no `active` field in the payload, and `POST /api/currency-pair-definitions` now returns `201` and correctly fans out `currency_pair` rows. Cleaned up all verification artifacts afterward (disabled + deleted the 7 fanned-out `currency_pair` rows via the audit-approval workflow, then deleted the test `currency_pair_definition`), restoring the live dev DB to its prior state.
+
+### Teardown — 2026-08-03
+Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.

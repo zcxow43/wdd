@@ -1,5 +1,5 @@
 ---
-status: done
+status: pending
 title: "Spread (點差) API"
 requirement: "每個品牌幣種對可以配置點差, 點差分為預設點差或客制點差, 有入金出金兩個欄位; 客制點差可將多個幣種對加入同一組, 每個幣種對最多屬於一組客制點差; 未配置的幣種對使用該品牌的預設點差; 配置完後可以隨意 CRUD; 點差依品牌區分; 點差也需要加入審核功能"
 depends_on: [brand, currency-pair, audit]
@@ -299,23 +299,23 @@ Add to `GlobalExceptionHandler`, following the existing `XxxNotFoundException` �
 - No defense against two different `PENDING` `SPREAD_GROUP` requests (e.g. one `UPDATE` on Group A adding pair X, one `UPDATE` on Group B also adding pair X) both being approved — the second `apply(...)` to run simply wins (last-approved membership sticks), matching the same last-writer-wins behavior already accepted for currency-pair's own audit workflow. Reviewers are expected to notice overlapping proposals from the `before`/`after` diff before approving both.
 
 ## Acceptance Criteria
-- [x] `GET /api/spread-defaults` and `GET /api/spread-defaults?brandId=` return the correct rows, unaffected by any pending requests
-- [x] `GET /api/spread-defaults/{id}` returns 200 or 404
-- [x] `PUT /api/spread-defaults/{id}` creates a `PENDING` `SPREAD_DEFAULT`/`UPDATE` audit request and returns `202`; the live row is unchanged until approved; a second submission while one is `PENDING` returns `409`
-- [x] Approving a `SPREAD_DEFAULT`/`UPDATE` request updates the live `spread_default` row with the `after` snapshot's values
-- [x] No `POST`/`DELETE` endpoint exists for `/api/spread-defaults`
-- [x] `POST /api/spread-groups` creates a `PENDING` `SPREAD_GROUP`/`CREATE` audit request and returns `202`; rejects duplicate name against a **live** group (409), a duplicate name against another **pending** create in the same brand (409), unknown/mismatched-brand pair ids (404/400), and duplicate ids in the payload (400); nothing is inserted into `spread_group`/`spread_group_member` until approved
-- [x] Approving a `SPREAD_GROUP`/`CREATE` request inserts the group and its memberships and sets the request's `entityId`
-- [x] `PUT /api/spread-groups/{id}` creates a `PENDING` `SPREAD_GROUP`/`UPDATE` audit request with `before`/`after` reflecting the merged proposed state and returns `202`; the live group is unchanged until approved
-- [x] Approving a `SPREAD_GROUP`/`UPDATE` request whose `after.currencyPairIds` differs from the live membership set fully replaces membership — removed pairs revert to the default spread, added pairs are detached from any prior group
-- [x] `DELETE /api/spread-groups/{id}` creates a `PENDING` `SPREAD_GROUP`/`DELETE` audit request and returns `202`; the live group and its memberships are unchanged until approved
-- [x] Approving a `SPREAD_GROUP`/`DELETE` request removes the group and its memberships; previously-member pairs resolve back to the default spread on the next resolve call
-- [x] Submitting a second create/update/delete for the same spread default row, or the same spread group (or same brand/name combination for create), while one is still `PENDING` returns `409`
-- [x] Approving a `SPREAD_GROUP`/`SPREAD_DEFAULT` request whose re-validation now fails (e.g. brand disabled, duplicate name now exists) returns the appropriate `400`/`404`/`409` and leaves the request `PENDING`
-- [x] `GET /api/spread-groups/resolve/{currencyPairId}` always reflects live, approved data — a `PENDING` proposal never changes its result
-- [x] `GET /api/spread-defaults`, `GET /api/spread-defaults/{id}`, `GET /api/spread-groups`, `GET /api/spread-groups/{id}` behavior is unchanged from a pre-audit design (still reads live data directly)
-- [x] Unit tests for `SpreadDefaultAuditHandler` and `SpreadGroupAuditHandler` (validate/apply/snapshotOf/summarize, all branches) and for `SpreadDefaultService`/`SpreadGroupService`
-- [x] Integration tests for `SpreadController` endpoints, including full submit → approve/reject round trips via `/api/audit-requests/{id}/approve|reject`
+- [ ] `GET /api/spread-defaults` and `GET /api/spread-defaults?brandId=` return the correct rows, unaffected by any pending requests
+- [ ] `GET /api/spread-defaults/{id}` returns 200 or 404
+- [ ] `PUT /api/spread-defaults/{id}` creates a `PENDING` `SPREAD_DEFAULT`/`UPDATE` audit request and returns `202`; the live row is unchanged until approved; a second submission while one is `PENDING` returns `409`
+- [ ] Approving a `SPREAD_DEFAULT`/`UPDATE` request updates the live `spread_default` row with the `after` snapshot's values
+- [ ] No `POST`/`DELETE` endpoint exists for `/api/spread-defaults`
+- [ ] `POST /api/spread-groups` creates a `PENDING` `SPREAD_GROUP`/`CREATE` audit request and returns `202`; rejects duplicate name against a **live** group (409), a duplicate name against another **pending** create in the same brand (409), unknown/mismatched-brand pair ids (404/400), and duplicate ids in the payload (400); nothing is inserted into `spread_group`/`spread_group_member` until approved
+- [ ] Approving a `SPREAD_GROUP`/`CREATE` request inserts the group and its memberships and sets the request's `entityId`
+- [ ] `PUT /api/spread-groups/{id}` creates a `PENDING` `SPREAD_GROUP`/`UPDATE` audit request with `before`/`after` reflecting the merged proposed state and returns `202`; the live group is unchanged until approved
+- [ ] Approving a `SPREAD_GROUP`/`UPDATE` request whose `after.currencyPairIds` differs from the live membership set fully replaces membership — removed pairs revert to the default spread, added pairs are detached from any prior group
+- [ ] `DELETE /api/spread-groups/{id}` creates a `PENDING` `SPREAD_GROUP`/`DELETE` audit request and returns `202`; the live group and its memberships are unchanged until approved
+- [ ] Approving a `SPREAD_GROUP`/`DELETE` request removes the group and its memberships; previously-member pairs resolve back to the default spread on the next resolve call
+- [ ] Submitting a second create/update/delete for the same spread default row, or the same spread group (or same brand/name combination for create), while one is still `PENDING` returns `409`
+- [ ] Approving a `SPREAD_GROUP`/`SPREAD_DEFAULT` request whose re-validation now fails (e.g. brand disabled, duplicate name now exists) returns the appropriate `400`/`404`/`409` and leaves the request `PENDING`
+- [ ] `GET /api/spread-groups/resolve/{currencyPairId}` always reflects live, approved data — a `PENDING` proposal never changes its result
+- [ ] `GET /api/spread-defaults`, `GET /api/spread-defaults/{id}`, `GET /api/spread-groups`, `GET /api/spread-groups/{id}` behavior is unchanged from a pre-audit design (still reads live data directly)
+- [ ] Unit tests for `SpreadDefaultAuditHandler` and `SpreadGroupAuditHandler` (validate/apply/snapshotOf/summarize, all branches) and for `SpreadDefaultService`/`SpreadGroupService`
+- [ ] Integration tests for `SpreadController` endpoints, including full submit → approve/reject round trips via `/api/audit-requests/{id}/approve|reject`
 
 ---
 ## Execution Result
@@ -344,3 +344,6 @@ Add to `GlobalExceptionHandler`, following the existing `XxxNotFoundException` �
   - **Self-collision fix for the CREATE natural-key dedup check**, identical in nature to the one documented in `specs/backend/currency-pair-approval.md`: `SpreadGroupAuditHandler.validate` only runs the `(brandId, name)` pending-duplicate check when `!afterSnapshot.containsKey("brandCode")` (i.e. on the original submission, before `validate` itself enriches the map), preventing `AuditService.approve()`'s re-validation pass from finding the request's own already-`PENDING` row and spuriously rejecting it with `409`. Verified via `SpreadGroupAuditHandlerTest.validate_create_skipsPendingDuplicateCheck_whenSnapshotAlreadyEnriched_asAtApprovalTime` and the full create→approve round trip in `SpreadControllerTest`.
   - **`InvalidSpreadException` added beyond the spec's explicit exception list** for two validation rules that can only be meaningfully re-checked from a deserialized `Map<String,Object>` audit snapshot (bypassing Bean Validation entirely) rather than from a DTO: non-negative deposit/withdraw spread (shared by both `SPREAD_DEFAULT` and `SPREAD_GROUP` via `SpreadGroupValidator.validateSpreadNonNegative`, exactly as the spec's Implementation Details section suggests reusing), and blank/over-100-char spread group names on `PUT` (where the DTO field is optional and so cannot carry `@NotBlank`). This mirrors the codebase's existing pattern of a small dedicated 400 exception per feature (`InvalidCurrencyPairException`) rather than overloading one of the spec's more specific exceptions for an unrelated field.
   - **Acceptance criterion "Approving a `SPREAD_GROUP`/`SPREAD_DEFAULT` request whose re-validation now fails ... leaves the request PENDING"** is fully implemented and tested for `SPREAD_GROUP` (`SpreadControllerTest.approve_updateGroupRequest_returns409_andLeavesPending_whenNameCollidesAtApprovalTime`, mirroring the equivalent `CURRENCY_PAIR` test). For `SPREAD_DEFAULT` there is no test of this exact scenario: the only thing `SpreadDefaultAuditHandler.validate` re-checks is `depositSpread`/`withdrawSpread >= 0`, both of which are fixed, immutable numbers captured in the `after` snapshot at submission time and therefore cannot start failing that check between submission and approval (unlike `SPREAD_GROUP`'s name-uniqueness or brand/member checks, which depend on other rows that can change concurrently). The code path exists and is exercised by unit tests (`SpreadDefaultAuditHandlerTest.validate_throws400_when...Negative`) proving `validate` does throw when re-invoked with an invalid snapshot — there is simply no realistic way to *cause* that state to arise only at approval time for this entity, so the criterion is satisfied by design rather than by a dedicated approval-time integration test.
+
+### Teardown — 2026-08-03
+Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.

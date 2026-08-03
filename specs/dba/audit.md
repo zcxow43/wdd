@@ -1,5 +1,5 @@
 ---
-status: done
+status: pending
 title: "Audit Module — Generic Approval Request Table"
 requirement: "Factor the approval/审核 mechanism out into its own independent audit module, so that any action needing approval can plug into it directly without adding anything to the audit module itself"
 ---
@@ -112,13 +112,13 @@ No seed data — this table starts empty; rows are only ever created through the
 5. `V005__create_audit_request_table.sql` (this spec) — no FK dependency on any other table, so no strict ordering requirement beyond preserving migration numbering
 
 ## Acceptance Criteria
-- [x] `audit_request` table created with all columns and correct types, including `entity_type`, `entity_id`, `before_snapshot` (JSON), `after_snapshot` (JSON), and `summary`
-- [x] CHECK constraints enforce valid `action_type` and `status` enum values; `entity_type` is unconstrained at the DB level
-- [x] Indexes exist on `status` and on (`entity_type`, `entity_id`)
-- [x] No FK exists anywhere on this table
-- [x] A row can be inserted with an arbitrary `entity_type` string (e.g. `'CURRENCY_PAIR'`) and a JSON snapshot, and read back with the JSON content intact
-- [x] Timestamps auto-populate on insert and update
-- [x] This table's definition contains no column, constraint, or comment naming any specific consumer entity (e.g. no `currency_pair`, `brand_id`, etc.) — confirmed by inspection as the acceptance bar for "genuinely independent"
+- [ ] `audit_request` table created with all columns and correct types, including `entity_type`, `entity_id`, `before_snapshot` (JSON), `after_snapshot` (JSON), and `summary`
+- [ ] CHECK constraints enforce valid `action_type` and `status` enum values; `entity_type` is unconstrained at the DB level
+- [ ] Indexes exist on `status` and on (`entity_type`, `entity_id`)
+- [ ] No FK exists anywhere on this table
+- [ ] A row can be inserted with an arbitrary `entity_type` string (e.g. `'CURRENCY_PAIR'`) and a JSON snapshot, and read back with the JSON content intact
+- [ ] Timestamps auto-populate on insert and update
+- [ ] This table's definition contains no column, constraint, or comment naming any specific consumer entity (e.g. no `currency_pair`, `brand_id`, etc.) — confirmed by inspection as the acceptance bar for "genuinely independent"
 
 ---
 ## Execution Result
@@ -140,3 +140,6 @@ No seed data — this table starts empty; rows are only ever created through the
 ### Increment 1 — 2026-08-03
 - Status: DONE
 - Change: retired the `docker/mysql/initdb/` mechanism project-wide — removed its volume mount from `docker/docker-compose.yml`, deleted the `docker/mysql/initdb/` directory (all `V001`–`V011` files), and updated `.claude/agents/dba.md`/`.claude/commands/dev.md` so migration SQL now lives only inside each spec's `## Migration SQL` section and is applied directly against the live database when `/dev` runs — no standalone `.sql` artifact is ever written. No schema or data change; `V005` (already applied) is unaffected.
+
+### Teardown — 2026-08-03
+Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.
