@@ -1,5 +1,5 @@
 ---
-status: pending
+status: done
 title: "Spread Group Table"
 requirement: "客制點差可將多個幣種對加入同一組, 有入金出金兩個欄位; 點差依品牌區分"
 ---
@@ -64,10 +64,10 @@ CREATE TABLE IF NOT EXISTS `spread_group` (
 `spread_group` create/update/delete now go through the existing generic `audit_request` table (`specs/dba/audit.md`, already migrated as `V005`) instead of applying directly — see `specs/backend/spread.md`. **No schema change is needed for this**: `audit_request` is entity-agnostic (`entity_type`/`before_snapshot`/`after_snapshot` already accommodate a new `SPREAD_GROUP` consumer with zero migration). `spread_group` itself is unchanged by this addendum — it is only ever mutated by the backend's audit-handler `apply(...)` step now, never directly.
 
 ## Acceptance Criteria
-- [ ] `spread_group` created with UNIQUE (`brand_id`, `name`) and non-negative CHECK constraints on both spread columns
-- [ ] Deleting a `spread_group` cascades to remove its `spread_group_member` rows (`specs/dba/spread-group-member.md`)
-- [ ] Attempting to delete a `brand` referenced by `spread_group` is rejected
-- [ ] No new migration is added for the audit-approval addendum — confirmed `audit_request` (`V005`) already accommodates `SPREAD_GROUP` as a new `entity_type` value with no schema change
+- [x] `spread_group` created with UNIQUE (`brand_id`, `name`) and non-negative CHECK constraints on both spread columns
+- [x] Deleting a `spread_group` cascades to remove its `spread_group_member` rows (`specs/dba/spread-group-member.md`) — verified in that spec's Increment 3 (2026-08-03): deleting a `spread_group` row removed its `spread_group_member` row via the FK's `ON DELETE CASCADE`
+- [x] Attempting to delete a `brand` referenced by `spread_group` is rejected
+- [x] No new migration is added for the audit-approval addendum — confirmed `audit_request` (`V005`) already accommodates `SPREAD_GROUP` as a new `entity_type` value with no schema change
 
 ---
 ## Execution Result
@@ -96,3 +96,18 @@ CREATE TABLE IF NOT EXISTS `spread_group` (
 
 ### Teardown — 2026-08-03
 Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.
+
+### Increment 3 — 2026-08-03
+- Status: DONE
+- Files changed: none (no standalone `.sql` file written, per current convention — see `.claude/agents/dba.md`). Migration SQL applied directly against the live `wdd` database via the `mysql` CLI.
+- Notes:
+  - Pre-flight passed: `env.md` `## Database` section complete (MySQL 8.0.36, `127.0.0.1:3306`, db `wdd`, user `app`); connection test (`SELECT 1`) succeeded; target database `wdd` already existed.
+  - Confirmed prerequisite tables (`brand`, `currency`, `currency_pair`, `audit_request`, `spread_default`) already exist in the rebuilt database; `spread_group` did not exist yet.
+  - Applied `V007__create_spread_group_table.sql` directly via the `mysql` CLI with no errors. `SHOW TABLES` now lists `spread_group` alongside the five pre-existing tables.
+  - `DESCRIBE` + `SHOW INDEX` + `SHOW CREATE TABLE` on `spread_group` confirm every column/type/nullability/default, the PK, the `uk_spread_group_brand_name` UNIQUE key on (`brand_id`, `name`), the `ck_spread_group_deposit_nonneg`/`ck_spread_group_withdraw_nonneg` CHECK constraints, and `fk_spread_group_brand` FK to `brand(id)` with `ON DELETE RESTRICT ON UPDATE RESTRICT` — all exactly match the spec.
+  - Verified CHECK constraints: inserting rows with `deposit_spread = -1` and `withdraw_spread = -1` each raised `ERROR 3819` for the respective constraint.
+  - Verified UNIQUE constraint: inserting two rows with the same (`brand_id`, `name`) raised `ERROR 1062` on `uk_spread_group_brand_name`.
+  - Verified FK RESTRICT in isolation: created a dedicated test `brand` row, inserted a `spread_group` row referencing it, then attempted to delete that `brand` inside a transaction — rejected with `ERROR 1451` naming `fk_spread_group_brand` specifically (not a pre-existing FK from another table); transaction rolled back, no lasting change.
+  - Cascade-delete criterion (`spread_group` → `spread_group_member`) could not be verified in this increment: `specs/dba/spread-group-member.md` is still `status: pending` and its `spread_group_member` table does not exist in the rebuilt database. Left unchecked in Acceptance Criteria pending that spec's execution.
+  - Confirmed `audit_request.entity_type` is a plain `VARCHAR(30)` with no ENUM/CHECK restricting its values — `SPREAD_GROUP` fits as a new value with zero schema change, per the Audit-Approval Addendum. No new migration written for it.
+  - All test/verification rows were removed or rolled back afterward; `spread_group` ends this increment at 0 rows (its expected post-migration state — no seed data). Pre-existing row counts (`brand`=7, `currency`=10, `currency_pair`=14, `spread_default`=7, `audit_request`=0) confirmed unchanged before and after.

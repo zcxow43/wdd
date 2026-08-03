@@ -20,6 +20,8 @@ wdd/                    ← project root (shared configs only)
 - Framework: React
 - Build Tool: Vite
 - Package Manager: npm
+- Server: `npm --prefix develop/frontend run dev`
+- Port: 5173
 
 ## Backend
 - Directory: `develop/backend/`
@@ -29,12 +31,15 @@ wdd/                    ← project root (shared configs only)
 - ORM: MyBatis
 - Base Package: `pl.piomin.services`
 - No Lombok
+- Server: `mvn -f develop/backend/pom.xml spring-boot:run`
+- Port: 8080
 
 ## Demo
 - Directory: `demo/`
 - Server: `node demo/server.js` — plain static file server rooted at `demo/`
 - Port: 8099
-- Launched via the Browser pane's `preview_start` with `{"name": "demo"}` (config in `.claude/launch.json`)
+
+Every `Server`/`Port` above is mirrored as a `preview_start`-compatible entry in `.claude/launch.json` (fixed path, required by the Claude Code harness itself — see `.claude/agents/infra.md`). `env.md` is the source of truth; `launch.json` must always match it exactly, the same way `docker/docker-compose.yml` mirrors the `# Container` section below.
 
 # Container
 

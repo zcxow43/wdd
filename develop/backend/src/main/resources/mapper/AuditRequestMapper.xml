@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="pl.piomin.services.backend.audit.AuditRequestMapper">
+
+    <resultMap id="AuditRequestResultMap" type="pl.piomin.services.backend.audit.AuditRequest">
+        <id property="id" column="id"/>
+        <result property="entityType" column="entity_type"/>
+        <result property="actionType" column="action_type"/>
+        <result property="entityId" column="entity_id"/>
+        <result property="beforeSnapshot" column="before_snapshot"/>
+        <result property="afterSnapshot" column="after_snapshot"/>
+        <result property="summary" column="summary"/>
+        <result property="status" column="status"/>
+        <result property="requestedBy" column="requested_by"/>
+        <result property="requestedAt" column="requested_at"/>
+        <result property="reviewedBy" column="reviewed_by"/>
+        <result property="reviewedAt" column="reviewed_at"/>
+        <result property="rejectReason" column="reject_reason"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="AuditRequestResultMap">
+        SELECT * FROM audit_request
+        <where>
+            <if test="entityType != null">AND entity_type = #{entityType}</if>
+            <if test="status != null">AND status = #{status}</if>
+            <if test="actionType != null">AND action_type = #{actionType}</if>
+        </where>
+        ORDER BY requested_at DESC
+    </select>
+
+    <select id="findById" resultMap="AuditRequestResultMap">
+        SELECT * FROM audit_request WHERE id = #{id}
+    </select>
+
+    <select id="findPendingByEntity" resultMap="AuditRequestResultMap">
+        SELECT * FROM audit_request
+        WHERE entity_type = #{entityType} AND entity_id = #{entityId} AND status = 'PENDING'
+        LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="pl.piomin.services.backend.audit.AuditRequest" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO audit_request (entity_type, action_type, entity_id, before_snapshot, after_snapshot,
+                                    summary, status, requested_by, requested_at)
+        VALUES (#{entityType}, #{actionType}, #{entityId}, #{beforeSnapshot}, #{afterSnapshot},
+                #{summary}, #{status}, #{requestedBy}, #{requestedAt})
+    </insert>
+
+    <update id="update" parameterType="pl.piomin.services.backend.audit.AuditRequest">
+        UPDATE audit_request
+        SET entity_id = #{entityId},
+            status = #{status},
+            reviewed_by = #{reviewedBy},
+            reviewed_at = #{reviewedAt},
+            reject_reason = #{rejectReason}
+        WHERE id = #{id}
+    </update>
+
+</mapper>

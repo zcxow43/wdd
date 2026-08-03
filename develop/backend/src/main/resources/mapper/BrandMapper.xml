@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="pl.piomin.services.backend.mapper.BrandMapper">
+
+    <resultMap id="brandResultMap" type="pl.piomin.services.backend.model.Brand">
+        <id property="id" column="id"/>
+        <result property="code" column="code"/>
+        <result property="name" column="name"/>
+        <result property="active" column="active"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="brandResultMap">
+        SELECT id, code, name, active, created_at, updated_at
+        FROM brand
+        <if test="active != null">
+            WHERE active = #{active}
+        </if>
+        ORDER BY id
+    </select>
+
+    <select id="findById" resultMap="brandResultMap">
+        SELECT id, code, name, active, created_at, updated_at
+        FROM brand
+        WHERE id = #{id}
+    </select>
+
+    <update id="updateActive">
+        UPDATE brand
+        SET active = #{active}
+        WHERE id = #{id}
+    </update>
+
+</mapper>

@@ -1,5 +1,5 @@
 ---
-status: pending
+status: done
 title: "Currency Pair Definition (Global Master) Table"
 requirement: "幣種對可以被單獨建立, 建立完後所有品牌都有這一個幣種對, 幣種對可以設定正向與反向的精度, 幣種對如果建立正向, 反向就不可被建立"
 ---
@@ -85,15 +85,15 @@ No seed data — definitions are created on demand via the API (`specs/backend/c
 2. `V009__create_currency_pair_definition_table.sql` (this spec) — apply directly against the live database when `/dev` executes this spec (see `.claude/agents/dba.md`); no standalone `.sql` file is written anywhere
 
 ## Acceptance Criteria
-- [ ] `currency_pair_definition` created with all columns and correct types, including the two generated columns
-- [ ] Creating a definition for (base=USD, quote=JPY) succeeds
-- [ ] Creating a second definition for (base=JPY, quote=USD) — the reverse of the one above — fails at the database level with a unique-key violation on (`pair_key_low`, `pair_key_high`)
-- [ ] Creating a duplicate definition for the exact same (base=USD, quote=JPY) direction also fails (same unique key)
-- [ ] CHECK constraints reject `base_currency_id = quote_currency_id`, and `forward_precision`/`reverse_precision` outside `0`–`8`
-- [ ] Attempting to delete a `currency` row referenced by any `currency_pair_definition` (as base or quote) is rejected
-- [ ] Deleting a `currency_pair_definition` row succeeds without touching `currency_pair` (no FK/cascade exists between them)
-- [ ] `currency_pair`, `brand`, and `currency` table definitions are byte-for-byte unchanged by this migration
-- [ ] Migration applied directly against the live database (historical — at the time this also wrote a copy to `develop/backend/src/main/resources/db/migration/` and `docker/mysql/initdb/`; both locations have since been retired, see Increment 1)
+- [x] `currency_pair_definition` created with all columns and correct types, including the two generated columns
+- [x] Creating a definition for (base=USD, quote=JPY) succeeds
+- [x] Creating a second definition for (base=JPY, quote=USD) — the reverse of the one above — fails at the database level with a unique-key violation on (`pair_key_low`, `pair_key_high`)
+- [x] Creating a duplicate definition for the exact same (base=USD, quote=JPY) direction also fails (same unique key)
+- [x] CHECK constraints reject `base_currency_id = quote_currency_id`, and `forward_precision`/`reverse_precision` outside `0`–`8`
+- [x] Attempting to delete a `currency` row referenced by any `currency_pair_definition` (as base or quote) is rejected
+- [x] Deleting a `currency_pair_definition` row succeeds without touching `currency_pair` (no FK/cascade exists between them)
+- [x] `currency_pair`, `brand`, and `currency` table definitions are byte-for-byte unchanged by this migration
+- [x] Migration applied directly against the live database (historical — at the time this also wrote a copy to `develop/backend/src/main/resources/db/migration/` and `docker/mysql/initdb/`; both locations have since been retired, see Increment 1)
 
 ---
 ## Execution Result
@@ -123,3 +123,21 @@ No seed data — definitions are created on demand via the API (`specs/backend/c
 
 ### Teardown — 2026-08-03
 Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.
+
+### Increment 2 — 2026-08-03
+- Status: DONE
+- Files changed: none (no standalone `.sql` file is ever written; migration SQL lives only in this spec's `## Migration SQL` section and was applied directly against the live database)
+- Notes:
+  - Re-executed from scratch following the prior teardown, per current project convention (migration SQL applied live only — no `develop/backend/src/main/resources/db/migration/` or `docker/mysql/initdb/` copies, both retired per Increment 1).
+  - Pre-flight passed: `env.md` had all required `## Database` fields (Engine MySQL 8.0.36, Host `127.0.0.1`, Port `3306`, Database `wdd`, User `app`, Password `1234`); connected successfully via `mysql` CLI; `wdd` database already existed with `V001`–`V008` prerequisite tables (`currency`, `brand`, `currency_pair`, `audit_request`, `spread_default`, `spread_group`, `spread_group_member`) present and `currency_pair_definition` absent, confirming `V009` was correctly next.
+  - Applied `V009__create_currency_pair_definition_table.sql` directly against the live `wdd` database via the `mysql` CLI with no errors.
+  - `SHOW CREATE TABLE currency_pair_definition` confirms every column/type/nullability/default, the PK, the `uk_currency_pair_definition_pair_key` UNIQUE index on the `GENERATED ALWAYS ... STORED` `pair_key_low`/`pair_key_high` columns (computed via `LEAST`/`GREATEST`), all three CHECK constraints (`ck_currency_pair_definition_distinct`, `ck_currency_pair_definition_forward_precision`, `ck_currency_pair_definition_reverse_precision`), and both FKs (`fk_currency_pair_definition_base`, `fk_currency_pair_definition_quote`, both `ON DELETE RESTRICT ON UPDATE RESTRICT`) exactly match the spec.
+  - Verified forward insert (base=USD id=2, quote=JPY id=4, forward_precision=2, reverse_precision=4): row landed with `pair_key_low=2`, `pair_key_high=4`.
+  - Verified reverse-direction rejection: inserting (base=JPY id=4, quote=USD id=2) failed with `ERROR 1062: Duplicate entry '2-4' for key 'currency_pair_definition.uk_currency_pair_definition_pair_key'`.
+  - Verified duplicate-exact-direction rejection: re-inserting (base=USD id=2, quote=JPY id=4) failed with the same `ERROR 1062` on the same unique key.
+  - Verified CHECK constraints individually: `base_currency_id = quote_currency_id` (2,2) raised `ck_currency_pair_definition_distinct` violation (`ERROR 3819`); `forward_precision=9` raised `ck_currency_pair_definition_forward_precision` violation; `reverse_precision=-1` raised `ck_currency_pair_definition_reverse_precision` violation.
+  - Verified FK `RESTRICT` is enforced by the new table specifically (isolated from the pre-existing `currency_pair` FKs): in a transaction, deleted the 14 `currency_pair` rows referencing USD(2)/JPY(4), then attempted `DELETE FROM currency WHERE id=2` — failed on `fk_currency_pair_definition_base`; repeated for JPY(4) as quote — failed on `fk_currency_pair_definition_quote`. Both transactions were never committed and the connection close auto-rolled them back; confirmed afterward `currency_pair` count restored to 14 and both `currency` rows (USD, JPY) still existed.
+  - Verified deleting a `currency_pair_definition` row does not cascade into `currency_pair`: deleted the test definition row (id=1); `currency_pair_definition` dropped to 0 rows while `currency_pair` remained 14, confirming no FK/cascade exists between the two tables.
+  - Verified `currency_pair`, `brand`, and `currency` table definitions are byte-for-byte unchanged: ran `SHOW CREATE TABLE` on all three post-migration and confirmed no column, index, or constraint was added/removed/altered.
+  - Final row counts confirm no unintended side effects: `brand`=7, `currency`=10, `currency_pair`=14, `audit_request`=0, `spread_default`=7, `spread_group`=0, `spread_group_member`=0, `currency_pair_definition`=0 after test-row cleanup.
+  - No seed data was inserted, per spec — `currency_pair_definition` is left empty, ready to be populated on demand via the backend API.

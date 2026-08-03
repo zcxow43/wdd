@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="pl.piomin.services.backend.mapper.CurrencyMapper">
+
+    <resultMap id="currencyResultMap" type="pl.piomin.services.backend.model.Currency">
+        <id property="id" column="id"/>
+        <result property="code" column="code"/>
+        <result property="name" column="name"/>
+        <result property="nameZh" column="name_zh"/>
+        <result property="symbol" column="symbol"/>
+        <result property="decimalPlaces" column="decimal_places"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="currencyResultMap">
+        SELECT id, code, name, name_zh, symbol, decimal_places, created_at, updated_at
+        FROM currency
+        ORDER BY id
+    </select>
+
+    <select id="findById" resultMap="currencyResultMap">
+        SELECT id, code, name, name_zh, symbol, decimal_places, created_at, updated_at
+        FROM currency
+        WHERE id = #{id}
+    </select>
+
+    <select id="findByCode" resultMap="currencyResultMap">
+        SELECT id, code, name, name_zh, symbol, decimal_places, created_at, updated_at
+        FROM currency
+        WHERE code = #{code}
+    </select>
+
+    <insert id="insert" parameterType="pl.piomin.services.backend.model.Currency" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO currency (code, name, name_zh, symbol, decimal_places)
+        VALUES (#{code}, #{name}, #{nameZh}, #{symbol}, #{decimalPlaces})
+    </insert>
+
+    <update id="update" parameterType="pl.piomin.services.backend.model.Currency">
+        UPDATE currency
+        SET code = #{code},
+            name = #{name},
+            name_zh = #{nameZh},
+            symbol = #{symbol},
+            decimal_places = #{decimalPlaces}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM currency WHERE id = #{id}
+    </delete>
+
+</mapper>

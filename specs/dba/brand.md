@@ -1,5 +1,5 @@
 ---
-status: pending
+status: done
 title: "Brand Table"
 requirement: "Create brand table (fixed set: AU, MONETA, PUG, STAR, UM, VJP, VT — uppercase codes), toggleable active flag; each brand owns its own currency pairs"
 ---
@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS `brand` (
     `updated_at`  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_brand_code` (`code`),
-    CONSTRAINT `ck_brand_code_uppercase` CHECK (`code` = UPPER(`code`))
+    CONSTRAINT `ck_brand_code_uppercase` CHECK (BINARY `code` = BINARY UPPER(`code`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
@@ -70,11 +70,11 @@ INSERT INTO `brand` (`code`, `name`, `active`) VALUES
 3. `V003__create_currency_pair_table.sql` (`specs/dba/currency-pair.md`) — must run after this migration since it FKs to `brand`
 
 ## Acceptance Criteria
-- [ ] `brand` table created with all columns and correct types
-- [ ] Unique constraint on `code`
-- [ ] CHECK constraint enforces `code` is uppercase
-- [ ] 7 seed rows inserted: AU, MONETA, PUG, STAR, UM, VJP, VT, all `active = 1`
-- [ ] Timestamps auto-populate on insert and update
+- [x] `brand` table created with all columns and correct types
+- [x] Unique constraint on `code`
+- [x] CHECK constraint enforces `code` is uppercase
+- [x] 7 seed rows inserted: AU, MONETA, PUG, STAR, UM, VJP, VT, all `active = 1`
+- [x] Timestamps auto-populate on insert and update
 
 ---
 ## Execution Result
@@ -94,3 +94,16 @@ INSERT INTO `brand` (`code`, `name`, `active`) VALUES
 
 ### Teardown — 2026-08-03
 Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.
+
+### Increment 2 — 2026-08-03
+- Status: DONE
+- Files changed: none (no standalone `.sql` files are written per current convention; SQL lives only in this spec's `## Migration SQL` section, applied directly against the live database)
+- Notes: Ran DBA pre-flight — `env.md` validated (Engine MySQL 8.0.36, Host 127.0.0.1:3306, DB `wdd`, User `app`), connectivity confirmed via `mysql -h 127.0.0.1 -P 3306 -u app -p1234 -e "SELECT 1;"`, and `wdd` database already existed with only the `currency` table present (from V001), confirming `brand` (V002) is next in sequence.
+
+  Before applying, updated this spec's `## Migration SQL` CHECK constraint from `code = UPPER(code)` to `BINARY code = BINARY UPPER(code)` — carrying forward the fix discovered during the prior build cycle, since under the table's `utf8mb4_unicode_ci` collation the unqualified comparison is case-insensitive and would silently accept lowercase codes.
+
+  Executed the `CREATE TABLE brand` DDL and the 7-row seed INSERT directly against the live `wdd` database via the `mysql` CLI.
+
+  Verified: `DESCRIBE brand` shows all 6 columns with correct types/nullability/defaults (id BIGINT PK AUTO_INCREMENT, code VARCHAR(20) UNI, name VARCHAR(100), active TINYINT(1) DEFAULT 1, created_at/updated_at DATETIME with CURRENT_TIMESTAMP defaults, updated_at ON UPDATE CURRENT_TIMESTAMP). `SHOW INDEX FROM brand` confirms PRIMARY on `id` and UNIQUE `uk_brand_code` on `code`. `SHOW CREATE TABLE brand` confirms the CHECK constraint compiles to a binary-charset comparison. Attempted `INSERT INTO brand (code, ...) VALUES ('xx', ...)` and it was correctly rejected with error 3819 (check constraint violated); an uppercase `'ZZ'` insert succeeded and was cleaned up. `SELECT * FROM brand ORDER BY id` returned exactly 7 rows (ids 1-7: AU, MONETA, PUG, STAR, UM, VJP, VT), all `active = 1`. Confirmed `updated_at` auto-refreshes on a real column change (toggled `active` to 0 then back to 1, `updated_at` advanced) while remaining unchanged when a value is set to its existing value (expected MySQL behavior, not a defect). No dangling test rows remain and `AU.active` is back to 1.
+
+  All Acceptance Criteria items verified and checked off. Frontmatter status set to `done`.

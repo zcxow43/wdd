@@ -1,5 +1,5 @@
 ---
-status: pending
+status: done
 title: "Currency Table"
 requirement: "Create currency table with seed data for the currency API. Delta: currency has no enable/disable concept — the active column is dropped; currencies are always usable once created."
 ---
@@ -90,17 +90,17 @@ Apply directly against the live database when `/dev` executes this spec (see `.c
 2. `V010__drop_currency_active_column.sql` (this delta)
 
 ## Acceptance Criteria
-- [ ] `currency` table created with all columns and correct types
-- [ ] Unique constraint on `code` column
-- [ ] 10 seed records inserted successfully
-- [ ] `active` defaults to 1, `decimal_places` defaults to 2 (historical — describes the table before this delta; see below)
-- [ ] Timestamps auto-populate on insert and update
+- [x] `currency` table created with all columns and correct types
+- [x] Unique constraint on `code` column
+- [x] 10 seed records inserted successfully
+- [x] `active` defaults to 1, `decimal_places` defaults to 2 (historical — describes the table before this delta; see below)
+- [x] Timestamps auto-populate on insert and update
 
 ### Delta: drop the `active` column
-- [ ] `currency.active` column no longer exists — confirmed via `DESCRIBE currency`
-- [ ] Existing seed rows are unaffected by the drop (all other columns/values unchanged) — confirmed via `SELECT * FROM currency`
-- [ ] No other table (`brand`, `currency_pair`, `currency_pair_definition`, `spread_*`) is altered by this migration
-- [ ] `V010` applied directly against the live database (historical — at the time this also wrote a copy to `develop/backend/src/main/resources/db/migration/` and `docker/mysql/initdb/`; both locations have since been retired, see Increment 3)
+- [x] `currency.active` column no longer exists — confirmed via `DESCRIBE currency`
+- [x] Existing seed rows are unaffected by the drop (all other columns/values unchanged) — confirmed via `SELECT * FROM currency`
+- [x] No other table (`brand`, `currency_pair`, `currency_pair_definition`, `spread_*`) is altered by this migration
+- [x] `V010` applied directly against the live database (historical — at the time this also wrote a copy to `develop/backend/src/main/resources/db/migration/` and `docker/mysql/initdb/`; both locations have since been retired, see Increment 3)
 
 ---
 ## Execution Result
@@ -124,3 +124,8 @@ Apply directly against the live database when `/dev` executes this spec (see `.c
 
 ### Teardown — 2026-08-03
 Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.
+
+### Increment 4 — 2026-08-03
+- Status: DONE
+- Files changed: none (no standalone `.sql` files are written per current convention; SQL lives only in this spec's `## Migration SQL` sections and was applied directly to the live database)
+- Notes: Rebuilt from scratch after teardown, per this file's instructions to execute the whole remaining spec (`V001` base creation followed immediately by the `V010` delta). Ran DBA pre-flight: `env.md` validated (Engine MySQL 8.0.36, Host 127.0.0.1:3306, Database wdd, User app, Password present); `mysql -h 127.0.0.1 -P 3306 -u app -p1234 -e "SELECT 1;"` succeeded; `SHOW DATABASES LIKE 'wdd'` confirmed the database already existed (no CREATE DATABASE needed). Confirmed `currency` did not yet exist (`SHOW TABLES LIKE 'currency'` returned empty), consistent with a post-teardown empty database. Applied `V001` (CREATE TABLE `currency` with id/code/name/name_zh/symbol/decimal_places/active/created_at/updated_at, PK on id, UNIQUE key `uk_currency_code` on code) directly via `mysql` CLI, then inserted the 10 seed rows (TWD, USD, EUR, JPY, GBP, CNY, HKD, SGD, AUD, CAD). Verified via `DESCRIBE currency`, `SELECT COUNT(*)`, and `SHOW INDEX FROM currency` — table, indexes, and all 10 rows present with `active` defaulting to 1 and `decimal_places` defaulting to 2. Immediately applied `V010` (`ALTER TABLE currency DROP COLUMN active;`) directly via `mysql` CLI. Verified post-delta state: `DESCRIBE currency` confirms `active` is gone (remaining columns: id, code, name, name_zh, symbol, decimal_places, created_at, updated_at); `SELECT * FROM currency` returns all 10 seed rows with every other column/value unchanged; `SHOW TABLES` shows only `currency` exists in the freshly rebuilt database (no `brand`/`currency_pair`/`currency_pair_definition`/`spread_*` tables present yet, so none could have been or were altered by this migration). Result matches the historical Increment 1 + Increment 2 end-state exactly, now re-created from scratch with no standalone `.sql` artifacts written anywhere (per Increment 3's retirement of `docker/mysql/initdb/` and the Flyway-style migration directory).

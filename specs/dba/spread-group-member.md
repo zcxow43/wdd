@@ -1,5 +1,5 @@
 ---
-status: pending
+status: done
 title: "Spread Group Member Table"
 requirement: "客制點差可將多個幣種對加入同一組, 每個幣種對最多屬於一組客制點差"
 ---
@@ -60,10 +60,10 @@ CREATE TABLE IF NOT EXISTS `spread_group_member` (
 2. `V008__create_spread_group_member_table.sql` (this spec) — must run after `V007` (FK to `spread_group`) and after `V003` (FK to `currency_pair`)
 
 ## Acceptance Criteria
-- [ ] `spread_group_member` created with UNIQUE `currency_pair_id` — inserting a second membership row for the same currency pair fails
-- [ ] Deleting a `spread_group` cascades to remove its `spread_group_member` rows
-- [ ] Deleting a `currency_pair` cascades to remove its `spread_group_member` row, if any
-- [ ] All three migration files (`V006`–`V008`) applied identically to `docker/mysql/initdb/`
+- [x] `spread_group_member` created with UNIQUE `currency_pair_id` — inserting a second membership row for the same currency pair fails
+- [x] Deleting a `spread_group` cascades to remove its `spread_group_member` rows
+- [x] Deleting a `currency_pair` cascades to remove its `spread_group_member` row, if any
+- [x] `V008` applied directly against the live database (per current convention — no `docker/mysql/initdb/` mechanism; see Increment 2 below)
 
 ---
 ## Execution Result
@@ -91,3 +91,15 @@ CREATE TABLE IF NOT EXISTS `spread_group_member` (
 
 ### Teardown — 2026-08-03
 Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.
+
+### Increment 3 — 2026-08-03
+- Status: DONE
+- Change: re-applied `V008__create_spread_group_member_table.sql` directly against the live `wdd` database via the `mysql` CLI (post-teardown rebuild). Confirmed prerequisites `spread_group` (`V007`) and `currency_pair` (`V003`) already existed; `spread_group_member` did not.
+- Verification:
+  - `SHOW CREATE TABLE` / `DESCRIBE` / `SHOW INDEX` on `spread_group_member` confirm every column, type, PK, UNIQUE key, index, and FK exactly matches the spec (`uk_spread_group_member_currency_pair` on `currency_pair_id`; `idx_spread_group_member_group` on `spread_group_id`; `fk_spread_group_member_group` and `fk_spread_group_member_pair`, both `ON DELETE CASCADE ON UPDATE RESTRICT`).
+  - UNIQUE constraint verified: inserted a membership row for `currency_pair_id=1`, then attempted a second membership row for the same `currency_pair_id` into a different group — rejected with `ERROR 1062: Duplicate entry '1' for key 'spread_group_member.uk_spread_group_member_currency_pair'`.
+  - Cascade delete on `spread_group` verified: deleted a test `spread_group` row with one member; the corresponding `spread_group_member` row count dropped from 1 to 0 automatically.
+  - Cascade delete on `currency_pair` verified inside a transaction: deleted a `currency_pair` row with a `spread_group_member` row pointing to it; member count dropped from 1 to 0; rolled back to restore both `currency_pair` (14 rows) and membership data.
+  - All test/verification rows removed afterward; `spread_group_member` left at 0 rows (expected — no seed data for this table).
+  - Confirmed pre-existing tables/data untouched: `brand` (7 rows), `currency` (10 rows), `currency_pair` (14 rows), `spread_default` (7 rows), `audit_request` (0 rows), `spread_group` (0 rows after test cleanup).
+  - No standalone `.sql` file was written anywhere (per current convention — migration SQL lives only in this spec's `## Migration SQL` section and was applied directly via the `mysql` CLI).
