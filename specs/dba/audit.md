@@ -136,3 +136,7 @@ No seed data — this table starts empty; rows are only ever created through the
   - Verified timestamp behavior: `requested_at`/`created_at`/`updated_at` auto-populated to the current UTC-equivalent server time on insert; after an `UPDATE` one second later, `updated_at` advanced past `created_at` while `created_at` stayed fixed.
   - All test/verification rows were deleted after verification, leaving `audit_request` empty (0 rows), matching the spec's "no seed data" requirement.
   - Inspected the final DDL and this migration file: no column, constraint, or comment references `currency_pair`, `brand`, or any other specific consumer entity — the table is fully generic.
+
+### Increment 1 — 2026-08-03
+- Status: DONE
+- Change: retired the `docker/mysql/initdb/` mechanism project-wide — removed its volume mount from `docker/docker-compose.yml`, deleted the `docker/mysql/initdb/` directory (all `V001`–`V011` files), and updated `.claude/agents/dba.md`/`.claude/commands/dev.md` so migration SQL now lives only inside each spec's `## Migration SQL` section and is applied directly against the live database when `/dev` runs — no standalone `.sql` artifact is ever written. No schema or data change; `V005` (already applied) is unaffected.

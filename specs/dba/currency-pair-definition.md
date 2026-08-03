@@ -46,7 +46,7 @@ Adds a brand-agnostic **currency pair master/definition** concept, sitting along
 
 ## Migration SQL
 
-Next migration in sequence after `V008__create_spread_group_member_table.sql` (`specs/dba/spread.md`) is `V009__create_currency_pair_definition_table.sql`.
+Next migration in sequence after `V008__create_spread_group_member_table.sql` (`specs/dba/spread-group-member.md`) is `V009__create_currency_pair_definition_table.sql`.
 
 ```sql
 -- V009__create_currency_pair_definition_table.sql
@@ -82,7 +82,7 @@ No seed data — definitions are created on demand via the API (`specs/backend/c
 
 ## Migration Order
 1. `V001`–`V008` (already applied)
-2. `V009__create_currency_pair_definition_table.sql` (this spec) — apply to both `develop/backend/src/main/resources/db/migration/` and `docker/mysql/initdb/`
+2. `V009__create_currency_pair_definition_table.sql` (this spec) — apply directly against the live database when `/dev` executes this spec (see `.claude/agents/dba.md`); no standalone `.sql` file is written anywhere
 
 ## Acceptance Criteria
 - [x] `currency_pair_definition` created with all columns and correct types, including the two generated columns
@@ -93,7 +93,7 @@ No seed data — definitions are created on demand via the API (`specs/backend/c
 - [x] Attempting to delete a `currency` row referenced by any `currency_pair_definition` (as base or quote) is rejected
 - [x] Deleting a `currency_pair_definition` row succeeds without touching `currency_pair` (no FK/cascade exists between them)
 - [x] `currency_pair`, `brand`, and `currency` table definitions are byte-for-byte unchanged by this migration
-- [x] Migration file applied identically to `develop/backend/src/main/resources/db/migration/` and `docker/mysql/initdb/`
+- [x] Migration applied directly against the live database (historical — at the time this also wrote a copy to `develop/backend/src/main/resources/db/migration/` and `docker/mysql/initdb/`; both locations have since been retired, see Increment 1)
 
 ---
 ## Execution Result
@@ -116,3 +116,7 @@ No seed data — definitions are created on demand via the API (`specs/backend/c
   - Verified `currency_pair`, `brand`, and `currency` table definitions are byte-for-byte unchanged: ran `SHOW CREATE TABLE` on all three post-migration and confirmed no column, index, or constraint was added/removed/altered; no existing migration file (`V001`–`V008`) was modified (confirmed via `ls` timestamps and `git status`).
   - Final sanity check confirms all pre-existing table row counts are unchanged from before this migration: `brand`=7, `currency`=10, `currency_pair`=14, `audit_request`=2, `spread_default`=7, `spread_group`=0, `spread_group_member`=0; `currency_pair_definition`=0 after test-row cleanup (all test/verification rows created during verification were deleted).
   - No seed data was inserted, per spec — `currency_pair_definition` is left empty, ready to be populated on demand via the future backend API.
+
+### Increment 1 — 2026-08-03
+- Status: DONE
+- Change: retired the `docker/mysql/initdb/` mechanism project-wide — removed its volume mount from `docker/docker-compose.yml`, deleted the `docker/mysql/initdb/` directory (all `V001`–`V011` files), and updated `.claude/agents/dba.md`/`.claude/commands/dev.md` so migration SQL now lives only inside each spec's `## Migration SQL` section and is applied directly against the live database when `/dev` runs — no standalone `.sql` artifact is ever written. No schema or data change; `V009` (already applied) is unaffected.

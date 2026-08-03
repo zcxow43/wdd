@@ -11,6 +11,8 @@ wdd/                    ← project root (shared configs only)
 └── env.md
 ```
 
+# Develop
+
 ## Frontend
 - Directory: `develop/frontend/`
 - Language: TypeScript
@@ -26,6 +28,8 @@ wdd/                    ← project root (shared configs only)
 - ORM: MyBatis
 - Base Package: `pl.piomin.services`
 - No Lombok
+
+# Container
 
 ## Database
 - Engine: MySQL 8.0.36

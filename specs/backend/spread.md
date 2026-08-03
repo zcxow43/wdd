@@ -8,7 +8,7 @@ depends_on: [brand, currency-pair, audit]
 # Spread (點差) API — Backend Spec
 
 ## Overview
-Implements REST APIs for the two spread concepts described in `specs/dba/spread.md`:
+Implements REST APIs for the two spread concepts described in `specs/dba/spread-default.md`, `specs/dba/spread-group.md`, and `specs/dba/spread-group-member.md`:
 1. **Default spread** (`spread_default`) — one row per brand, read + update only (no create/delete; mirrors the "fixed set, no create/delete" pattern already used by `specs/backend/brand.md`, but as its own table so `Brand`/`BrandController` are not touched).
 2. **Custom spread groups** (`spread_group` + `spread_group_member`) — full CRUD per brand. Multiple currency pairs can be added to the same group; a currency pair may belong to at most one group at a time. Assigning a pair to a group it isn't currently in **moves** it there (removing any prior membership) rather than erroring — this is what lets the UI "drag" a pair from one group into another.
 
@@ -102,7 +102,7 @@ Response **`202 Accepted`**: `AuditRequestResponse` with `entityType: "SPREAD_DE
 
 Response `404`: `id` not found. Response `400`: validation failure. Response `409`: a `PENDING` request already exists for this `spread_default` row — `{"error": "A pending audit request already exists for this entity"}` (the generic dedup message from `specs/backend/audit.md`).
 
-There is intentionally no `POST`/`DELETE` — one `spread_default` row exists per brand from the moment that brand is seeded (`specs/dba/spread.md`), and it is never created or removed through the API.
+There is intentionally no `POST`/`DELETE` — one `spread_default` row exists per brand from the moment that brand is seeded (`specs/dba/spread-default.md`), and it is never created or removed through the API.
 
 ### Custom Spread Groups — base path `/api/spread-groups`
 
@@ -239,7 +239,7 @@ Response `404`: `currencyPairId` doesn't exist — `{"error": "Currency pair not
 ## Implementation Details
 
 ### Layer Structure
-Same layering as `currency-pair`'s audit integration (`specs/backend/currency-pair-approval.md`): `SpreadController` → `AuditService.submit(...)` for all mutations, plus `SpreadDefaultService` / `SpreadGroupService` (kept for read paths and reused by the handlers' `apply(...)`) → MyBatis mappers (interface + XML) → `SpreadDefault` / `SpreadGroup` / `SpreadGroupMember` model classes, 1:1 with the tables in `specs/dba/spread.md`. `SpreadDefaultAuditHandler`/`SpreadGroupAuditHandler` live in the `service` package (mirroring `CurrencyPairAuditHandler`), depending on `pl.piomin.services.backend.audit`, never the other way around. Package structure: `pl.piomin.services.backend.{controller,service,mapper,model,dto,exception}`, consistent with `currency-pair`/`brand`.
+Same layering as `currency-pair`'s audit integration (`specs/backend/currency-pair-approval.md`): `SpreadController` → `AuditService.submit(...)` for all mutations, plus `SpreadDefaultService` / `SpreadGroupService` (kept for read paths and reused by the handlers' `apply(...)`) → MyBatis mappers (interface + XML) → `SpreadDefault` / `SpreadGroup` / `SpreadGroupMember` model classes, 1:1 with the tables in `specs/dba/spread-default.md`, `specs/dba/spread-group.md`, `specs/dba/spread-group-member.md`. `SpreadDefaultAuditHandler`/`SpreadGroupAuditHandler` live in the `service` package (mirroring `CurrencyPairAuditHandler`), depending on `pl.piomin.services.backend.audit`, never the other way around. Package structure: `pl.piomin.services.backend.{controller,service,mapper,model,dto,exception}`, consistent with `currency-pair`/`brand`.
 
 ### Entities
 - `SpreadDefault`: `id`, `brandId`, `brandCode` (joined, read-only), `depositSpread`, `withdrawSpread`, `createdAt`, `updatedAt`.
@@ -321,7 +321,7 @@ Add to `GlobalExceptionHandler`, following the existing `XxxNotFoundException` �
 ## Execution Result
 - Status: DONE
 - Files changed:
-  - **Models** (new): `develop/backend/src/main/java/pl/piomin/services/backend/model/SpreadDefault.java`, `SpreadGroup.java`, `SpreadGroupMember.java` — 1:1 with `spread_default`/`spread_group`/`spread_group_member` (`specs/dba/spread.md`), with joined read-only `brandCode`/`baseCurrencyCode`/`quoteCurrencyCode` fields matching the `CurrencyPair`/`Brand` convention.
+  - **Models** (new): `develop/backend/src/main/java/pl/piomin/services/backend/model/SpreadDefault.java`, `SpreadGroup.java`, `SpreadGroupMember.java` — 1:1 with `spread_default`/`spread_group`/`spread_group_member` (`specs/dba/spread-default.md`, `specs/dba/spread-group.md`, `specs/dba/spread-group-member.md`), with joined read-only `brandCode`/`baseCurrencyCode`/`quoteCurrencyCode` fields matching the `CurrencyPair`/`Brand` convention.
   - **Mappers** (new): `SpreadDefaultMapper`/`.xml`, `SpreadGroupMapper`/`.xml`, `SpreadGroupMemberMapper`/`.xml` under `mapper`/`resources/mapper` — enriched joins to `brand`/`currency_pair`/`currency` for `brandCode`/`baseCurrencyCode`/`quoteCurrencyCode`, plus test-only `insert`/`deleteById`/`findAllIds` helpers on `SpreadDefaultMapper` mirroring `BrandMapper`'s "seed/clean the fixed set" convention (production never creates/deletes a `spread_default` row through the API).
   - **DTOs** (new): `SpreadDefaultResponse`, `SpreadDefaultUpdateRequest`, `SpreadGroupResponse`, `SpreadGroupMemberResponse`, `SpreadGroupCreateRequest`, `SpreadGroupUpdateRequest`, `SpreadGroupDeleteRequest`, `SpreadResolutionResponse` under `dto`.
   - **Exceptions** (new) under `exception`: `SpreadDefaultNotFoundException`, `SpreadGroupNotFoundException`, `SpreadGroupNameExistsException`, `DuplicatePendingSpreadGroupCreateException`, `InvalidSpreadGroupMemberException`, `DuplicateSpreadGroupMemberException`, and `InvalidSpreadException` (a small addition beyond the spec's explicit list — a shared 400 for spread-field validation failures re-checked from an audit snapshot that bypasses DTO bean validation: negative deposit/withdraw spread on either entity, and blank/over-100-char group names, mirroring `InvalidCurrencyPairException`'s role for `CURRENCY_PAIR`).

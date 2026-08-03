@@ -83,7 +83,7 @@ Next migration in sequence after `V009__create_currency_pair_definition_table.sq
 ALTER TABLE `currency` DROP COLUMN `active`;
 ```
 
-Apply to both `develop/backend/src/main/resources/db/migration/` and `docker/mysql/initdb/`, matching the existing dual-location convention for every prior migration.
+Apply directly against the live database when `/dev` executes this spec (see `.claude/agents/dba.md`) — no standalone `.sql` file is written to `docker/mysql/initdb/` or anywhere else; this file's `## Migration SQL` block is the only copy.
 
 ## Migration Order
 1. `V001`–`V009` (already applied)
@@ -100,7 +100,7 @@ Apply to both `develop/backend/src/main/resources/db/migration/` and `docker/mys
 - [x] `currency.active` column no longer exists — confirmed via `DESCRIBE currency`
 - [x] Existing seed rows are unaffected by the drop (all other columns/values unchanged) — confirmed via `SELECT * FROM currency`
 - [x] No other table (`brand`, `currency_pair`, `currency_pair_definition`, `spread_*`) is altered by this migration
-- [x] `V010` applied identically to `develop/backend/src/main/resources/db/migration/` and `docker/mysql/initdb/`
+- [x] `V010` applied directly against the live database (historical — at the time this also wrote a copy to `develop/backend/src/main/resources/db/migration/` and `docker/mysql/initdb/`; both locations have since been retired, see Increment 3)
 
 ---
 ## Execution Result
@@ -117,3 +117,7 @@ Apply to both `develop/backend/src/main/resources/db/migration/` and `docker/mys
   - develop/backend/src/main/resources/db/migration/V010__drop_currency_active_column.sql (new)
   - docker/mysql/initdb/V010__drop_currency_active_column.sql (new, identical copy)
 - Notes: Executed only the "Delta: drop the `active` column" section per instructions; V001–V009 and seed data were left untouched. Ran DBA pre-flight (env.md validated with all required fields; `mysql -h 127.0.0.1 -P 3306 -u app -p1234 -e "SELECT 1;"` succeeded; database `wdd` already existed with V001–V009 already applied, so no CREATE DATABASE step was needed). Confirmed pre-migration state via `DESCRIBE currency` showed the `active tinyint(1) NOT NULL DEFAULT 1` column present. Created `V010__drop_currency_active_column.sql` (`ALTER TABLE currency DROP COLUMN active;`) in both `develop/backend/src/main/resources/db/migration/` and `docker/mysql/initdb/`, diffed the two copies to confirm byte-identical content. Applied the migration directly to the live `wdd` database via `mysql ... < V010__drop_currency_active_column.sql` with no errors. Verified: `DESCRIBE currency` no longer lists `active` (columns now id, code, name, name_zh, symbol, decimal_places, created_at, updated_at); `SELECT * FROM currency` returns all 10 original seed rows unchanged in every remaining column; `SHOW TABLES` confirms `audit_request`, `brand`, `currency_pair`, `currency_pair_definition`, `spread_default`, `spread_group`, `spread_group_member` are all still present and were not touched by this single-statement, single-table migration. `V010` is confirmed identical in both required directories.
+
+### Increment 3 — 2026-08-03
+- Status: DONE
+- Change: retired the `docker/mysql/initdb/` mechanism project-wide — removed its volume mount from `docker/docker-compose.yml`, deleted the `docker/mysql/initdb/` directory (all `V001`–`V011` files), and updated `.claude/agents/dba.md`/`.claude/commands/dev.md` so migration SQL now lives only inside each spec's `## Migration SQL` section and is applied directly against the live database when `/dev` runs — no standalone `.sql` artifact is ever written. No schema or data change; this table's already-applied `V001`/`V010` are unaffected.

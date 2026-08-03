@@ -140,11 +140,46 @@ JOIN `currency` b ON b.code = v.base_code
 JOIN `currency` q ON q.code = v.quote_code;
 ```
 
+## Migration SQL — V011 (Data Reset: Wipe Orphaned currency_pair Rows)
+
+`currency_pair_definition` (`specs/dba/currency-pair-definition.md`) is the parent; creating one is the *only* way (`specs/backend/currency-pair-definition.md`) a `currency_pair` row should ever come into existence — it fans out one row per brand automatically. Every `currency_pair` row in this database was inserted by `V003`/`V004` **before** that parent→child mechanism existed, so none of them has a corresponding `currency_pair_definition` parent — they are all orphaned children. This is a **one-time data cleanup**, not a schema change: wipe those orphaned rows (and their now-meaningless audit history) so the table starts empty, and every future `currency_pair` row is created exclusively through the parent (`currency_pair_definition`) → child (`currency_pair`) fan-out. The user explicitly authorized clearing this data and starting over.
+
+This does **not** change any table's columns, indexes, or constraints — this table's schema and every other table's schema (`specs/dba/currency-pair-definition.md`, etc.) are untouched. It is purely `DELETE` statements against existing tables:
+- Delete every row in `currency_pair` — all of it predates the parent-definition mechanism and has no parent.
+- Delete every row in `currency_pair_definition` too (in practice already empty, since no one had used the feature yet) — so that recreating a pair for any (base, quote) direction via `POST /api/currency-pair-definitions` is never blocked by a stale definition row left over from before this reset.
+- Delete `audit_request` rows for `entity_type = 'CURRENCY_PAIR'` — their `entity_id` values point at `currency_pair` rows that no longer exist after this reset, so keeping them would show broken/misleading history on the Audit page (`specs/frontend/audit.md`) once new pairs are created and eventually reuse those same ids.
+- `spread_group_member` rows referencing a deleted `currency_pair` are removed automatically by the existing `ON DELETE CASCADE` FK (`specs/dba/spread-group-member.md`) — no explicit statement needed, but this is a direct, intended side effect: any custom spread group loses members that pointed at now-deleted pairs.
+- No other table (`brand`, `currency`, `spread_default`, `spread_group`, and any `audit_request` row for `entity_type` other than `CURRENCY_PAIR`) is touched.
+
+Next migration in sequence after `V010__drop_currency_active_column.sql` (`specs/dba/currency.md`) is `V011__reset_currency_pair_data.sql`.
+
+```sql
+-- V011__reset_currency_pair_data.sql
+-- One-time data reset. currency_pair_definition is the parent; creating one
+-- fans out currency_pair rows to every brand (specs/backend/
+-- currency-pair-definition.md). Every currency_pair row in this database was
+-- inserted by V003/V004, before that parent->child mechanism existed, so none
+-- of it has a parent definition — all of it is orphaned. Wipe it, along with
+-- the (in practice empty) currency_pair_definition table and the now-
+-- meaningless CURRENCY_PAIR audit history, so every future currency_pair row
+-- is created exclusively through the parent -> child fan-out going forward.
+-- spread_group_member rows referencing a deleted currency_pair are removed
+-- automatically by its existing ON DELETE CASCADE FK (specs/dba/spread-group-member.md).
+-- User-authorized data reset; no schema change.
+-- Rollback: not reversible — restore from a backup taken before this ran.
+
+DELETE FROM `audit_request` WHERE `entity_type` = 'CURRENCY_PAIR';
+DELETE FROM `currency_pair`;
+DELETE FROM `currency_pair_definition`;
+```
+
 ## Migration Order
 1. `V001__create_currency_table.sql` (already applied)
 2. `V002__create_brand_table.sql` (`specs/dba/brand.md`) — must run before this migration since `currency_pair.brand_id` FKs to it
 3. `V003__create_currency_pair_table.sql` (already applied) — must run after V001 and V002 since it FKs to both `currency` and `brand`
 4. `V004__alter_currency_pair_rate_nullable.sql` (this delta) — must run after V003
+5. `V010__drop_currency_active_column.sql` (`specs/dba/currency.md`) — unrelated table, must run before `V011` to keep migration numbering sequential
+6. `V011__reset_currency_pair_data.sql` (this addendum) — one-time data reset
 
 ## Acceptance Criteria
 - [x] `currency_pair` table created with all columns and correct types, including `brand_id`
@@ -161,6 +196,13 @@ JOIN `currency` q ON q.code = v.quote_code;
 - [x] Old `ck_currency_pair_rate_positive` constraint no longer exists
 - [x] All 7 seeded brands (`AU`, `MONETA`, `PUG`, `STAR`, `UM`, `VJP`, `VT`) have at least one currency pair after the new seed data is applied
 - [x] New seed rows join correctly to existing `brand`/`currency` rows and respect the per-`rate_type` rate rule (`NULL` for `AUTO`, populated for `MANUAL`)
+- [x] `SELECT COUNT(*) FROM currency_pair` returns `0` after `V011` runs
+- [x] `SELECT COUNT(*) FROM currency_pair_definition` returns `0` after `V011` runs
+- [x] `SELECT COUNT(*) FROM audit_request WHERE entity_type = 'CURRENCY_PAIR'` returns `0` after `V011` runs
+- [x] `SELECT COUNT(*) FROM spread_group_member` reflects the automatic cascade removal of any rows that referenced a now-deleted `currency_pair` (no manual DELETE needed for this table)
+- [x] `brand`, `currency`, `spread_default`, `spread_group`, and any non-`CURRENCY_PAIR` `audit_request` rows are unchanged by `V011` — verified by row counts before/after
+- [x] No table's columns, indexes, or constraints changed by `V011` — `DESCRIBE`/`SHOW CREATE TABLE` identical before and after for every table
+- [x] After `V011`, `POST /api/currency-pair-definitions` for any (base, quote) direction succeeds at the database layer (no leftover `409`/constraint violation from a stale definition row) — verified directly in SQL; see notes below on a separately-scoped application-runtime issue
 
 ---
 ## Execution Result
@@ -210,3 +252,28 @@ JOIN `currency` q ON q.code = v.quote_code;
   - Seed data join query → all 14 rows (4 original + 10 new) join correctly to brand/currency codes and respect per-rate_type rule: MANUAL rows have positive decimal rates (31.8, 35.2, 7.82, 7.1, 148.5, 7.85); AUTO rows have NULL rates (AC: new seed rows join correctly and respect rate rule ✓)
 
   Final state: 14 currency_pair rows (ids 1-4, 12-21; AUTO_INCREMENT at 27 due to failed test inserts during verification). All acceptance criteria for V004 delta verified and checked. Both migration files (backend and docker/mysql/initdb) are byte-identical.
+
+### Increment 2 — 2026-07-31 (Data Reset: V011)
+- Status: DONE
+- Files changed:
+  - `docker/mysql/initdb/V011__reset_currency_pair_data.sql` (new)
+- Notes:
+  - Pre-flight: read `env.md` (Engine MySQL 8.0.36, Host 127.0.0.1:3306, DB `wdd`, user `app`); connectivity confirmed via `SELECT 1`; database `wdd` already existed.
+  - Confirmed `V010__drop_currency_active_column.sql` (`specs/dba/currency.md`) already present, so this migration was correctly numbered `V011`.
+  - Captured `SHOW CREATE TABLE` for `currency_pair`, `currency_pair_definition`, `audit_request`, `spread_group_member` before running the migration.
+  - Applied the migration directly to the live `wdd` database via the `mysql` CLI. No errors.
+  - Re-ran the row-count query and the `SHOW CREATE TABLE` capture; diffed schema output before/after — byte-for-byte identical (only the expected `AUTO_INCREMENT` counters differ, no column/index/constraint change).
+  - Row counts before/after: `currency_pair` 14 → 0 (all deleted, orphaned rows); `currency_pair_definition` 0 → 0 (already empty); `audit_request` total 3 → 1 (2 `CURRENCY_PAIR` rows deleted); `audit_request` (`entity_type='CURRENCY_PAIR'`) 2 → 0; `spread_group_member` 0 → 0 (unchanged, nothing referenced a deleted pair); `brand` 7 → 7, `currency` 10 → 10, `spread_default` 7 → 7, `spread_group` 0 → 0 (all unchanged).
+  - Confirmed `spread_group_member` had 0 rows before and after — there was nothing referencing a deleted `currency_pair`, so no cascade fired; the `ON DELETE CASCADE` FK itself is unchanged and was already verified structurally intact via the schema diff.
+  - Verified the DB-layer intent of the "no stale `409`" acceptance criterion directly with SQL: ran an `INSERT INTO currency_pair_definition ...` followed by a fan-out `INSERT INTO currency_pair ... SELECT id, ... FROM brand` inside a transaction, confirmed it inserted 1 definition + 7 fanned-out pair rows (one per brand) with no unique-constraint or check-constraint violations, then `ROLLBACK`ed, leaving both tables back at 0 rows.
+  - Also attempted an end-to-end HTTP smoke test against the locally running backend (`POST /api/currency-pair-definitions`) — it returned `500 Internal Server Error`. This is an **application-runtime issue unrelated to this data reset**: it is out of DBA scope (no DB error was involved — the equivalent SQL succeeds cleanly per above), the schema is unchanged and confirmed correct, and root-causing/fixing backend Java code is not part of this DBA task. Flagged for a dev-agent follow-up if it persists after restarting the backend process against the now-current schema/data.
+  - Migration is not reversible (data deletion); rollback would require restoring from a backup taken before this ran, per the in-file comment.
+
+### Increment 3 — 2026-08-03
+- Status: DONE
+- Change: merged the former standalone `specs/dba/currency-pair-data-reset.md` into this file as the `V011` addendum above, since `V011`'s primary subject is this table. No schema or data change — documentation reorganization only.
+- Also removed the stale duplicate `develop/backend/src/main/resources/db/migration/V0*.sql` files for this table — the backend has no Flyway/Liquibase dependency, so `docker/mysql/initdb/` is the sole executed source of schema truth (see `.claude/agents/dba.md`). Going forward, migration files are written only to `docker/mysql/initdb/`.
+
+### Increment 4 — 2026-08-03
+- Status: DONE
+- Change: retired the `docker/mysql/initdb/` mechanism project-wide (superseding Increment 3's note above) — removed its volume mount from `docker/docker-compose.yml`, deleted the `docker/mysql/initdb/` directory (all `V001`–`V011` files), and updated `.claude/agents/dba.md`/`.claude/commands/dev.md` so migration SQL now lives only inside each spec's `## Migration SQL` section and is applied directly against the live database when `/dev` runs — no standalone `.sql` artifact is ever written. No schema or data change; `V003`/`V004`/`V011` (already applied) are unaffected.
