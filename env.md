@@ -39,7 +39,11 @@ wdd/                    ← project root (shared configs only)
 - Server: `node demo/server.js` — plain static file server rooted at `demo/`
 - Port: 8099
 
-Every `Server`/`Port` above is mirrored as a `preview_start`-compatible entry in `.claude/launch.json` (fixed path, required by the Claude Code harness itself — see `.claude/agents/infra.md`). `env.md` is the source of truth; `launch.json` must always match it exactly, the same way `docker/docker-compose.yml` mirrors the `# Container` section below.
+Every `Server`/`Port` above maps 1:1 to an entry in `.claude/launch.json` (fixed path, required by the Claude Code harness itself — see `.claude/commands/init.md`): `Server`'s first word is `runtimeExecutable`, every word after it is one `runtimeArgs` element, and `Port` is `port`. Example — `Server: mvn -f develop/backend/pom.xml spring-boot:run` + `Port: 8080` becomes:
+```json
+{ "name": "backend", "runtimeExecutable": "mvn", "runtimeArgs": ["-f", "develop/backend/pom.xml", "spring-boot:run"], "port": 8080 }
+```
+`env.md` is the source of truth; `.claude/launch.json` is git-ignored (project-specific, not shared tooling) and must always be regenerated/kept matching this exactly — the same way `docker/docker-compose.yml` mirrors the `# Container` section below.
 
 # Container
 
