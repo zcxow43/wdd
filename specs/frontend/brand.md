@@ -1,5 +1,5 @@
 ---
-status: pending
+status: done
 title: "Brand Management Page"
 requirement: "Display the fixed set of brands (AU, MONETA, PUG, STAR, UM, VJP, VT) with an enable/disable toggle"
 depends_on: []
@@ -62,12 +62,12 @@ Toggling immediately calls `PUT /api/brands/{id}` with the new `active` value; o
 - **Loading state**: show skeleton/spinner while fetching
 
 ## Acceptance Criteria
-- [ ] Brand table renders all 7 brands with code, name, and active toggle
-- [ ] Brands load from API on page mount
-- [ ] Toggling a row calls `PUT /api/brands/{id}` and updates state on success
-- [ ] Toggle reverts and shows a toast on network/API failure
-- [ ] No add/edit-name/delete controls are present on this page
-- [ ] Error states display correct Chinese messages
+- [x] Brand table renders all 7 brands with code, name, and active toggle
+- [x] Brands load from API on page mount
+- [x] Toggling a row calls `PUT /api/brands/{id}` and updates state on success
+- [x] Toggle reverts and shows a toast on network/API failure
+- [x] No add/edit-name/delete controls are present on this page
+- [x] Error states display correct Chinese messages
 
 ---
 ## Execution Result
@@ -90,3 +90,24 @@ Toggling immediately calls `PUT /api/brands/{id}` with the new `active` value; o
 
 ### Teardown — 2026-08-03
 Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.
+
+### Increment 2 — 2026-08-04
+- Status: DONE
+- Files changed:
+  - develop/frontend/src/types/brand.ts (new — `Brand` type: `id`, `code`, `name`, `active`, `createdAt`, `updatedAt`, matching the live backend contract in `specs/backend/brand.md`)
+  - develop/frontend/src/api/brandApi.ts (new — standalone `brandApi.list(active?)` against `GET /api/brands` and `brandApi.updateActive(id, active)` against `PUT /api/brands/{id}`, using the shared `get`/`put` helpers from `api/client.ts`, the same pattern as `currencyApi.ts`; written as a module-level export deliberately decoupled from any page so the upcoming Currency Pair brand picker/filter — per `specs/frontend/currency-pair.md` — can import `brandApi.list()` directly)
+  - develop/frontend/src/components/BrandTable.tsx + BrandTable.css (new — read-only table with 代碼/名稱/狀態 columns only; 狀態 renders an accessible toggle switch, `aria-label="{code} 狀態"`, disabled per-row while that row's toggle is in flight; empty state "目前沒有品牌資料"; loading state "載入中..."; no add/edit-name/delete controls anywhere on the page)
+  - develop/frontend/src/components/BrandTable.test.tsx (new — 6 tests: renders all rows with 代碼/名稱/狀態 headers and correct 啟用/停用 label per row, empty state, loading state, `onToggle` fires with the clicked brand, per-row disabled state while toggling, and confirms no +Add/編輯/刪除 controls are rendered)
+  - develop/frontend/src/pages/BrandPage.tsx + BrandPage.css (new — page that loads brands on mount and implements the optimistic toggle: flips the row locally and disables that row's switch, calls `brandApi.updateActive`, replaces the row with the server's response on success, or reverts to the prior `active` value and shows a toast on failure; no search/filter toolbar, no modals — matches the spec's read-only, toggle-only page)
+  - develop/frontend/src/pages/BrandPage.test.tsx (new — 7 integration tests mocking `brandApi`: initial load, empty state, network-error toast on load failure, successful toggle updates the row in place, 404 on toggle reverts + shows "品牌不存在，請重新整理頁面" + refetches the list, network error on toggle reverts + shows "網路錯誤，請稍後再試" without refetching, 400 on toggle shows "更新失敗，請稍後再試" without reverting-and-refetching extra list calls)
+  - develop/frontend/src/App.tsx (edited — added `/brands` route rendering `BrandPage` alongside the existing `/` redirect and `/currencies` route; no change to the default redirect target)
+- Notes:
+  - Implemented `/brands` exactly per spec: a read-only table (no add/edit-name/delete) with an immediate-effect toggle switch per row, following the same load-on-mount / loading-skeleton / error-toast conventions established by `CurrencyPage`. The toggle switch is a new small self-contained control (visually-hidden checkbox + styled track/knob) since no existing switch component existed in the codebase — the checkbox itself carries `aria-label="{code} 狀態"` for accessibility and disables while its own request is in flight, and is otherwise driven purely by page-level state (no local component state).
+  - Toggling is optimistic: the row flips instantly in `BrandPage`'s state, then on success is replaced with the server's response object (keeping `updatedAt` in sync); on failure it reverts to the exact previous `active` value it had before the click.
+  - Error handling matches the spec's Chinese copy and per-status behavior exactly: 404 → toast "品牌不存在，請重新整理頁面" + revert + full list refetch (the row may have disappeared server-side); 400 → toast "更新失敗，請稍後再試" + revert only, no refetch (the list is still valid, the request itself was malformed — this path is defensive since the toggle always sends a valid boolean); network error → toast "網路錯誤，請稍後再試" + revert, no refetch. Initial load failure reuses the same network-error toast text, and a "載入中..." status plus a "目前沒有品牌資料" empty state cover the loading/empty requirements.
+  - `brandApi` is intentionally a standalone module (not colocated with or specific to `BrandPage`) exporting only `list`/`updateActive` — matching the backend's list/toggle-only contract (no create/delete) — precisely so it can be imported unchanged by the future Currency Pair page's brand picker/filter without any refactor.
+  - Reused all existing plumbing rather than inventing new patterns: `apiClient`'s `get`/`put`/`ApiError`/`NetworkError` from `api/client.ts`, `useToast` from `ToastProvider`, and the same page/table CSS structure (`brand-page`, `brand-table`, `*-table-status`) as the Currency feature's `currency-page`/`currency-table` classes. No `Modal`/`ConfirmDialog` were needed since this page has no create/edit/delete flow.
+  - Test fixtures for the seeded brands (e.g. `AU`/`code: 'AU', name: 'AU'`) intentionally have identical `code` and `name`, mirroring the real seed data (`specs/dba/brand.md`) and the backend spec's example response — tests were written to disambiguate via `aria-label="{code} 狀態"` (`getByLabelText`) rather than `getByText`, since a plain `getByText('AU')` matches both the code and name cells.
+  - 37 tests passing (`npm test` → Vitest): 24 pre-existing Currency tests + 6 new `BrandTable` tests + 7 new `BrandPage` tests (client.test.ts contributes the remainder). `npm run build` (`tsc -b && vite build`) succeeds with no type errors, and `npm run lint` (Oxlint) reports only the single pre-existing, unrelated warning in `ToastProvider.tsx`.
+  - End-to-end verified against the live backend + MySQL (`wdd-mysql` docker container, already running and healthy, plus `mvn -f develop/backend/pom.xml spring-boot:run` on port 8080): started the Vite dev server on port 5173 and, through its `/api` proxy, confirmed `GET /api/brands` returns all 7 seeded brands (AU, MONETA, PUG, STAR, UM, VJP, VT, all `active:true`), that `PUT /api/brands/3` with `{"active": false}` toggles PUG off (confirmed via a follow-up `?active=false` filtered list call) and `{"active": true}` restores it, that `PUT /api/brands/999` returns the expected `404` body `{"error":"Brand not found","id":999}`, and that `PUT /api/brands/3` with `{}` returns the expected `400` body `{"error":"Validation failed","fields":{"active":"active is required"}}` — exercising the exact request/response shapes and status codes `BrandPage`'s toggle handler branches on. Re-confirmed all 7 brands `active:true` afterward (PUG's toggle-then-restore left no residual state change), then stopped both the frontend dev server and the backend process and confirmed ports 5173/8080 were free again.
+  - `docker/launch.json` already had correct `frontend` (`npm --prefix develop/frontend run dev`, port 5173) and `backend` entries, and `.claude/launch.json` was already a valid symlink to it — no changes needed to either. All Acceptance Criteria items verified and checked off. Frontmatter status set to `done`.

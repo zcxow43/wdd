@@ -1,5 +1,5 @@
 ---
-status: pending
+status: done
 title: "Brand API"
 requirement: "Provide REST API to list brands and toggle enable/disable; brands are a fixed seeded set (AU, MONETA, PUG, STAR, UM, VJP, VT)"
 depends_on: []
@@ -110,16 +110,16 @@ Fields map 1:1 to the `brand` table columns: `id`, `code`, `name`, `active`, `cr
 - Add `BrandNotFoundException` → `404` handler in `GlobalExceptionHandler`, following the existing pattern for `CurrencyNotFoundException`
 
 ## Acceptance Criteria
-- [ ] `GET /api/brands` returns all 7 seeded brands
-- [ ] `GET /api/brands?active=true` filters correctly
-- [ ] `GET /api/brands/{id}` returns single brand or 404
-- [ ] `PUT /api/brands/{id}` with `{"active": false}` disables the brand and returns 200
-- [ ] `PUT /api/brands/{id}` with `{"active": true}` re-enables the brand and returns 200
-- [ ] `PUT /api/brands/{id}` with missing/invalid `active` returns 400
-- [ ] `PUT /api/brands/{id}` for nonexistent id returns 404
-- [ ] No endpoint exists to create or delete a brand
-- [ ] Unit tests for `BrandService` (positive and negative cases)
-- [ ] Integration tests for `BrandController` endpoints
+- [x] `GET /api/brands` returns all 7 seeded brands
+- [x] `GET /api/brands?active=true` filters correctly
+- [x] `GET /api/brands/{id}` returns single brand or 404
+- [x] `PUT /api/brands/{id}` with `{"active": false}` disables the brand and returns 200
+- [x] `PUT /api/brands/{id}` with `{"active": true}` re-enables the brand and returns 200
+- [x] `PUT /api/brands/{id}` with missing/invalid `active` returns 400
+- [x] `PUT /api/brands/{id}` for nonexistent id returns 404
+- [x] No endpoint exists to create or delete a brand
+- [x] Unit tests for `BrandService` (positive and negative cases)
+- [x] Integration tests for `BrandController` endpoints
 
 ---
 ## Execution Result
@@ -150,3 +150,30 @@ Fields map 1:1 to the `brand` table columns: `id`, `code`, `name`, `active`, `cr
 
 ### Teardown — 2026-08-03
 Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.
+
+### Increment 2 — 2026-08-04
+- Status: DONE
+- Files changed:
+  - develop/backend/src/main/java/com/wdd/backend/model/Brand.java (new — entity, 1:1 with `brand` table: `id`, `code`, `name`, `active`, `createdAt`, `updatedAt`)
+  - develop/backend/src/main/java/com/wdd/backend/dto/BrandResponse.java (new — read-only view, `from(Brand)` factory)
+  - develop/backend/src/main/java/com/wdd/backend/dto/BrandUpdateRequest.java (new — `active` only, `@NotNull`, no `code`/`name` field)
+  - develop/backend/src/main/java/com/wdd/backend/mapper/BrandMapper.java (new — MyBatis mapper interface: `findAll(Boolean active)`, `findById`, `update`; deliberately no `insert`/`deleteById` — the "no create/delete" constraint is enforced at both the mapper and controller layers, not just the HTTP surface)
+  - develop/backend/src/main/resources/mapper/BrandMapper.xml (new — MyBatis SQL mapper, `<if>` filter on `active` in `findAll`)
+  - develop/backend/src/main/java/com/wdd/backend/service/BrandService.java (new — `list(Boolean)`, `getById(Long)`, `updateActive(Long, BrandUpdateRequest)`)
+  - develop/backend/src/main/java/com/wdd/backend/controller/BrandController.java (new — `GET /api/brands`, `GET /api/brands/{id}`, `PUT /api/brands/{id}`; intentionally no `@PostMapping`/`@DeleteMapping`)
+  - develop/backend/src/main/java/com/wdd/backend/exception/BrandNotFoundException.java (new)
+  - develop/backend/src/main/java/com/wdd/backend/exception/GlobalExceptionHandler.java (edited — added `BrandNotFoundException` → 404 handler alongside the existing `CurrencyNotFoundException` handler)
+  - develop/backend/src/test/resources/schema.sql (edited — added H2-compatible `brand` table alongside the existing `currency` table)
+  - develop/backend/src/test/java/com/wdd/backend/service/BrandServiceTest.java (new — 7 unit tests, Mockito)
+  - develop/backend/src/test/java/com/wdd/backend/controller/BrandControllerTest.java (new — 12 MockMvc integration tests against H2, including explicit 405 checks for POST/DELETE)
+- Notes: Base package on disk is `com.wdd.backend` (not `pl.piomin.services.backend` as an earlier snapshot of this spec's history described) — followed that actual package structure and the exact layering/DTO conventions established by the existing `Currency` feature (Controller → Service → MyBatis Mapper interface+XML, explicit getters/setters, no Lombok).
+
+  `BrandMapper` exposes only `findAll`/`findById`/`update` — no `insert`/`deleteById` at all, since the fixed 7-brand set never needs programmatic creation/deletion even in tests; `BrandControllerTest` seeds/cleans its 3 test brands via direct `JdbcTemplate.update(...)` SQL against the H2 schema (mirroring `CurrencyControllerTest`'s existing pattern), so the mapper surface stays minimal and the "no create/delete" constraint holds at every layer, not just the controller.
+
+  `BrandUpdateRequest` only exposes `active` (`@NotNull`); `GlobalExceptionHandler.handleBrandNotFound(BrandNotFoundException)` returns `{"error": "Brand not found", "id": ...}` with 404. Bean Validation drives the existing `MethodArgumentNotValidException` handler for a missing `active` field (400 with `fields.active`); a non-boolean `active` value (e.g. a JSON string) is rejected earlier by Jackson deserialization as `HttpMessageNotReadableException`, which Spring's default handling already turns into a plain 400 — verified this end-to-end both in the MockMvc test (`update_returns400WhenActiveInvalid`) and against the live server.
+
+  Ran `mvn -f develop/backend/pom.xml compile` (BUILD SUCCESS) and `mvn -f develop/backend/pom.xml test` (BUILD SUCCESS, 43 tests total: 1 HealthControllerTest + 12 CurrencyControllerTest + 11 CurrencyServiceTest + 12 BrandControllerTest + 7 BrandServiceTest, 0 failures/errors).
+
+  Live verification against the real MySQL `wdd` database (already seeded with the 7 brands per `specs/dba/brand.md`, confirmed via direct `mysql` query before starting the app): started `mvn -f develop/backend/pom.xml spring-boot:run` on port 8080 (confirmed free beforehand), then exercised every endpoint with `curl`: `GET /api/brands` returned all 7 seeded rows (AU, MONETA, PUG, STAR, UM, VJP, VT, all `active:true`); `GET /api/brands?active=true` and `?active=false` filtered correctly; `GET /api/brands/3` returned PUG; `GET /api/brands/999` returned 404 `{"error":"Brand not found","id":999}`; `PUT /api/brands/3` with `{"active":false}` disabled PUG (200, confirmed via a follow-up GET and the `active=false` filter), then `{"active":true}` re-enabled it (200); `PUT` with `{}` returned 400 `{"error":"Validation failed","fields":{"active":"active is required"}}`; `PUT` with `{"active":"nope"}` returned 400; `PUT /api/brands/999` with a valid body returned 404; `POST /api/brands` and `DELETE /api/brands/3` both returned 405 Method Not Allowed, confirming no create/delete endpoint exists. Re-queried the live DB afterward and confirmed all 7 brands are present with `active=1` (PUG's toggle-then-restore left no residual state change), then stopped the server and confirmed port 8080 was free again.
+
+  `docker/launch.json` already had a correct `backend` entry (`mvn -f develop/backend/pom.xml spring-boot:run`, port 8080 matching `application.yml`) and `.claude/launch.json` was already a valid symlink to it — no changes needed to either. All Acceptance Criteria items verified and checked off. Frontmatter status set to `done`.

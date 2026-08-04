@@ -27,6 +27,8 @@ This project is built and rebuilt from `specs/` rather than by hand:
 - `/dev` — execute every pending spec, dispatching to the matching agent (dba → backend → frontend)
 - `/infra` — inspect/edit `env.md` and the matching `docker-compose.yml` service
 - `/init` — bootstrap `develop/`, `docker/` from `env.md` on an empty checkout
+- `/start` — start containers (docker compose) then backend/frontend dev servers, in that order
+- `/close` — the inverse of `/start`: stop backend/frontend and containers without deleting anything
 - `/destroy` — the inverse of `/init`: wipe `develop/`, `docker/`, and every container, and reset all specs back to pending
 - `/commit` — commit and push both this repo and the `.claude` submodule
 

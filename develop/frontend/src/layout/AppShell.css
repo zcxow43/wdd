@@ -1,0 +1,126 @@
+.app-shell {
+  display: flex;
+  flex: 1;
+  min-height: 100svh;
+}
+
+/* ============== SIDEBAR ============== */
+.app-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.app-sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.app-logo-image {
+  height: 28px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.app-sidebar-nav {
+  flex: 1;
+  padding: 8px 0;
+  overflow-y: auto;
+}
+
+.app-sidebar-nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.app-sidebar-link {
+  display: block;
+  padding: 12px 16px;
+  color: var(--color-text);
+  text-decoration: none;
+  font-size: 14px;
+  transition: background-color 0.2s, color 0.2s;
+  border-left: 3px solid transparent;
+}
+
+.app-sidebar-link:hover {
+  background-color: #fafafa;
+}
+
+.app-sidebar-link--active {
+  color: var(--color-brand);
+  background-color: var(--color-brand-bg);
+  border-left: 3px solid var(--color-brand);
+  font-weight: 500;
+}
+
+/* ============== MAIN WRAPPER ============== */
+.app-main-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* ============== TOP HEADER ============== */
+.app-top-header {
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  height: 60px;
+  flex-shrink: 0;
+}
+
+.app-header-spacer {
+  flex: 1;
+}
+
+.app-header-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-user-avatar {
+  width: 32px;
+  height: 32px;
+  background: var(--color-brand);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.app-user-avatar svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+}
+
+.app-username {
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* ============== CONTENT AREA ============== */
+.app-content {
+  flex: 1;
+  min-width: 0;
+  padding: 20px;
+  background-color: var(--color-bg);
+}

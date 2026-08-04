@@ -1,5 +1,5 @@
 ---
-status: pending
+status: done
 title: "Brand Table"
 requirement: "Create brand table (fixed set: AU, MONETA, PUG, STAR, UM, VJP, VT — uppercase codes), toggleable active flag; each brand owns its own currency pairs"
 ---
@@ -70,11 +70,11 @@ INSERT INTO `brand` (`code`, `name`, `active`) VALUES
 3. `V003__create_currency_pair_table.sql` (`specs/dba/currency-pair.md`) — must run after this migration since it FKs to `brand`
 
 ## Acceptance Criteria
-- [ ] `brand` table created with all columns and correct types
-- [ ] Unique constraint on `code`
-- [ ] CHECK constraint enforces `code` is uppercase
-- [ ] 7 seed rows inserted: AU, MONETA, PUG, STAR, UM, VJP, VT, all `active = 1`
-- [ ] Timestamps auto-populate on insert and update
+- [x] `brand` table created with all columns and correct types
+- [x] Unique constraint on `code`
+- [x] CHECK constraint enforces `code` is uppercase
+- [x] 7 seed rows inserted: AU, MONETA, PUG, STAR, UM, VJP, VT, all `active = 1`
+- [x] Timestamps auto-populate on insert and update
 
 ---
 ## Execution Result
@@ -110,3 +110,16 @@ Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteri
 
 ### Teardown — 2026-08-04
 Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.
+
+### Increment 3 — 2026-08-04
+- Status: DONE
+- Files changed: none (no standalone `.sql` files are written per current convention; SQL lives only in this spec's `## Migration SQL` section, applied directly against the live database)
+- Notes: Ran DBA pre-flight — `env.md` validated (Engine MySQL 8.0.36, Host 127.0.0.1:3306, DB `wdd`, User `app`), connectivity confirmed via `mysql -h 127.0.0.1 -P 3306 -u app -p1234 -e "SELECT 1;"`. `wdd` database already existed with only the `currency` table present (V001, no `active` column — V010 delta already applied), confirming `brand` (V002) is next in sequence.
+
+  Read this spec's full prior history before writing anything, per instructions — confirmed the `## Migration SQL` section already carries the corrected `CHECK (BINARY code = BINARY UPPER(code))` constraint from the earlier build cycle (the naive `code = UPPER(code)` form silently passes lowercase inserts under `utf8mb4_unicode_ci`'s case-insensitive collation), so no rediscovery was needed — applied the SQL as written.
+
+  Executed the `CREATE TABLE brand` DDL and the 7-row seed INSERT directly against the live `wdd` database via the `mysql` CLI.
+
+  Verified: `SHOW TABLES` shows `brand` + `currency`. `DESCRIBE brand` confirms all 6 columns with correct types/nullability/defaults (id BIGINT PK AUTO_INCREMENT, code VARCHAR(20) UNI, name VARCHAR(100), active TINYINT(1) DEFAULT 1, created_at/updated_at DATETIME with CURRENT_TIMESTAMP defaults, updated_at ON UPDATE CURRENT_TIMESTAMP). `SHOW INDEX FROM brand` confirms PRIMARY on `id` and UNIQUE `uk_brand_code` on `code`. `SHOW CREATE TABLE brand` confirms the CHECK constraint compiles to `(cast(code as char charset binary) = cast(upper(code) as char charset binary))`. Attempted `INSERT INTO brand (code, ...) VALUES ('xx', ...)` and it was correctly rejected with error 3819 (check constraint violated). `SELECT * FROM brand ORDER BY id` returned exactly 7 rows (ids 1-7: AU, MONETA, PUG, STAR, UM, VJP, VT), all `active = 1`. Confirmed `updated_at` auto-refreshes on a real column change (toggled `AU.active` 1→0→1; `updated_at` advanced from `06:24:41` to `06:24:51`), leaving `AU.active` back at 1 with no dangling test rows.
+
+  All Acceptance Criteria items verified and checked off. Frontmatter status set to `done`.

@@ -1,5 +1,5 @@
 ---
-status: pending
+status: done
 title: "Spread Default Table"
 requirement: "每個品牌有一組預設點差, 有入金出金兩個欄位; 未配置客制點差的幣種對使用該品牌的預設點差; 點差依品牌區分"
 ---
@@ -66,10 +66,10 @@ SELECT `id`, 0, 0 FROM `brand`;
 `spread_default` updates now go through the existing generic `audit_request` table (`specs/dba/audit.md`, already migrated as `V005`) instead of applying directly — see `specs/backend/spread.md`. **No schema change is needed for this**: `audit_request` is entity-agnostic (`entity_type`/`before_snapshot`/`after_snapshot` already accommodate a new `SPREAD_DEFAULT` consumer with zero migration). `spread_default` itself is unchanged by this addendum — it is only ever mutated by the backend's audit-handler `apply(...)` step now, never directly.
 
 ## Acceptance Criteria
-- [ ] `spread_default` created with one seeded row per existing brand, `deposit_spread`/`withdraw_spread` both `0`
-- [ ] UNIQUE constraint on `spread_default.brand_id` (one default row per brand)
-- [ ] Attempting to delete a `brand` referenced by `spread_default` is rejected
-- [ ] No new migration is added for the audit-approval addendum — confirmed `audit_request` (`V005`) already accommodates `SPREAD_DEFAULT` as a new `entity_type` value with no schema change
+- [x] `spread_default` created with one seeded row per existing brand, `deposit_spread`/`withdraw_spread` both `0`
+- [x] UNIQUE constraint on `spread_default.brand_id` (one default row per brand)
+- [x] Attempting to delete a `brand` referenced by `spread_default` is rejected
+- [x] No new migration is added for the audit-approval addendum — confirmed `audit_request` (`V005`) already accommodates `SPREAD_DEFAULT` as a new `entity_type` value with no schema change
 
 ---
 ## Execution Result
@@ -117,3 +117,18 @@ Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteri
 
 ### Teardown — 2026-08-04
 Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.
+
+### Increment 4 — 2026-08-04
+- Status: DONE
+- Files changed: none (SQL applied directly against the live database; no standalone `.sql` file written, per the retired-`initdb` convention noted in Increment 2)
+- Notes:
+  - Pre-flight passed: read `env.md` (Engine: MySQL 8.0.36, Host: `127.0.0.1`, Port: `3306`, Database: `wdd`, Username: `app`, Password: `1234`) — all fields present; connected via `mysql` CLI `SELECT 1;`; database `wdd` already existed (no creation needed).
+  - Confirmed pre-migration state: `SHOW TABLES` listed only `audit_request`, `brand`, `currency`, `currency_pair` — `spread_default` did not yet exist; `brand` had 7 rows, `currency` 10 rows, `currency_pair` 14 rows, `audit_request` 0 rows.
+  - Applied `V006__create_spread_default_table.sql` (verbatim from this spec's `## Migration SQL` section) directly against the live `wdd` database via the `mysql` CLI, with no errors.
+  - `SHOW TABLES` confirms `spread_default` now exists alongside the untouched `audit_request`, `brand`, `currency`, `currency_pair`.
+  - `DESCRIBE` + `SHOW CREATE TABLE` + `SHOW INDEX` on `spread_default` confirm every column, type, nullability, default, PK, UNIQUE key (`uk_spread_default_brand`), CHECK constraints (`ck_spread_default_deposit_nonneg`, `ck_spread_default_withdraw_nonneg`), and FK (`fk_spread_default_brand`, `ON DELETE RESTRICT ON UPDATE RESTRICT` → `brand(id)`) exactly match the spec.
+  - Verified seed data: `spread_default` has exactly 7 rows (`brand_id` 1–7), all with `deposit_spread = 0.00000000` and `withdraw_spread = 0.00000000`.
+  - Verified CHECK constraint: `UPDATE spread_default SET withdraw_spread = -5 WHERE brand_id = 1;` raised `ERROR 3819: Check constraint 'ck_spread_default_withdraw_nonneg' is violated`; row for `brand_id = 1` confirmed unchanged (`0.00000000`/`0.00000000`).
+  - Verified FK `RESTRICT` on `brand` deletion is enforced by `spread_default`: inside a transaction, deleted brand 7's `currency_pair` rows first (removing that blocker), then attempted `DELETE FROM brand WHERE id = 7;`, which failed with `ERROR 1451: ... CONSTRAINT 'fk_spread_default_brand' ...`; the aborted, non-interactive `mysql -e` session closed without committing, so MySQL auto-rolled-back the transaction — post-check confirms `brand` (7) and `currency_pair` (14) row counts are unchanged.
+  - No new migration was written for the audit-approval addendum, per spec: `audit_request` (`V005`, already live, 0 rows) is entity-agnostic and requires no schema change to accommodate `SPREAD_DEFAULT` as a new `entity_type` value.
+  - All Acceptance Criteria checked off above; frontmatter set to `status: done`.

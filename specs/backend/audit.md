@@ -1,5 +1,5 @@
 ---
-status: pending
+status: done
 title: "Audit Module — Generic Approval Service and API"
 requirement: "Factor the approval/审核 mechanism out into its own independent audit module, so that any action needing approval can plug into it directly without adding anything to the audit module itself"
 depends_on: []
@@ -179,15 +179,15 @@ Fields map to `audit_request` 1:1: `id`, `entityType`, `actionType`, `entityId`,
 - No real authentication/authorization — `requestedBy`/`reviewedBy` are free-text fields; any caller can currently call both submit and approve/reject. Restricting who may approve, and which handler beans exist, remains a code-level concern.
 
 ## Acceptance Criteria
-- [ ] `AuditController`, `AuditService`, and `AuditHandler` compile and contain zero references to `currency_pair`, `brand`, `Currency`, or any other specific domain entity — verified by inspection, not just tests
-- [ ] `GET /api/audit-requests?entityType=X&status=PENDING` and `GET /api/audit-requests/{id}` work against a test-only fake `AuditHandler` registered purely for the test, proving the module works without any real consumer wired in
-- [ ] `POST /api/audit-requests/{id}/approve` on a `PENDING` request calls the correct handler's `validate` then `apply`, sets `status=APPROVED`, `reviewedBy`, `reviewedAt`, and (for `CREATE`) `entityId` from `apply`'s return value
-- [ ] Approving a request whose re-validation now fails returns the handler's error and leaves the request `PENDING`
-- [ ] `POST /api/audit-requests/{id}/reject` with a `rejectReason` marks the request `REJECTED`; missing `rejectReason` returns `400`
-- [ ] Approving or rejecting an already-`APPROVED`/`REJECTED` request returns `409`
-- [ ] Submitting a second request for the same `(entityType, entityId)` while one is `PENDING` returns `409` without any handler-specific code needed to make that check work
-- [ ] Unit tests for `AuditService` using a fake/test `AuditHandler` (not `CurrencyPairAuditHandler`) covering submit/approve/reject and all generic validation/dedup branches
-- [ ] Integration tests for `AuditController` endpoints
+- [x] `AuditController`, `AuditService`, and `AuditHandler` compile and contain zero references to `currency_pair`, `brand`, `Currency`, or any other specific domain entity — verified by inspection, not just tests
+- [x] `GET /api/audit-requests?entityType=X&status=PENDING` and `GET /api/audit-requests/{id}` work against a test-only fake `AuditHandler` registered purely for the test, proving the module works without any real consumer wired in
+- [x] `POST /api/audit-requests/{id}/approve` on a `PENDING` request calls the correct handler's `validate` then `apply`, sets `status=APPROVED`, `reviewedBy`, `reviewedAt`, and (for `CREATE`) `entityId` from `apply`'s return value
+- [x] Approving a request whose re-validation now fails returns the handler's error and leaves the request `PENDING`
+- [x] `POST /api/audit-requests/{id}/reject` with a `rejectReason` marks the request `REJECTED`; missing `rejectReason` returns `400`
+- [x] Approving or rejecting an already-`APPROVED`/`REJECTED` request returns `409`
+- [x] Submitting a second request for the same `(entityType, entityId)` while one is `PENDING` returns `409` without any handler-specific code needed to make that check work
+- [x] Unit tests for `AuditService` using a fake/test `AuditHandler` (not `CurrencyPairAuditHandler`) covering submit/approve/reject and all generic validation/dedup branches
+- [x] Integration tests for `AuditController` endpoints
 
 ---
 ## Execution Result
@@ -229,3 +229,34 @@ Fields map to `audit_request` 1:1: `id`, `entityType`, `actionType`, `entityId`,
 
 ### Teardown — 2026-08-03
 Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.
+
+### Increment 1 — 2026-08-04
+- Status: DONE
+- Base package used: `com.wdd.backend` (this checkout's actual base package — not `pl.piomin.services.backend` referenced by the prior, torn-down Execution Result above). The audit module lives at `com.wdd.backend.audit` per this spec's own "keep it its own package" rationale.
+- Files changed (all new unless noted):
+  - `develop/backend/src/main/java/com/wdd/backend/audit/AuditActionType.java` — enum `CREATE`/`UPDATE`/`DELETE`
+  - `develop/backend/src/main/java/com/wdd/backend/audit/AuditStatus.java` — enum `PENDING`/`APPROVED`/`REJECTED`, used at the service boundary; persisted as plain `String` on `AuditRequest`
+  - `develop/backend/src/main/java/com/wdd/backend/audit/AuditHandler.java` — the plug-in interface (`entityType`, `snapshotOf`, `validate`, `apply`, `summarize`)
+  - `develop/backend/src/main/java/com/wdd/backend/audit/AuditRequest.java` — entity mapped 1:1 to `audit_request` (`actionType`/`status` kept as plain `String`, matching this project's no-enum-type-handler convention seen in `CurrencyPair.rateType`/`Brand.active`-style flat columns)
+  - `develop/backend/src/main/java/com/wdd/backend/audit/AuditRequestMapper.java` + `develop/backend/src/main/resources/mapper/AuditRequestMapper.xml` — `findAll` (filtered by `entityType`/`status`/`actionType`, ordered `requested_at DESC`), `findById`, `findPendingByEntity`, `insert`, `update`
+  - `develop/backend/src/main/java/com/wdd/backend/audit/AuditRequestResponse.java`, `ApproveAuditRequestRequest.java`, `RejectAuditRequestRequest.java` — DTOs; `before`/`after` parsed from the raw JSON text columns to `Map<String,Object>` via a private static Jackson `ObjectMapper`, matching the existing static `from(entity)` factory convention
+  - `develop/backend/src/main/java/com/wdd/backend/audit/AuditRequestNotFoundException.java`, `AuditRequestAlreadyReviewedException.java`, `DuplicatePendingAuditRequestException.java`
+  - `develop/backend/src/main/java/com/wdd/backend/audit/AuditService.java` — generic `submit`/`list`/`getById`/`approve`/`reject`/`findPendingByEntity`, holding `Map<String, AuditHandler>` built from all injected `AuditHandler` beans (empty list is fine — no consumer exists yet)
+  - `develop/backend/src/main/java/com/wdd/backend/audit/AuditController.java` — `GET /api/audit-requests`, `GET /api/audit-requests/{id}`, `POST /api/audit-requests/{id}/approve`, `POST /api/audit-requests/{id}/reject`
+  - `develop/backend/src/main/java/com/wdd/backend/exception/GlobalExceptionHandler.java` (modified) — added `@ExceptionHandler`s for the three new audit exceptions (404/409/409), following the existing pattern; an unrecognized `entityType` at approve time deliberately has no handler and falls through to Spring's default unhandled-exception path
+  - `develop/backend/src/test/resources/schema.sql` (modified) — added `audit_request` for the H2 test DB (snapshot columns as `VARCHAR(4000)` rather than H2's `JSON` type, since MyBatis treats them as opaque strings either way and this avoids H2-JSON-literal binding quirks; functionally equivalent to the MySQL `JSON` columns from `specs/dba/audit.md`'s `V005__create_audit_request_table.sql`)
+  - `develop/backend/src/test/java/com/wdd/backend/audit/AuditServiceTest.java` — unit tests (18) against a Mockito-mocked `AuditHandler`, covering list/getById, submit (CREATE/UPDATE/DELETE branches, dedup 409, validation-failure propagation), approve (success, CREATE entityId-from-apply, DELETE skips re-validation, 404, 409, re-validation-failure leaves PENDING), reject (success, 404, 409)
+  - `develop/backend/src/test/java/com/wdd/backend/audit/TestAuditHandler.java` — test-only fake `AuditHandler` (`entityType = "TEST_ENTITY"`), a `@Component` living only on the test classpath under the scanned `com.wdd.backend.audit` package, backed by a tiny in-memory entity map with `reset()`/`seed()` test hooks, so Spring wires it as a real bean during `@SpringBootTest` runs without ever shipping in production
+  - `develop/backend/src/test/java/com/wdd/backend/audit/AuditControllerTest.java` — integration tests (19) driving the real `AuditController`/`AuditService`/H2 DB through `TestAuditHandler`, including a re-validation-drift scenario (seed a duplicate-named live entity between submit and approve to force the handler's `CREATE` dedup check to fail on re-validation) and an unrecognized-`entityType` row inserted directly via `JdbcTemplate` to prove the missing-handler path is a genuine unhandled `IllegalStateException`
+- Verification performed:
+  - `mvn -f develop/backend/pom.xml compile` — `BUILD SUCCESS`
+  - `mvn -f develop/backend/pom.xml test` — `BUILD SUCCESS`, `Tests run: 80, Failures: 0, Errors: 0, Skipped: 0` (all pre-existing suites — Currency/Brand/Health, 43 tests — plus the 37 new audit tests)
+  - `mvn -f develop/backend/pom.xml -DskipTests package` — `BUILD SUCCESS`
+  - `grep -rniE "currency_pair|CurrencyPair|\bBrand\b|\bCurrency\b" develop/backend/src/main/java/com/wdd/backend/audit/ develop/backend/src/main/resources/mapper/AuditRequestMapper.xml` — only 2 hits, both inside Javadoc comments (`AuditHandler.entityType()`'s illustrative `"CURRENCY_PAIR"` example, copied verbatim from this spec's own interface definition, and `AuditRequest`'s comment referencing `CurrencyPair.rateType` purely to explain a *convention*, not an import/reference); zero imports, class references, or branching logic on any specific domain entity anywhere in `AuditController`/`AuditService`/`AuditHandler`
+  - Confirmed `docker/launch.json`'s `backend` entry (`port: 8080`) matches `application.yml`'s `server.port: 8080`, and `.claude/launch.json` symlink to `../docker/launch.json` is intact — no changes needed, both were already correct
+- Notes on judgment calls:
+  - `actionType`/`status` are stored as plain `String` on the `AuditRequest` entity (not a MyBatis enum type handler); `AuditActionType`/`AuditStatus` are real Java enums used at the `AuditHandler`/`AuditService` boundary and converted to/from `String` at the mapper boundary
+  - `approve()` re-validates via `handler.validate(...)` for `CREATE`/`UPDATE` only (never `DELETE`, per the interface contract) and calls `handler.apply(...)` unconditionally afterward; if re-validation throws, the exception propagates before `auditRequestMapper.update(...)` is ever called, so the row is left untouched (still `PENDING`) — covered by `AuditServiceTest.approve_leavesRequestPending_whenRevalidationFails` (unit, forced `400`) and `AuditControllerTest.approve_returns409AndLeavesRequestPending_whenRevalidationDetectsDrift` (integration, a genuine state-drift scenario producing `409`)
+  - A missing/unregistered handler for a request's `entityType` at approve time throws a plain `IllegalStateException`, deliberately left unmapped in `GlobalExceptionHandler` so it falls through as an unhandled server error — per the spec, this is a data/deployment bug, not a normal API error path. In a real deployed server this surfaces as `500`; under `MockMvc`'s test dispatcher (no embedded container), an unhandled exception propagates out of `mockMvc.perform(...)` as a wrapped `ServletException` instead of a `500` response — `AuditControllerTest.approve_withUnrecognizedEntityType_failsWithServerError` asserts on that propagation (`hasRootCauseInstanceOf(IllegalStateException.class)`) rather than a status code, since MockMvc genuinely cannot observe container-level 500 handling for exceptions with no resolver
+  - `AuditController.approve` accepts a `null`/missing request body (`@RequestBody(required = false)`) since `reviewedBy` is fully optional; `reject` requires a JSON body because `rejectReason` is mandatory via `@NotBlank`
+  - `submit(...)` is exercised in tests by calling the `AuditService` bean directly (there is no HTTP endpoint for it — by design, per the spec, submission is the consuming feature's own controller's responsibility, which doesn't exist yet for this module in isolation)

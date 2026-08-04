@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wdd.backend.mapper.SpreadGroupMemberMapper">
+
+    <resultMap id="SpreadGroupMemberResultMap" type="com.wdd.backend.model.SpreadGroupMember">
+        <id property="id" column="id"/>
+        <result property="spreadGroupId" column="spread_group_id"/>
+        <result property="currencyPairId" column="currency_pair_id"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="baseCurrencyCode" column="base_currency_code"/>
+        <result property="quoteCurrencyCode" column="quote_currency_code"/>
+    </resultMap>
+
+    <!-- Joins to currency_pair and currency (twice, aliased bc/qc) so base/quote codes come back
+         alongside the raw membership row, matching CurrencyPairMapper's enrichment convention. -->
+    <sql id="enrichedSelect">
+        SELECT sgm.id,
+               sgm.spread_group_id,
+               sgm.currency_pair_id,
+               sgm.created_at,
+               bc.code AS base_currency_code,
+               qc.code AS quote_currency_code
+        FROM spread_group_member sgm
+        INNER JOIN currency_pair cp ON cp.id = sgm.currency_pair_id
+        INNER JOIN currency bc ON bc.id = cp.base_currency_id
+        INNER JOIN currency qc ON qc.id = cp.quote_currency_id
+    </sql>
+
+    <select id="findByGroupId" resultMap="SpreadGroupMemberResultMap">
+        <include refid="enrichedSelect"/>
+        WHERE sgm.spread_group_id = #{spreadGroupId}
+        ORDER BY sgm.id
+    </select>
+
+    <select id="findByCurrencyPairId" resultMap="SpreadGroupMemberResultMap">
+        <include refid="enrichedSelect"/>
+        WHERE sgm.currency_pair_id = #{currencyPairId}
+    </select>
+
+    <insert id="insert" parameterType="com.wdd.backend.model.SpreadGroupMember" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO spread_group_member (spread_group_id, currency_pair_id, created_at)
+        VALUES (#{spreadGroupId}, #{currencyPairId}, NOW())
+    </insert>
+
+    <delete id="deleteByCurrencyPairId">
+        DELETE FROM spread_group_member WHERE currency_pair_id = #{currencyPairId}
+    </delete>
+
+    <delete id="deleteByGroupId">
+        DELETE FROM spread_group_member WHERE spread_group_id = #{spreadGroupId}
+    </delete>
+
+</mapper>

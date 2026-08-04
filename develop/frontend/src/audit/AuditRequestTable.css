@@ -1,0 +1,58 @@
+.col-action-type {
+  width: 90px;
+}
+
+.col-requested-by {
+  width: 120px;
+}
+
+.col-requested-at {
+  width: 160px;
+}
+
+.col-status {
+  width: 110px;
+}
+
+.col-actions {
+  width: 100px;
+}
+
+.audit-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.audit-badge-action-create {
+  background: #d3f9d8;
+  color: var(--color-success);
+}
+
+.audit-badge-action-update {
+  background: #fff3bf;
+  color: #997404;
+}
+
+.audit-badge-action-delete {
+  background: #ffe3e3;
+  color: var(--color-danger);
+}
+
+.status-badge--approved {
+  color: var(--color-success);
+}
+
+.status-badge--approved .status-dot {
+  background-color: var(--color-success);
+}
+
+.status-badge--rejected {
+  color: var(--color-danger);
+}
+
+.status-badge--rejected .status-dot {
+  background-color: var(--color-danger);
+}

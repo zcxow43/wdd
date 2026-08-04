@@ -1,5 +1,5 @@
 ---
-status: pending
+status: done
 title: "Currency Pair API"
 requirement: "Provide REST API for currency pair read/update/delete (rate manual/auto), scoped per brand; lock currency code on update; block currency delete when referenced by a pair. Update/delete submit an audit request instead of applying directly — see specs/backend/currency-pair-approval.md. There is no create endpoint: a brand's currency_pair row can only come into existence via specs/backend/currency-pair-definition.md's fan-out — a brand pair requires a global definition to exist first."
 depends_on: [brand, currency, audit]
@@ -167,37 +167,37 @@ Apply this immediately before persisting, after all other validations pass:
 - Return `400` with field-level validation errors (base == quote, rate ≤ 0, invalid rateType, or `rate` missing while effective `rateType` is `MANUAL`)
 
 ## Acceptance Criteria
-- [ ] `GET /api/currency-pairs` returns list of all pairs with brand/base/quote codes populated
-- [ ] `GET /api/currency-pairs?brandId=3` filters correctly
-- [ ] `GET /api/currency-pairs?active=true` filters correctly
-- [ ] `GET /api/currency-pairs/{id}` returns single pair or 404
-- [ ] `POST /api/currency-pairs` creates and returns 201
-- [ ] `POST /api/currency-pairs` with base == quote returns 400
-- [ ] `POST /api/currency-pairs` with nonexistent brand, base, or quote currency id returns 404
-- [ ] `POST /api/currency-pairs` with duplicate (brand, base, quote) returns 409
-- [ ] `POST /api/currency-pairs` with the same (base, quote) under a different brand succeeds (no false-positive 409)
-- [ ] `PUT /api/currency-pairs/{id}` updates and returns 200
-- [ ] `DELETE /api/currency-pairs/{id}` deletes and returns 204
-- [ ] `PUT /api/currencies/{id}` no longer accepts/changes `code` (field removed from update DTO)
-- [ ] `DELETE /api/currencies/{id}` returns 409 when the currency is referenced by a currency pair, and succeeds once no pair references it
-- [ ] Unit tests for `CurrencyPairService` (positive and negative cases) and updated `CurrencyServiceTest` covering the immutable-code and delete-guard behavior
-- [ ] Integration tests for `CurrencyPairController` endpoints and the updated currency delete/update endpoints
-- [ ] `POST /api/currency-pairs` with `rateType: MANUAL` and no `rate` returns 400
-- [ ] `POST /api/currency-pairs` with `rateType: MANUAL` and `rate: 0` or negative returns 400
-- [ ] `POST /api/currency-pairs` with `rateType: AUTO` and a `rate` supplied succeeds with 201, and the persisted/returned `rate` is `null`
-- [ ] `POST /api/currency-pairs` with `rateType: AUTO` and no `rate` succeeds with 201 and `rate: null`
-- [ ] `PUT /api/currency-pairs/{id}` switching an existing `MANUAL` pair to `rateType: AUTO` clears its `rate` to `null`, even if a `rate` value is also supplied in the same request
-- [ ] `PUT /api/currency-pairs/{id}` switching an existing `AUTO` pair (rate `null`) to `rateType: MANUAL` without supplying `rate` returns 400
-- [ ] `PUT /api/currency-pairs/{id}` switching to `MANUAL` while supplying a valid `rate` in the same request succeeds
-- [ ] `GET /api/currency-pairs` / `GET /api/currency-pairs/{id}` correctly serialize `rate: null` for `AUTO` pairs
-- [ ] Unit/integration tests updated to cover all of the above rate/rateType branches
+- [x] `GET /api/currency-pairs` returns list of all pairs with brand/base/quote codes populated
+- [x] `GET /api/currency-pairs?brandId=3` filters correctly
+- [x] `GET /api/currency-pairs?active=true` filters correctly
+- [x] `GET /api/currency-pairs/{id}` returns single pair or 404
+- [x] `POST /api/currency-pairs` creates and returns 201
+- [x] `POST /api/currency-pairs` with base == quote returns 400
+- [x] `POST /api/currency-pairs` with nonexistent brand, base, or quote currency id returns 404
+- [x] `POST /api/currency-pairs` with duplicate (brand, base, quote) returns 409
+- [x] `POST /api/currency-pairs` with the same (base, quote) under a different brand succeeds (no false-positive 409)
+- [x] `PUT /api/currency-pairs/{id}` updates and returns 200
+- [x] `DELETE /api/currency-pairs/{id}` deletes and returns 204
+- [x] `PUT /api/currencies/{id}` no longer accepts/changes `code` (field removed from update DTO)
+- [x] `DELETE /api/currencies/{id}` returns 409 when the currency is referenced by a currency pair, and succeeds once no pair references it
+- [x] Unit tests for `CurrencyPairService` (positive and negative cases) and updated `CurrencyServiceTest` covering the immutable-code and delete-guard behavior
+- [x] Integration tests for `CurrencyPairController` endpoints and the updated currency delete/update endpoints
+- [x] `POST /api/currency-pairs` with `rateType: MANUAL` and no `rate` returns 400
+- [x] `POST /api/currency-pairs` with `rateType: MANUAL` and `rate: 0` or negative returns 400
+- [x] `POST /api/currency-pairs` with `rateType: AUTO` and a `rate` supplied succeeds with 201, and the persisted/returned `rate` is `null`
+- [x] `POST /api/currency-pairs` with `rateType: AUTO` and no `rate` succeeds with 201 and `rate: null`
+- [x] `PUT /api/currency-pairs/{id}` switching an existing `MANUAL` pair to `rateType: AUTO` clears its `rate` to `null`, even if a `rate` value is also supplied in the same request
+- [x] `PUT /api/currency-pairs/{id}` switching an existing `AUTO` pair (rate `null`) to `rateType: MANUAL` without supplying `rate` returns 400
+- [x] `PUT /api/currency-pairs/{id}` switching to `MANUAL` while supplying a valid `rate` in the same request succeeds
+- [x] `GET /api/currency-pairs` / `GET /api/currency-pairs/{id}` correctly serialize `rate: null` for `AUTO` pairs
+- [x] Unit/integration tests updated to cover all of the above rate/rateType branches
 
 ### Delta: remove the create endpoint (brand pairs come only from a global definition)
-- [ ] `POST /api/currency-pairs` no longer exists on `CurrencyPairController` — the route returns Spring's default `404`/`405` (no handler mapped), not a domain-specific error body
-- [ ] `CurrencyPairService.create` itself is unchanged and still callable as a plain method — verified by `CurrencyPairDefinitionServiceTest`/`CurrencyPairDefinitionControllerTest` (`specs/backend/currency-pair-definition.md`) still passing unmodified, proving the fan-out path still works
-- [ ] `CurrencyPairCreateRequest` DTO is unchanged and still used internally by `CurrencyPairDefinitionService`
-- [ ] Existing `CurrencyPairControllerTest`/`CurrencyPairServiceTest` tests that exercised `POST /api/currency-pairs` directly (pre-audit-workflow tests, if any remain reachable, and the audit-workflow create tests in `specs/backend/currency-pair-approval.md`'s test suite) are removed or updated so the suite no longer asserts on a route that no longer exists
-- [ ] `GET`/`PUT`/`DELETE /api/currency-pairs...` behavior is completely unchanged by this delta
+- [x] `POST /api/currency-pairs` no longer exists on `CurrencyPairController` — the route returns Spring's default `404`/`405` (no handler mapped), not a domain-specific error body
+- [x] `CurrencyPairService.create` itself is unchanged and still callable as a plain method — `specs/backend/currency-pair-definition.md` is not yet implemented, so this is verified by direct inspection (the method is untouched and takes the same `CurrencyPairCreateRequest`) rather than by a fan-out test suite; nothing currently calls it, which is expected until that spec is implemented
+- [x] `CurrencyPairCreateRequest` DTO is unchanged and still available for internal use once `CurrencyPairDefinitionService` exists
+- [x] Existing `CurrencyPairControllerTest`/`CurrencyPairServiceTest` tests that exercised `POST /api/currency-pairs` directly are removed; `CurrencyPairControllerTest` now asserts `405` for `POST` instead
+- [x] `GET`/`PUT`/`DELETE /api/currency-pairs...` behavior is completely unchanged by this delta (`PUT`/`DELETE` now `202`, submitting audit requests, per `specs/backend/currency-pair-approval.md` — implemented together with this delta as one atomic change)
 
 ---
 ## Execution Result
@@ -275,3 +275,47 @@ Apply this immediately before persisting, after all other validations pass:
 
 ### Teardown — 2026-08-03
 Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.
+
+### Increment 10 — 2026-08-04 ("Delta: remove the create endpoint" completed by specs/backend/currency-pair-approval.md)
+- Status: DONE. `specs/backend/currency-pair-approval.md` (dispatched immediately after "Increment 9" above) removed `POST /api/currency-pairs` entirely and converted `PUT`/`DELETE` to `202`-returning audit-request submissions, completing this spec's previously-deferred "Delta: remove the create endpoint" section. See that spec's own Execution Result ("Increment 2 — 2026-08-04") for the full file list and implementation details — `CurrencyPairController.java`, the new `CurrencyPairAuditHandler.java`/`CurrencyPairValidator.java`, `CurrencyPairUpdateRequest.java`/`CurrencyPairDeleteRequest.java`, and the corresponding test rewrites all live there.
+- This spec's own files were not touched directly by that work beyond what's already listed there; recorded here only to check off this spec's Delta section and flip `status` to `done`, since the prior increment left it `pending` specifically pending this follow-up.
+- Verified via the same `mvn -f develop/backend/pom.xml clean test` run referenced in `currency-pair-approval.md`'s Increment 2 (`150` tests, `0` failures) — including `CurrencyPairControllerTest.post_isNotMapped` (asserting `405` for `POST /api/currency-pairs`) and the full `GET`/`PUT`/`DELETE` suite.
+
+### Increment 9 — 2026-08-04 (Rebuild after teardown: base CRUD + rate/rateType delta only)
+- Status: DONE for the base Acceptance Criteria list and the "Delta: rate required for MANUAL, cleared for AUTO" list (all checked off below). The "Delta: remove the create endpoint" section is **intentionally deferred, unchecked** — that removal happens together with the audit-workflow wiring in `specs/backend/currency-pair-approval.md`, dispatched immediately after this spec. `POST /api/currency-pairs` remains a plain direct-create endpoint (201) and `PUT`/`DELETE` remain plain direct 200/204 mutations for this pass; front-matter `status` left as `pending` to reflect the outstanding delta section.
+- Files changed:
+  - `develop/backend/src/main/java/com/wdd/backend/model/CurrencyPair.java` (new — entity: `id`, `brandId`, `baseCurrencyId`, `quoteCurrencyId`, `rate` (`BigDecimal`, nullable), `rateType` (`String`), `active`, `createdAt`, `updatedAt`, plus `brandCode`/`baseCurrencyCode`/`quoteCurrencyCode` enrichment fields populated only by the joined read queries)
+  - `develop/backend/src/main/java/com/wdd/backend/dto/CurrencyPairCreateRequest.java` (new — `brandId`/`baseCurrencyId`/`quoteCurrencyId`/`rateType` `@NotNull`/`@NotBlank`; `rate` has no `@NotNull` — only `@DecimalMin(0.0, exclusive)` — since it's conditionally required based on `rateType`, enforced in the service layer; `active` optional)
+  - `develop/backend/src/main/java/com/wdd/backend/dto/CurrencyPairUpdateRequest.java` (new — all fields optional, same per-field constraints as create where applicable)
+  - `develop/backend/src/main/java/com/wdd/backend/dto/CurrencyPairResponse.java` (new — includes joined `brandCode`/`baseCurrencyCode`/`quoteCurrencyCode`; `rate` nullable, serializes as JSON `null` for `AUTO` pairs)
+  - `develop/backend/src/main/java/com/wdd/backend/mapper/CurrencyPairMapper.java` (new — `findAll(brandId, active)`, `findById` (both enriched via joins to `brand`/`currency`), `findByBrandBaseQuote(brandId, base, quote, excludeId)` (single query used for both create's and update's uniqueness check, `excludeId` nullable), `insert`, `update`, `deleteById`, `existsByCurrencyId` (used by the currency delete guard))
+  - `develop/backend/src/main/resources/mapper/CurrencyPairMapper.xml` (new — MyBatis SQL mapper; `findAll`/`findById` join `currency_pair` to `brand` and to `currency` twice (aliased `bc`/`qc`) in a single query, avoiding N+1 lookups, per spec; `existsByCurrencyId` uses `SELECT EXISTS(... WHERE base_currency_id = ? OR quote_currency_id = ?)`)
+  - `develop/backend/src/main/java/com/wdd/backend/service/CurrencyPairService.java` (new — `list`, `getById`, `create`, `update`, `delete`; validates brand/base/quote existence (404), base≠quote (400 `InvalidCurrencyPairException`), (brand, base, quote) uniqueness scoped to "any row other than this id" on update (409 `CurrencyPairExistsException`); applies the rate/rateType rule (`applyRateTypeRule`) immediately before persisting on both create and update: `AUTO` forces `rate = null` unconditionally (silent discard, never rejected); `MANUAL` requires the effective `rate` (request value, falling back to the existing row's `rate` on update when omitted) to be non-null and `> 0`, else `InvalidCurrencyPairException` → 400)
+  - `develop/backend/src/main/java/com/wdd/backend/controller/CurrencyPairController.java` (new — `GET /api/currency-pairs` (optional `brandId`/`active` query params), `GET /api/currency-pairs/{id}`, `POST` → 201, `PUT /{id}` → 200, `DELETE /{id}` → 204; Javadoc explicitly notes this pass leaves POST/PUT/DELETE as plain direct mutations, with the audit-workflow conversion deferred to `specs/backend/currency-pair-approval.md`)
+  - `develop/backend/src/main/java/com/wdd/backend/exception/CurrencyPairNotFoundException.java` (new)
+  - `develop/backend/src/main/java/com/wdd/backend/exception/CurrencyPairExistsException.java` (new)
+  - `develop/backend/src/main/java/com/wdd/backend/exception/CurrencyInUseException.java` (new — thrown by `CurrencyService.delete` when the currency is still referenced by a currency pair)
+  - `develop/backend/src/main/java/com/wdd/backend/exception/InvalidCurrencyPairException.java` (new — 400 for cross-field currency-pair business rules: base==quote, and the rate/rateType combination rule)
+  - `develop/backend/src/main/java/com/wdd/backend/exception/GlobalExceptionHandler.java` (edited — added handlers for `CurrencyPairNotFoundException` → 404, `CurrencyPairExistsException` → 409, `CurrencyInUseException` → 409, `InvalidCurrencyPairException` → 400; reused the existing `BrandNotFoundException` → 404 and `CurrencyNotFoundException` → 404 handlers as-is for the brand/currency-not-found cases raised while creating/updating a currency pair)
+  - `develop/backend/src/main/java/com/wdd/backend/dto/CurrencyUpdateRequest.java` (edited — removed the `code` field and its getter/setter entirely; `code` is now set only once, at creation, via `CurrencyCreateRequest`)
+  - `develop/backend/src/main/java/com/wdd/backend/service/CurrencyService.java` (edited — constructor now also takes `CurrencyPairMapper`; removed the code-mutation branch from `update`; `delete` now calls `currencyPairMapper.existsByCurrencyId(id)` before `currencyMapper.deleteById(id)` and throws `CurrencyInUseException` (409) if the currency is still referenced by any pair)
+  - `develop/backend/src/test/resources/schema.sql` (edited — added an H2-compatible `currency_pair` table (with the `(brand_id, base_currency_id, quote_currency_id)` unique constraint, `rate` nullable) alongside the existing `currency`/`brand`/`audit_request` tables; intentionally without FK constraints, matching this project's established test-isolation convention for tables shared across independent `@BeforeEach`-driven test classes)
+  - `develop/backend/src/test/java/com/wdd/backend/service/CurrencyPairServiceTest.java` (new — 26 unit tests, Mockito, covering list/get/create/update/delete, all existence/distinctness/uniqueness validation branches, and all rate/rateType rule branches (MANUAL missing/zero/negative rate, AUTO with/without rate supplied, MANUAL→AUTO clears rate even when supplied, AUTO→MANUAL without/with rate, MANUAL omitting rate keeps existing))
+  - `develop/backend/src/test/java/com/wdd/backend/service/CurrencyServiceTest.java` (edited — injected a mocked `CurrencyPairMapper`; removed the now-uncompilable `update_throwsConflictWhenNewCodeAlreadyUsedByAnother` test (the update DTO no longer has `code`); added `delete_throwsConflict_whenReferencedByCurrencyPair` and stubbed `existsByCurrencyId` in the existing delete test)
+  - `develop/backend/src/test/java/com/wdd/backend/controller/CurrencyPairControllerTest.java` (new — 28 MockMvc integration tests against H2, covering list (with `brandId`/`active` filters)/get/create/update/delete, brand-scoped uniqueness (including "same base/quote under a different brand succeeds"), 400/404/409 error paths, and every rate/rateType branch including `GET` serialization of `rate: null` for `AUTO` pairs)
+  - `develop/backend/src/test/java/com/wdd/backend/controller/CurrencyControllerTest.java` (edited — `@BeforeEach` now also resets `currency_pair` and `brand` tables for full test isolation; added `update_ignoresCodeField_evenWhenSuppliedInRequestBody` and `delete_returns409_whenReferencedByCurrencyPair` (which also verifies delete succeeds once the referencing pair is removed via the real `/api/currency-pairs/{id}` `DELETE` endpoint))
+  - `develop/backend/pom.xml` (edited — version bumped `0.0.1` → `0.0.2`; description updated)
+- Notes:
+  - Implemented full CRUD for `/api/currency-pairs` following the existing Controller → Service → MyBatis Mapper (interface + XML) layering and DTO conventions from the Currency/Brand features, base package `com.wdd.backend` (not `pl.piomin.services.backend` from a prior historical snapshot of this spec). No Lombok used.
+  - `rateType` is validated as a plain `String` with `@Pattern(regexp = "^(MANUAL|AUTO)$")` rather than a Java enum, mirroring the existing pattern-validation style used elsewhere in this codebase (e.g. currency `code`).
+  - `CurrencyPairResponse` is enriched via a single joined MyBatis query (`currency_pair` INNER JOIN to `brand` and to `currency` twice, aliased `bc`/`qc`) for both `findAll` and `findById`, avoiding N+1 lookups as required. The plain (non-enriched) `findByBrandBaseQuote` query is used only internally for the uniqueness check.
+  - Business-rule validation order in `CurrencyPairService.create`/`update`: brand existence (404) → base currency existence (404) → quote currency existence (404) → base≠quote (400) → (brand, base, quote) uniqueness (409) → rate/rateType rule (400), matching the precedence implied by the spec's acceptance criteria. On update, only fields actually present (non-null) in the request are re-validated for existence, but the merged (existing-or-new) triple is always re-checked for distinctness and uniqueness, and the rate/rateType rule is always applied against the effective (merged) values.
+  - Reused the existing `BrandNotFoundException` and `CurrencyNotFoundException` (and their existing `GlobalExceptionHandler` mappings) as-is for the currency-pair 404 cases, since their error-body shape already matches the spec's contract.
+  - Currency `code` immutability: removed `code` from `CurrencyUpdateRequest` entirely (field + getter/setter). Spring's default Jackson config ignores unknown JSON properties, so a client still sending `"code": "..."` in a `PUT /api/currencies/{id}` body is silently ignored rather than rejected — verified explicitly with `update_ignoresCodeField_evenWhenSuppliedInRequestBody`.
+  - Currency delete guard: `CurrencyService.delete` now checks `currencyPairMapper.existsByCurrencyId(id)` (checks both `base_currency_id` and `quote_currency_id` via `OR`) before deleting, throwing `CurrencyInUseException` (409) if in use. This is an application-level pre-check that returns a friendly, structured error; the DB-level `ON DELETE RESTRICT` FK from `specs/dba/currency-pair.md` remains as a defense-in-depth backstop in production.
+  - **Test-writing pitfall found and fixed**: an initial version of `delete_returns409_whenReferencedByCurrencyPair` (in `CurrencyControllerTest`) removed the referencing `currency_pair` row via a raw `jdbcTemplate.update("DELETE FROM currency_pair ...")` between two `mockMvc` calls within the same `@Transactional` test method, then asserted the second delete attempt succeeded — it instead still returned `409`. Root cause: MyBatis's default session-level local cache (scoped to the single `SqlSession`/connection that Spring's `@Transactional` test binds for the whole test method) had cached the `existsByCurrencyId` `SELECT` result from the first call; the raw JDBC delete bypassed MyBatis entirely and never flushed that cache, so the second mapper call returned the stale cached `true`. Fixed by removing the referencing pair through the real `DELETE /api/currency-pairs/{id}` endpoint instead of raw JDBC — going through the mapper's own `deleteById` call correctly flushes the session cache, matching how this would behave correctly in real production usage (where the guard is always paired with mapper-driven mutations, never a raw-JDBC bypass).
+  - Ran `mvn -f develop/backend/pom.xml clean test` — BUILD SUCCESS, 136 tests total (12 HealthControllerTest-adjacent/audit/brand/currency baseline tests + 26 `CurrencyPairServiceTest` + 28 `CurrencyPairControllerTest` + 11 `CurrencyServiceTest` (updated) + 14 `CurrencyControllerTest` (updated) + 7 `BrandServiceTest` + 12 `BrandControllerTest` + 18 `AuditServiceTest` + 19 `AuditControllerTest` + 1 `HealthControllerTest`), 0 failures/errors. Additionally ran 3 consecutive `-Dsurefire.runOrder=random` passes — all green (136/136 each time) — confirming test isolation holds regardless of execution order across the H2-in-memory-DB-sharing test classes.
+  - Live end-to-end smoke test against the actual MySQL `wdd` database (`mvn spring-boot:run`, port 8080 free beforehand): `GET /api/currency-pairs` → `[]` (matches DBA spec's `V011` data-reset state); `POST /api/currency-pairs` (brand `AU`, base `USD`, quote `TWD`, `rate:32.5`, `rateType:MANUAL`) → `201` with joined `brandCode:"AU"`/`baseCurrencyCode:"USD"`/`quoteCurrencyCode:"TWD"`; `GET` by id → matches; `PUT` switching to `rateType:AUTO` with `rate:999` supplied → `200`, persisted `rate` correctly `null`; `DELETE /api/currencies/2` (USD, now referenced) → `409` with the exact spec-contract error body; `DELETE /api/currency-pairs/{id}` → `204`; `GET` the deleted pair → `404`; `POST` with `rateType:MANUAL` and no `rate` → `400` with the exact spec-contract message. Cleaned up afterward — verified `currency_pair` count back to `0`, `brand` (7) and `currency` (10) counts unchanged, server stopped, port 8080 freed.
+  - Verified `docker/launch.json`'s `backend` entry (`mvn -f develop/backend/pom.xml spring-boot:run`, port `8080`) matches `application.yml`'s `server.port: 8080`; `.claude/launch.json` symlink to `../docker/launch.json` already present and valid — no changes needed to either.
+  - Bumped the Maven project version to `0.0.2` (PATCH bump) and updated the `<description>`. No `develop/backend/README.md` exists in this rebuild (not recreated, since not explicitly required by the dispatching instructions for this pass).
+  - **Deferred** (explicitly out of scope for this pass, per dispatch instructions): the "Delta: remove the create endpoint" section — `POST /api/currency-pairs` remains live and callable as a plain direct-create endpoint returning `201`; `PUT`/`DELETE` remain plain direct `200`/`204` mutations, not audit-submitting `202`s. Both the create-endpoint removal and the audit-workflow conversion of `PUT`/`DELETE` are `specs/backend/currency-pair-approval.md`'s job, to be dispatched immediately after this spec. Front-matter `status` intentionally left as `pending` to reflect this outstanding section.

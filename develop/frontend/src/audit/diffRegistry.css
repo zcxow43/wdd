@@ -1,0 +1,41 @@
+.generic-diff-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-surface);
+}
+
+.generic-diff-table th,
+.generic-diff-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  font-size: 14px;
+  word-break: break-word;
+}
+
+.generic-diff-table thead th {
+  background: #fafafa;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.generic-diff-key {
+  font-weight: 600;
+  width: 30%;
+}
+
+.generic-diff-row-changed .generic-diff-before {
+  color: var(--color-danger);
+  text-decoration: line-through;
+}
+
+.generic-diff-row-changed .generic-diff-after {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.generic-diff-empty {
+  padding: 20px;
+  text-align: center;
+  color: var(--color-text-muted);
+}

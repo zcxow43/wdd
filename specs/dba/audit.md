@@ -1,5 +1,5 @@
 ---
-status: pending
+status: done
 title: "Audit Module — Generic Approval Request Table"
 requirement: "Factor the approval/审核 mechanism out into its own independent audit module, so that any action needing approval can plug into it directly without adding anything to the audit module itself"
 ---
@@ -112,13 +112,13 @@ No seed data — this table starts empty; rows are only ever created through the
 5. `V005__create_audit_request_table.sql` (this spec) — no FK dependency on any other table, so no strict ordering requirement beyond preserving migration numbering
 
 ## Acceptance Criteria
-- [ ] `audit_request` table created with all columns and correct types, including `entity_type`, `entity_id`, `before_snapshot` (JSON), `after_snapshot` (JSON), and `summary`
-- [ ] CHECK constraints enforce valid `action_type` and `status` enum values; `entity_type` is unconstrained at the DB level
-- [ ] Indexes exist on `status` and on (`entity_type`, `entity_id`)
-- [ ] No FK exists anywhere on this table
-- [ ] A row can be inserted with an arbitrary `entity_type` string (e.g. `'CURRENCY_PAIR'`) and a JSON snapshot, and read back with the JSON content intact
-- [ ] Timestamps auto-populate on insert and update
-- [ ] This table's definition contains no column, constraint, or comment naming any specific consumer entity (e.g. no `currency_pair`, `brand_id`, etc.) — confirmed by inspection as the acceptance bar for "genuinely independent"
+- [x] `audit_request` table created with all columns and correct types, including `entity_type`, `entity_id`, `before_snapshot` (JSON), `after_snapshot` (JSON), and `summary`
+- [x] CHECK constraints enforce valid `action_type` and `status` enum values; `entity_type` is unconstrained at the DB level
+- [x] Indexes exist on `status` and on (`entity_type`, `entity_id`)
+- [x] No FK exists anywhere on this table
+- [x] A row can be inserted with an arbitrary `entity_type` string (e.g. `'CURRENCY_PAIR'`) and a JSON snapshot, and read back with the JSON content intact
+- [x] Timestamps auto-populate on insert and update
+- [x] This table's definition contains no column, constraint, or comment naming any specific consumer entity (e.g. no `currency_pair`, `brand_id`, etc.) — confirmed by inspection as the acceptance bar for "genuinely independent"
 
 ---
 ## Execution Result
@@ -162,3 +162,20 @@ Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteri
 
 ### Teardown — 2026-08-04
 Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.
+
+### Increment 3 — 2026-08-04
+- Status: DONE
+- Files changed: none (no standalone `.sql` file written anywhere; migration SQL lives only in this spec's `## Migration SQL` section per current convention)
+- Notes:
+  - Pre-flight passed: read `env.md` (Engine: MySQL 8.0.36, Host: 127.0.0.1, Port: 3306, Database: wdd, Username: app, Password: 1234); connected via the `mysql` CLI (`SELECT 1;` succeeded); database `wdd` already existed, no creation needed.
+  - Confirmed pre-existing tables `currency`, `brand`, `currency_pair` already present and `audit_request` absent, matching the from-scratch-rebuild sequencing (`V001`–`V004` already applied; `V005` next).
+  - Applied `V005__create_audit_request_table.sql` directly against the live `wdd` database via the `mysql` CLI (`CREATE TABLE IF NOT EXISTS audit_request ...` exactly as specified in `## Migration SQL`).
+  - `SHOW CREATE TABLE audit_request` confirms all columns, types, defaults, the two CHECK constraints (`ck_audit_request_action_type`, `ck_audit_request_status`), and the two indexes (`idx_audit_request_status`, `idx_audit_request_entity`) exactly match the spec.
+  - Verified zero foreign keys on the table via `information_schema.KEY_COLUMN_USAGE` (count = 0).
+  - Verified JSON round-trip: inserted a row with `entity_type='CURRENCY_PAIR'`, `action_type='UPDATE'`, `before_snapshot`/`after_snapshot` JSON objects; read back with JSON content intact (`{"rate": 1.1}` / `{"rate": 1.2}`).
+  - Verified `entity_type` is genuinely unconstrained by inserting a second row with an unrelated value (`entity_type='RATE_SPREAD_CONFIG'`) — accepted with no error, confirming no DB-level enum restricts it to known consumers.
+  - Verified CHECK constraints reject invalid enum values: `action_type='BOGUS'` raised `ERROR 3819: Check constraint 'ck_audit_request_action_type' is violated`; `status='BOGUS'` raised the equivalent error for `ck_audit_request_status`.
+  - Verified timestamp behavior: `requested_at`/`created_at`/`updated_at` auto-populated on insert (06:28:27); after an `UPDATE` ten seconds later, `updated_at` advanced to 06:28:37 while `created_at` stayed fixed at 06:28:27.
+  - All test/verification rows were deleted after verification, leaving `audit_request` empty (0 rows), matching the spec's "no seed data" requirement.
+  - Inspected the final DDL and this spec's Migration SQL: no column, constraint, or comment references `currency_pair`, `brand`, or any other specific consumer entity — the table remains fully generic.
+  - Re-checked all Acceptance Criteria boxes and set frontmatter `status: done`.

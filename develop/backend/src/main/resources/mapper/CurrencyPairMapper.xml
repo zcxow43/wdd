@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wdd.backend.mapper.CurrencyPairMapper">
+
+    <resultMap id="CurrencyPairResultMap" type="com.wdd.backend.model.CurrencyPair">
+        <id property="id" column="id"/>
+        <result property="brandId" column="brand_id"/>
+        <result property="baseCurrencyId" column="base_currency_id"/>
+        <result property="quoteCurrencyId" column="quote_currency_id"/>
+        <result property="rate" column="rate"/>
+        <result property="rateType" column="rate_type"/>
+        <result property="active" column="active"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="brandCode" column="brand_code"/>
+        <result property="baseCurrencyCode" column="base_currency_code"/>
+        <result property="quoteCurrencyCode" column="quote_currency_code"/>
+    </resultMap>
+
+    <!-- Enriched select: joins currency_pair to brand and to currency twice (aliased bc/qc)
+         in a single query, avoiding N+1 lookups, so the response can include brandCode /
+         baseCurrencyCode / quoteCurrencyCode alongside the raw ids. -->
+    <sql id="enrichedSelect">
+        SELECT cp.id,
+               cp.brand_id,
+               cp.base_currency_id,
+               cp.quote_currency_id,
+               cp.rate,
+               cp.rate_type,
+               cp.active,
+               cp.created_at,
+               cp.updated_at,
+               b.code  AS brand_code,
+               bc.code AS base_currency_code,
+               qc.code AS quote_currency_code
+        FROM currency_pair cp
+        INNER JOIN brand b ON b.id = cp.brand_id
+        INNER JOIN currency bc ON bc.id = cp.base_currency_id
+        INNER JOIN currency qc ON qc.id = cp.quote_currency_id
+    </sql>
+
+    <select id="findAll" resultMap="CurrencyPairResultMap">
+        <include refid="enrichedSelect"/>
+        <where>
+            <if test="brandId != null">
+                AND cp.brand_id = #{brandId}
+            </if>
+            <if test="active != null">
+                AND cp.active = #{active}
+            </if>
+        </where>
+        ORDER BY cp.id
+    </select>
+
+    <select id="findById" resultMap="CurrencyPairResultMap">
+        <include refid="enrichedSelect"/>
+        WHERE cp.id = #{id}
+    </select>
+
+    <select id="findByBrandBaseQuote" resultMap="CurrencyPairResultMap">
+        SELECT id, brand_id, base_currency_id, quote_currency_id, rate, rate_type, active, created_at, updated_at
+        FROM currency_pair
+        WHERE brand_id = #{brandId}
+          AND base_currency_id = #{baseCurrencyId}
+          AND quote_currency_id = #{quoteCurrencyId}
+        <if test="excludeId != null">
+            AND id &lt;&gt; #{excludeId}
+        </if>
+    </select>
+
+    <insert id="insert" parameterType="com.wdd.backend.model.CurrencyPair" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO currency_pair (brand_id, base_currency_id, quote_currency_id, rate, rate_type, active, created_at, updated_at)
+        VALUES (#{brandId}, #{baseCurrencyId}, #{quoteCurrencyId}, #{rate}, #{rateType}, #{active}, NOW(), NOW())
+    </insert>
+
+    <update id="update" parameterType="com.wdd.backend.model.CurrencyPair">
+        UPDATE currency_pair
+        SET brand_id = #{brandId},
+            base_currency_id = #{baseCurrencyId},
+            quote_currency_id = #{quoteCurrencyId},
+            rate = #{rate},
+            rate_type = #{rateType},
+            active = #{active},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM currency_pair WHERE id = #{id}
+    </delete>
+
+    <select id="existsByCurrencyId" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1 FROM currency_pair
+            WHERE base_currency_id = #{id} OR quote_currency_id = #{id}
+        )
+    </select>
+
+    <!-- Additive: used by CurrencyPairDefinitionService.delete's deletion guard
+         (specs/backend/currency-pair-definition.md). Reuses the existing enrichedSelect join
+         shape; no existing <select>/<insert>/<update>/<delete> is touched. -->
+    <select id="findActiveByBaseQuote" resultMap="CurrencyPairResultMap">
+        <include refid="enrichedSelect"/>
+        WHERE cp.base_currency_id = #{baseCurrencyId}
+          AND cp.quote_currency_id = #{quoteCurrencyId}
+          AND cp.active = TRUE
+        ORDER BY cp.id
+    </select>
+
+</mapper>

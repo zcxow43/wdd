@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wdd.backend.mapper.SpreadDefaultMapper">
+
+    <resultMap id="SpreadDefaultResultMap" type="com.wdd.backend.model.SpreadDefault">
+        <id property="id" column="id"/>
+        <result property="brandId" column="brand_id"/>
+        <result property="depositSpread" column="deposit_spread"/>
+        <result property="withdrawSpread" column="withdraw_spread"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="brandCode" column="brand_code"/>
+    </resultMap>
+
+    <sql id="enrichedSelect">
+        SELECT sd.id,
+               sd.brand_id,
+               sd.deposit_spread,
+               sd.withdraw_spread,
+               sd.created_at,
+               sd.updated_at,
+               b.code AS brand_code
+        FROM spread_default sd
+        INNER JOIN brand b ON b.id = sd.brand_id
+    </sql>
+
+    <select id="findAll" resultMap="SpreadDefaultResultMap">
+        <include refid="enrichedSelect"/>
+        <where>
+            <if test="brandId != null">
+                AND sd.brand_id = #{brandId}
+            </if>
+        </where>
+        ORDER BY sd.id
+    </select>
+
+    <select id="findById" resultMap="SpreadDefaultResultMap">
+        <include refid="enrichedSelect"/>
+        WHERE sd.id = #{id}
+    </select>
+
+    <select id="findByBrandId" resultMap="SpreadDefaultResultMap">
+        <include refid="enrichedSelect"/>
+        WHERE sd.brand_id = #{brandId}
+    </select>
+
+    <update id="update" parameterType="com.wdd.backend.model.SpreadDefault">
+        UPDATE spread_default
+        SET deposit_spread = #{depositSpread},
+            withdraw_spread = #{withdrawSpread},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+</mapper>

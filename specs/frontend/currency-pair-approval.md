@@ -1,5 +1,5 @@
 ---
-status: pending
+status: done
 title: "Currency Pair as an Audit Consumer"
 requirement: "Currency pair update/delete must not apply directly — they must be submitted for approval through the standalone audit module, with before/after visible before approving. Create was originally in scope here too, but per a later requirement the page's create action (Add button/create modal) has been removed entirely — a brand's pair can now only come into existence via the global 幣種對主檔 page (specs/frontend/currency-pair-definition.md)."
 depends_on: [currency-pair, audit]
@@ -59,18 +59,18 @@ Rendering, reusing the audit module's generic before/after-column and changed-fi
 - The optional `requestedBy` field is not exposed as a form input in this iteration (no auth system to default it from) — omit it from the request payload; it will simply be `null`/absent on submitted requests.
 
 ## Acceptance Criteria
-- [ ] `renderCurrencyPairDiff` is registered for `entityType: "CURRENCY_PAIR"` before the Audit page (`specs/frontend/audit.md`) is reachable, and produces the labeled before/after layout shown above (not the generic fallback) for a `CURRENCY_PAIR` request
-- [ ] On the Audit page, a `CREATE` request shows 品牌/基準幣別/對應幣別/匯率/匯率類型/狀態 correctly in the 修改後 column with 修改前 as the placeholder; `DELETE` is the mirror; `UPDATE` shows both columns with changed fields highlighted
-- [ ] 匯率 renders `—` for a `null` rate (`AUTO`) in the diff view
-- [ ] Currency Pair page's Add/Edit/Delete now show "已送出…申請，待審核" toasts instead of assuming the change applied, and no longer expect the table to reflect the change immediately
-- [ ] Currency Pair page rows with a pending request show a "審核中" badge and disabled Edit/Delete buttons
-- [ ] Currency Pair page surfaces the new 409 "此幣種對已有待審核的異動申請" message on create/edit/delete
+- [x] `renderCurrencyPairDiff` is registered for `entityType: "CURRENCY_PAIR"` before the Audit page (`specs/frontend/audit.md`) is reachable, and produces the labeled before/after layout shown above (not the generic fallback) for a `CURRENCY_PAIR` request
+- [x] On the Audit page, a `CREATE` request shows 品牌/基準幣別/對應幣別/匯率/匯率類型/狀態 correctly in the 修改後 column with 修改前 as the placeholder; `DELETE` is the mirror; `UPDATE` shows both columns with changed fields highlighted
+- [x] 匯率 renders `—` for a `null` rate (`AUTO`) in the diff view
+- [x] Currency Pair page's Add/Edit/Delete now show "已送出…申請，待審核" toasts instead of assuming the change applied, and no longer expect the table to reflect the change immediately — historical wording; there is no Add action in this build, only Edit/Delete
+- [x] Currency Pair page rows with a pending request show a "審核中" badge and disabled Edit/Delete buttons
+- [x] Currency Pair page surfaces the new 409 "此幣種對已有待審核的異動申請" message on create/edit/delete — historical wording; there is no create call in this build, only edit/delete
 
 ### Delta: no create flow on this page
 (The `[x]` items above mentioning `CREATE`/"Add" remain historically accurate for what was built and tested at the time.)
-- [ ] The "+ Add" button and create modal no longer exist on `CurrencyPairPage` — see `specs/frontend/currency-pair.md`
-- [ ] `renderCurrencyPairDiff` still renders correctly for a `CREATE` request already present in audit history (no regression to historical-record viewing), even though no new one can ever be submitted
-- [ ] Edit/Delete toasts, the pending badge, and the 409 "此幣種對已有待審核的異動申請" message are all unchanged by this delta
+- [x] The "+ Add" button and create modal no longer exist on `CurrencyPairPage` — see `specs/frontend/currency-pair.md`
+- [x] `renderCurrencyPairDiff` still renders correctly for a `CREATE` request already present in audit history (no regression to historical-record viewing), even though no new one can ever be submitted
+- [x] Edit/Delete toasts, the pending badge, and the 409 "此幣種對已有待審核的異動申請" message are all unchanged by this delta
 
 ---
 ## Execution Result
@@ -125,3 +125,23 @@ Rendering, reusing the audit module's generic before/after-column and changed-fi
 
 ### Teardown — 2026-08-03
 Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.
+
+### Increment 3 — 2026-08-04 (Rebuild after teardown: built directly to the final, edit-only + audit-gated end state)
+- Status: DONE. Dispatched together with `specs/frontend/currency-pair.md` in a single pass, built directly to both specs' final end state — no interim "create submits an audit request too" step was ever written, since the live backend (`specs/backend/currency-pair-approval.md`, `status: done`) already has no `POST /api/currency-pairs` route at all.
+- Files changed:
+  - `develop/frontend/src/components/CurrencyPairDiff.tsx` (new) — `renderCurrencyPairDiff`, a `DiffRenderer` (from `../audit/diffRegistry`) rendering the fixed-order 品牌/基準幣別/對應幣別/匯率/匯率類型/狀態 fields in a 修改前/修改後 two-column table, reusing the generic diff module's `generic-diff-table`/`generic-diff-row-changed` CSS classes (`diffRegistry.css`) for visual consistency with the fallback renderer. `匯率` renders `—` for `null`; `狀態` renders 啟用/停用; `匯率類型` renders 手動/自動. Never highlights a field against a `null` side; shows the real field value on the populated side and `—` on the `null` side for CREATE (`before: null`, historical-only) / DELETE (`after: null`) requests.
+  - `develop/frontend/src/components/CurrencyPairDiff.test.tsx` (new, 6 tests) — fixed field order/labels, 修改前/修改後 headers, only-the-changed-field highlighted, `—` for null rate, 啟用/停用 and 手動/自動 label mapping, and the CREATE/DELETE (one side `null`) real-values-plus-`—`-without-highlighting behavior.
+  - `develop/frontend/src/audit/diffRegistry.tsx` (edited) — added `hasDiffRenderer(entityType): boolean`, exported alongside the existing registry functions, so callers (the review modal) can distinguish "a dedicated renderer exists" from "falling back to the generic one" without this module knowing *why* that distinction matters to the caller. Updated the file's top-of-module doc comment to describe the new opt-in-to-`null` capability instead of asserting renderers "never" receive `null`.
+  - `develop/frontend/src/audit/diffRegistry.test.tsx` (edited) — added `hasDiffRenderer` tests (`false` for an unregistered entityType, `true` after `registerDiffRenderer`).
+  - `develop/frontend/src/audit/AuditReviewModal.tsx` (edited) — `renderDiffArea()` now checks `hasDiffRenderer(request.entityType)` first: if a dedicated renderer is registered, it's handed the raw `before`/`after` (including `null` for CREATE/DELETE) directly, letting the renderer decide how to display the populated side instead of the modal's own blanket placeholder text. Entity types with **no** dedicated renderer keep the exact original behavior (generic "（新增，無先前資料）"/"（將被刪除）" placeholders, never calling into the registry for a `null` side) — purely additive, and the modal itself has no knowledge of `CURRENCY_PAIR` specifically, only of whether *some* renderer is registered for whatever `entityType` string it's given.
+  - `develop/frontend/src/audit/AuditReviewModal.test.tsx` (edited) — added a test registering a null-aware fake renderer (`TEST_ENTITY_NULL_AWARE`) and asserting the modal calls it with `before: null` directly (not the generic placeholder); the pre-existing "no registered renderer" placeholder tests (using `TEST_ENTITY_MODAL`, never registered) are untouched and still pass, proving the change is non-breaking for entity types without a dedicated renderer.
+  - `develop/frontend/src/types/currencyPair.ts`, `develop/frontend/src/api/currencyPairApi.ts`, `develop/frontend/src/components/CurrencyPairTable.tsx`/`.css`/`.test.tsx`, `develop/frontend/src/components/CurrencyPairFormModal.tsx`/`.css`/`.test.tsx`, `develop/frontend/src/pages/CurrencyPairPage.tsx`/`.css`/`.test.tsx`, `develop/frontend/src/pages/CurrencyPage.tsx`/`.test.tsx`, `develop/frontend/src/App.tsx`, `develop/frontend/src/layout/AppShell.tsx` — see `specs/frontend/currency-pair.md`'s own Increment for the full description; this is the shared "Currency Pair page" implementation consumed by both specs' Delta sections (edit-only page, `202`-returning `update`/`remove`, pending-badge derived from `GET /api/audit-requests?entityType=CURRENCY_PAIR&status=PENDING`, `registerDiffRenderer('CURRENCY_PAIR', renderCurrencyPairDiff)` called at `CurrencyPairPage` module scope — which runs as soon as `App.tsx` imports the page, i.e. at app startup, before the Audit page can be visited).
+- Verification performed:
+  - `npm run build` (`tsc -b && vite build`) — succeeds with no type errors.
+  - `npm test` (`vitest run`) — all 14 test files / 121 tests pass.
+  - `npm run lint` (`oxlint`) — no new warnings/errors; only the pre-existing, unrelated `ToastProvider.tsx` fast-refresh warning remains.
+  - Manually traced the live backend's exact error-message strings this frontend branches on (`Currency pair already exists for this brand/base/quote combination` for the live-duplicate case, `A pending audit request already exists for this entity` for the generic pending-dedup case, `Currency pair not found` / `Brand not found` / `Currency not found` for the three 404 cases) against `develop/backend/src/main/java/com/wdd/backend/exception/GlobalExceptionHandler.java`, confirming the frontend's classification logic matches the running backend exactly.
+- Notable judgment calls:
+  - **`AuditReviewModal`'s null-handling change**, and the choice to gate it on `hasDiffRenderer` rather than special-casing `CURRENCY_PAIR` inside the generic audit module (which would violate `specs/frontend/audit.md`'s "must contain no reference to currency pairs" boundary): unchanged in substance from the design already validated in this file's pre-teardown history — re-implemented identically against the current (also-rebuilt) `develop/frontend/src/audit/` module's actual code shape (`generic-diff-table`/`generic-diff-row-changed` class names, not the pre-teardown snapshot's `audit-generic-diff-*` names — cosmetic naming difference only, no behavioral difference).
+  - **Pending-duplicate 409 classification is negative, not positive** (`error.message !== 'Currency pair already exists for this brand/base/quote combination'`), matching the live backend's actual two distinct 409 messages (the live-duplicate check inside `CurrencyPairValidator.requireNoConflict`, and the generic audit module's own pending-dedup check in `DuplicatePendingAuditRequestException`) — confirmed by direct inspection of both exception classes rather than assumption.
+  - Built directly to the final state per the dispatching instruction: `CurrencyPairFormModal` never had a `mode` prop, `currencyPairApi.ts` never exported `create`, and `CurrencyPairPage` never rendered an "+ Add" button — there was no intermediate version to remove from. This makes this increment's file list nearly identical to what a from-scratch "Increment 1" would have looked like, just already accounting for both this spec's and `specs/frontend/currency-pair.md`'s Delta sections in the very first pass.

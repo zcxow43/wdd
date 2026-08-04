@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wdd.backend.mapper.SpreadGroupMapper">
+
+    <resultMap id="SpreadGroupResultMap" type="com.wdd.backend.model.SpreadGroup">
+        <id property="id" column="id"/>
+        <result property="brandId" column="brand_id"/>
+        <result property="name" column="name"/>
+        <result property="depositSpread" column="deposit_spread"/>
+        <result property="withdrawSpread" column="withdraw_spread"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="brandCode" column="brand_code"/>
+    </resultMap>
+
+    <sql id="enrichedSelect">
+        SELECT sg.id,
+               sg.brand_id,
+               sg.name,
+               sg.deposit_spread,
+               sg.withdraw_spread,
+               sg.created_at,
+               sg.updated_at,
+               b.code AS brand_code
+        FROM spread_group sg
+        INNER JOIN brand b ON b.id = sg.brand_id
+    </sql>
+
+    <select id="findAll" resultMap="SpreadGroupResultMap">
+        <include refid="enrichedSelect"/>
+        <where>
+            <if test="brandId != null">
+                AND sg.brand_id = #{brandId}
+            </if>
+        </where>
+        ORDER BY sg.id
+    </select>
+
+    <select id="findById" resultMap="SpreadGroupResultMap">
+        <include refid="enrichedSelect"/>
+        WHERE sg.id = #{id}
+    </select>
+
+    <select id="findByBrandAndName" resultMap="SpreadGroupResultMap">
+        <include refid="enrichedSelect"/>
+        WHERE sg.brand_id = #{brandId}
+          AND sg.name = #{name}
+        <if test="excludeId != null">
+            AND sg.id &lt;&gt; #{excludeId}
+        </if>
+    </select>
+
+    <insert id="insert" parameterType="com.wdd.backend.model.SpreadGroup" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO spread_group (brand_id, name, deposit_spread, withdraw_spread, created_at, updated_at)
+        VALUES (#{brandId}, #{name}, #{depositSpread}, #{withdrawSpread}, NOW(), NOW())
+    </insert>
+
+    <update id="update" parameterType="com.wdd.backend.model.SpreadGroup">
+        UPDATE spread_group
+        SET name = #{name},
+            deposit_spread = #{depositSpread},
+            withdraw_spread = #{withdrawSpread},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM spread_group WHERE id = #{id}
+    </delete>
+
+</mapper>
