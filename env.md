@@ -1,17 +1,5 @@
 # Development Environment
 
-## Project Directory Structure
-```
-wdd/                    ← project root (shared configs only)
-├── develop/
-│   ├── backend/        ← Spring Boot Maven project (pom.xml, src/, etc.)
-│   └── frontend/       ← React Vite project (package.json, src/, etc.)
-├── docker/             ← docker-compose.yml + start-*.sh (run commands)
-├── demo/               ← static UI prototypes, served by demo/server.js
-├── specs/              ← spec files
-└── env.md
-```
-
 # Develop
 
 ## Frontend
@@ -27,10 +15,6 @@ wdd/                    ← project root (shared configs only)
 - Framework: Spring Boot 3.x
 - Build Tool: Maven
 - ORM: MyBatis
-
-## Demo
-- Directory: `demo/`
-- Description: plain static file server rooted at `demo/`
 
 # Container
 
