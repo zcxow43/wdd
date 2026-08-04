@@ -1,5 +1,5 @@
 ---
-status: done
+status: pending
 title: "Spread Group Member Table"
 requirement: "客制點差可將多個幣種對加入同一組, 每個幣種對最多屬於一組客制點差"
 ---
@@ -60,10 +60,10 @@ CREATE TABLE IF NOT EXISTS `spread_group_member` (
 2. `V008__create_spread_group_member_table.sql` (this spec) — must run after `V007` (FK to `spread_group`) and after `V003` (FK to `currency_pair`)
 
 ## Acceptance Criteria
-- [x] `spread_group_member` created with UNIQUE `currency_pair_id` — inserting a second membership row for the same currency pair fails
-- [x] Deleting a `spread_group` cascades to remove its `spread_group_member` rows
-- [x] Deleting a `currency_pair` cascades to remove its `spread_group_member` row, if any
-- [x] `V008` applied directly against the live database (per current convention — no `docker/mysql/initdb/` mechanism; see Increment 2 below)
+- [ ] `spread_group_member` created with UNIQUE `currency_pair_id` — inserting a second membership row for the same currency pair fails
+- [ ] Deleting a `spread_group` cascades to remove its `spread_group_member` rows
+- [ ] Deleting a `currency_pair` cascades to remove its `spread_group_member` row, if any
+- [ ] `V008` applied directly against the live database (per current convention — no `docker/mysql/initdb/` mechanism; see Increment 2 below)
 
 ---
 ## Execution Result
@@ -103,3 +103,6 @@ Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteri
   - All test/verification rows removed afterward; `spread_group_member` left at 0 rows (expected — no seed data for this table).
   - Confirmed pre-existing tables/data untouched: `brand` (7 rows), `currency` (10 rows), `currency_pair` (14 rows), `spread_default` (7 rows), `audit_request` (0 rows), `spread_group` (0 rows after test cleanup).
   - No standalone `.sql` file was written anywhere (per current convention — migration SQL lives only in this spec's `## Migration SQL` section and was applied directly via the `mysql` CLI).
+
+### Teardown — 2026-08-04
+Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.

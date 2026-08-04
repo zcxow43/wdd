@@ -1,5 +1,5 @@
 ---
-status: done
+status: pending
 title: "Currency Pair Table"
 requirement: "Create currency_pair table with exchange rate (manual/auto), scoped per brand, unique per brand+base+quote, and FK constraints that block deleting a currency still referenced by a pair. Delta: rate must be nullable and cleared for AUTO pairs, required for MANUAL pairs; add more seed/test data."
 ---
@@ -182,27 +182,27 @@ DELETE FROM `currency_pair_definition`;
 6. `V011__reset_currency_pair_data.sql` (this addendum) — one-time data reset
 
 ## Acceptance Criteria
-- [x] `currency_pair` table created with all columns and correct types, including `brand_id`
-- [x] Unique constraint on (`brand_id`, `base_currency_id`, `quote_currency_id`) — the same (base, quote) pair is allowed to repeat across different brands
-- [x] FK constraints to `brand(id)`, and to `currency(id)` on both base and quote, all `ON DELETE RESTRICT`
-- [x] CHECK constraints enforce base ≠ quote, valid `rate_type`, and `rate > 0`
-- [x] Attempting to delete a `currency` or `brand` row referenced by any `currency_pair` fails at the DB level
-- [x] Seed data inserted successfully and joins correctly to existing `currency` and `brand` rows
-- [x] Timestamps auto-populate on insert and update
-- [x] `rate` column is nullable
-- [x] Existing `AUTO` rows have `rate` cleared to `NULL` by the migration
-- [x] New `ck_currency_pair_rate_valid` CHECK rejects a `MANUAL` row with `NULL`/`0`/negative `rate`
-- [x] New `ck_currency_pair_rate_valid` CHECK rejects an `AUTO` row with a non-`NULL` `rate`
-- [x] Old `ck_currency_pair_rate_positive` constraint no longer exists
-- [x] All 7 seeded brands (`AU`, `MONETA`, `PUG`, `STAR`, `UM`, `VJP`, `VT`) have at least one currency pair after the new seed data is applied
-- [x] New seed rows join correctly to existing `brand`/`currency` rows and respect the per-`rate_type` rate rule (`NULL` for `AUTO`, populated for `MANUAL`)
-- [x] `SELECT COUNT(*) FROM currency_pair` returns `0` after `V011` runs
-- [x] `SELECT COUNT(*) FROM currency_pair_definition` returns `0` after `V011` runs
-- [x] `SELECT COUNT(*) FROM audit_request WHERE entity_type = 'CURRENCY_PAIR'` returns `0` after `V011` runs
-- [x] `SELECT COUNT(*) FROM spread_group_member` reflects the automatic cascade removal of any rows that referenced a now-deleted `currency_pair` (no manual DELETE needed for this table)
-- [x] `brand`, `currency`, `spread_default`, `spread_group`, and any non-`CURRENCY_PAIR` `audit_request` rows are unchanged by `V011` — verified by row counts before/after
-- [x] No table's columns, indexes, or constraints changed by `V011` — `DESCRIBE`/`SHOW CREATE TABLE` identical before and after for every table
-- [x] After `V011`, `POST /api/currency-pair-definitions` for any (base, quote) direction succeeds at the database layer (no leftover `409`/constraint violation from a stale definition row) — verified directly in SQL; see notes below on a separately-scoped application-runtime issue
+- [ ] `currency_pair` table created with all columns and correct types, including `brand_id`
+- [ ] Unique constraint on (`brand_id`, `base_currency_id`, `quote_currency_id`) — the same (base, quote) pair is allowed to repeat across different brands
+- [ ] FK constraints to `brand(id)`, and to `currency(id)` on both base and quote, all `ON DELETE RESTRICT`
+- [ ] CHECK constraints enforce base ≠ quote, valid `rate_type`, and `rate > 0`
+- [ ] Attempting to delete a `currency` or `brand` row referenced by any `currency_pair` fails at the DB level
+- [ ] Seed data inserted successfully and joins correctly to existing `currency` and `brand` rows
+- [ ] Timestamps auto-populate on insert and update
+- [ ] `rate` column is nullable
+- [ ] Existing `AUTO` rows have `rate` cleared to `NULL` by the migration
+- [ ] New `ck_currency_pair_rate_valid` CHECK rejects a `MANUAL` row with `NULL`/`0`/negative `rate`
+- [ ] New `ck_currency_pair_rate_valid` CHECK rejects an `AUTO` row with a non-`NULL` `rate`
+- [ ] Old `ck_currency_pair_rate_positive` constraint no longer exists
+- [ ] All 7 seeded brands (`AU`, `MONETA`, `PUG`, `STAR`, `UM`, `VJP`, `VT`) have at least one currency pair after the new seed data is applied
+- [ ] New seed rows join correctly to existing `brand`/`currency` rows and respect the per-`rate_type` rate rule (`NULL` for `AUTO`, populated for `MANUAL`)
+- [ ] `SELECT COUNT(*) FROM currency_pair` returns `0` after `V011` runs
+- [ ] `SELECT COUNT(*) FROM currency_pair_definition` returns `0` after `V011` runs
+- [ ] `SELECT COUNT(*) FROM audit_request WHERE entity_type = 'CURRENCY_PAIR'` returns `0` after `V011` runs
+- [ ] `SELECT COUNT(*) FROM spread_group_member` reflects the automatic cascade removal of any rows that referenced a now-deleted `currency_pair` (no manual DELETE needed for this table)
+- [ ] `brand`, `currency`, `spread_default`, `spread_group`, and any non-`CURRENCY_PAIR` `audit_request` rows are unchanged by `V011` — verified by row counts before/after
+- [ ] No table's columns, indexes, or constraints changed by `V011` — `DESCRIBE`/`SHOW CREATE TABLE` identical before and after for every table
+- [ ] After `V011`, `POST /api/currency-pair-definitions` for any (base, quote) direction succeeds at the database layer (no leftover `409`/constraint violation from a stale definition row) — verified directly in SQL; see notes below on a separately-scoped application-runtime issue
 
 ---
 ## Execution Result
@@ -314,3 +314,6 @@ Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteri
   - Verified the DB-layer intent of the "no stale `409`" acceptance criterion directly with SQL: inside a transaction, inserted 1 `currency_pair_definition` row (base=1, quote=2, forward_precision=4, reverse_precision=4) followed by a fan-out `INSERT INTO currency_pair ... SELECT id, ... FROM brand`, confirmed 1 definition row and 7 fanned-out pair rows (one per brand) inserted with no unique-constraint or check-constraint violations, then `ROLLBACK`ed, leaving both tables back at 0 rows.
   - Migration is not reversible (data deletion); rollback would require restoring from a backup taken before this ran, per the in-file comment. This was not needed — migration succeeded cleanly.
   - This completes the rebuild of this spec: `V003`, `V004`, and `V011` are all now applied and verified against the live database this session. Front-matter `status` set to `done`.
+
+### Teardown — 2026-08-04
+Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.

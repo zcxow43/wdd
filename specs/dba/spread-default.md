@@ -1,5 +1,5 @@
 ---
-status: done
+status: pending
 title: "Spread Default Table"
 requirement: "每個品牌有一組預設點差, 有入金出金兩個欄位; 未配置客制點差的幣種對使用該品牌的預設點差; 點差依品牌區分"
 ---
@@ -66,10 +66,10 @@ SELECT `id`, 0, 0 FROM `brand`;
 `spread_default` updates now go through the existing generic `audit_request` table (`specs/dba/audit.md`, already migrated as `V005`) instead of applying directly — see `specs/backend/spread.md`. **No schema change is needed for this**: `audit_request` is entity-agnostic (`entity_type`/`before_snapshot`/`after_snapshot` already accommodate a new `SPREAD_DEFAULT` consumer with zero migration). `spread_default` itself is unchanged by this addendum — it is only ever mutated by the backend's audit-handler `apply(...)` step now, never directly.
 
 ## Acceptance Criteria
-- [x] `spread_default` created with one seeded row per existing brand, `deposit_spread`/`withdraw_spread` both `0`
-- [x] UNIQUE constraint on `spread_default.brand_id` (one default row per brand)
-- [x] Attempting to delete a `brand` referenced by `spread_default` is rejected
-- [x] No new migration is added for the audit-approval addendum — confirmed `audit_request` (`V005`) already accommodates `SPREAD_DEFAULT` as a new `entity_type` value with no schema change
+- [ ] `spread_default` created with one seeded row per existing brand, `deposit_spread`/`withdraw_spread` both `0`
+- [ ] UNIQUE constraint on `spread_default.brand_id` (one default row per brand)
+- [ ] Attempting to delete a `brand` referenced by `spread_default` is rejected
+- [ ] No new migration is added for the audit-approval addendum — confirmed `audit_request` (`V005`) already accommodates `SPREAD_DEFAULT` as a new `entity_type` value with no schema change
 
 ---
 ## Execution Result
@@ -114,3 +114,6 @@ Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteri
   - Verified FK `RESTRICT` on `brand` deletion is enforced by `spread_default`: inside a transaction, deleted brand 7's `currency_pair` rows first (removing that blocker), then attempted `DELETE FROM brand WHERE id = 7;`, which failed with `ERROR 1451: ... CONSTRAINT 'fk_spread_default_brand' ...`; the transaction was rolled back, and post-check confirms `brand` (7), `currency_pair` (14), `currency` (10) row counts are unchanged.
   - No new migration was written for the audit-approval addendum, per spec: `audit_request` (`V005`, already live, currently 0 rows post-teardown) is entity-agnostic and requires no schema change to accommodate `SPREAD_DEFAULT` as a new `entity_type` value.
   - All Acceptance Criteria checked off above; frontmatter set to `status: done`.
+
+### Teardown — 2026-08-04
+Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.

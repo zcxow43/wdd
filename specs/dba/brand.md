@@ -1,5 +1,5 @@
 ---
-status: done
+status: pending
 title: "Brand Table"
 requirement: "Create brand table (fixed set: AU, MONETA, PUG, STAR, UM, VJP, VT — uppercase codes), toggleable active flag; each brand owns its own currency pairs"
 ---
@@ -70,11 +70,11 @@ INSERT INTO `brand` (`code`, `name`, `active`) VALUES
 3. `V003__create_currency_pair_table.sql` (`specs/dba/currency-pair.md`) — must run after this migration since it FKs to `brand`
 
 ## Acceptance Criteria
-- [x] `brand` table created with all columns and correct types
-- [x] Unique constraint on `code`
-- [x] CHECK constraint enforces `code` is uppercase
-- [x] 7 seed rows inserted: AU, MONETA, PUG, STAR, UM, VJP, VT, all `active = 1`
-- [x] Timestamps auto-populate on insert and update
+- [ ] `brand` table created with all columns and correct types
+- [ ] Unique constraint on `code`
+- [ ] CHECK constraint enforces `code` is uppercase
+- [ ] 7 seed rows inserted: AU, MONETA, PUG, STAR, UM, VJP, VT, all `active = 1`
+- [ ] Timestamps auto-populate on insert and update
 
 ---
 ## Execution Result
@@ -107,3 +107,6 @@ Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteri
   Verified: `DESCRIBE brand` shows all 6 columns with correct types/nullability/defaults (id BIGINT PK AUTO_INCREMENT, code VARCHAR(20) UNI, name VARCHAR(100), active TINYINT(1) DEFAULT 1, created_at/updated_at DATETIME with CURRENT_TIMESTAMP defaults, updated_at ON UPDATE CURRENT_TIMESTAMP). `SHOW INDEX FROM brand` confirms PRIMARY on `id` and UNIQUE `uk_brand_code` on `code`. `SHOW CREATE TABLE brand` confirms the CHECK constraint compiles to a binary-charset comparison. Attempted `INSERT INTO brand (code, ...) VALUES ('xx', ...)` and it was correctly rejected with error 3819 (check constraint violated); an uppercase `'ZZ'` insert succeeded and was cleaned up. `SELECT * FROM brand ORDER BY id` returned exactly 7 rows (ids 1-7: AU, MONETA, PUG, STAR, UM, VJP, VT), all `active = 1`. Confirmed `updated_at` auto-refreshes on a real column change (toggled `active` to 0 then back to 1, `updated_at` advanced) while remaining unchanged when a value is set to its existing value (expected MySQL behavior, not a defect). No dangling test rows remain and `AU.active` is back to 1.
 
   All Acceptance Criteria items verified and checked off. Frontmatter status set to `done`.
+
+### Teardown — 2026-08-04
+Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.

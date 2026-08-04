@@ -27,7 +27,7 @@ This project is built and rebuilt from `specs/` rather than by hand:
 - `/dev` — execute every pending spec, dispatching to the matching agent (dba → backend → frontend)
 - `/infra` — inspect/edit `env.md` and the matching `docker-compose.yml` service
 - `/init` — bootstrap `develop/`, `docker/` from `env.md` on an empty checkout
-- `/teardown` — the inverse of `/init`: wipe `develop/`, `docker/`, and every container, and reset all specs back to pending
+- `/destroy` — the inverse of `/init`: wipe `develop/`, `docker/`, and every container, and reset all specs back to pending
 - `/commit` — commit and push both this repo and the `.claude` submodule
 
 A fresh checkout is: `/init` → `/dev`. Config and tooling shared across sessions live in the `.claude/` submodule (agents, commands, skills).

@@ -1,5 +1,5 @@
 ---
-status: done
+status: pending
 title: "Currency Pair Definition (Global Master) Table"
 requirement: "幣種對可以被單獨建立, 建立完後所有品牌都有這一個幣種對, 幣種對可以設定正向與反向的精度, 幣種對如果建立正向, 反向就不可被建立"
 ---
@@ -85,15 +85,15 @@ No seed data — definitions are created on demand via the API (`specs/backend/c
 2. `V009__create_currency_pair_definition_table.sql` (this spec) — apply directly against the live database when `/dev` executes this spec (see `.claude/agents/dba.md`); no standalone `.sql` file is written anywhere
 
 ## Acceptance Criteria
-- [x] `currency_pair_definition` created with all columns and correct types, including the two generated columns
-- [x] Creating a definition for (base=USD, quote=JPY) succeeds
-- [x] Creating a second definition for (base=JPY, quote=USD) — the reverse of the one above — fails at the database level with a unique-key violation on (`pair_key_low`, `pair_key_high`)
-- [x] Creating a duplicate definition for the exact same (base=USD, quote=JPY) direction also fails (same unique key)
-- [x] CHECK constraints reject `base_currency_id = quote_currency_id`, and `forward_precision`/`reverse_precision` outside `0`–`8`
-- [x] Attempting to delete a `currency` row referenced by any `currency_pair_definition` (as base or quote) is rejected
-- [x] Deleting a `currency_pair_definition` row succeeds without touching `currency_pair` (no FK/cascade exists between them)
-- [x] `currency_pair`, `brand`, and `currency` table definitions are byte-for-byte unchanged by this migration
-- [x] Migration applied directly against the live database (historical — at the time this also wrote a copy to `develop/backend/src/main/resources/db/migration/` and `docker/mysql/initdb/`; both locations have since been retired, see Increment 1)
+- [ ] `currency_pair_definition` created with all columns and correct types, including the two generated columns
+- [ ] Creating a definition for (base=USD, quote=JPY) succeeds
+- [ ] Creating a second definition for (base=JPY, quote=USD) — the reverse of the one above — fails at the database level with a unique-key violation on (`pair_key_low`, `pair_key_high`)
+- [ ] Creating a duplicate definition for the exact same (base=USD, quote=JPY) direction also fails (same unique key)
+- [ ] CHECK constraints reject `base_currency_id = quote_currency_id`, and `forward_precision`/`reverse_precision` outside `0`–`8`
+- [ ] Attempting to delete a `currency` row referenced by any `currency_pair_definition` (as base or quote) is rejected
+- [ ] Deleting a `currency_pair_definition` row succeeds without touching `currency_pair` (no FK/cascade exists between them)
+- [ ] `currency_pair`, `brand`, and `currency` table definitions are byte-for-byte unchanged by this migration
+- [ ] Migration applied directly against the live database (historical — at the time this also wrote a copy to `develop/backend/src/main/resources/db/migration/` and `docker/mysql/initdb/`; both locations have since been retired, see Increment 1)
 
 ---
 ## Execution Result
@@ -141,3 +141,6 @@ Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteri
   - Verified `currency_pair`, `brand`, and `currency` table definitions are byte-for-byte unchanged: ran `SHOW CREATE TABLE` on all three post-migration and confirmed no column, index, or constraint was added/removed/altered.
   - Final row counts confirm no unintended side effects: `brand`=7, `currency`=10, `currency_pair`=14, `audit_request`=0, `spread_default`=7, `spread_group`=0, `spread_group_member`=0, `currency_pair_definition`=0 after test-row cleanup.
   - No seed data was inserted, per spec — `currency_pair_definition` is left empty, ready to be populated on demand via the backend API.
+
+### Teardown — 2026-08-04
+Build artifacts wiped (`develop/`, `docker/`) and this spec's Acceptance Criteria reset to unexecuted. The Execution Result above describes a prior build that no longer exists on disk — /dev will re-execute this spec from scratch on the next run.
