@@ -1,0 +1,43 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+  body { margin: 0; padding: 32px; background: #f4f5f7; font-family: -apple-system, "PingFang TC", "Noto Sans TC", sans-serif; }
+  .board { position: relative; display: flex; flex-direction: column; gap: 56px; width: max-content; }
+  .row { display: flex; align-items: flex-start; gap: 40px; }
+  figure { margin: 0; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 8px; }
+  figure img { display: block; max-height: 480px; border-radius: 4px; }
+  figcaption { margin-top: 8px; max-width: 360px; font-size: 14px; color: #333; text-align: center; }
+  .arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; }
+</style></head>
+<body><div class="board"><div class="row">
+  <figure id="frame-0">
+    <img src="step-1.png" />
+    <figcaption>初始畫面：選定品牌 VT 的點差管理頁，顯示預設點差（入金 0.05／出金 0.05）與現有的「歐系貨幣群組」客制點差</figcaption>
+  </figure>
+  <figure id="frame-1">
+    <img src="step-2.png" />
+    <figcaption>點擊「+新增群組」按鈕：開啟新增點差群組表單，幣種對指派面板顯示各幣種對目前所屬群組</figcaption>
+  </figure>
+  <figure id="frame-2">
+    <img src="step-3.png" />
+    <figcaption>填寫名稱「低點差群組」、入金 0.1／出金 0.2，並將 USD/JPY、USD/EUR 移入「已加入本群組」（USD/EUR 顯示核准後將自動移出歐系貨幣群組的提示）</figcaption>
+  </figure></div><div class="row">
+  <figure id="frame-5">
+    <img src="step-6.png" />
+    <figcaption>核准後：客制點差群組列表新增「低點差群組」，USD/EUR 已從歐系貨幣群組移出並改屬新群組</figcaption>
+  </figure>
+  <figure id="frame-4">
+    <img src="step-5.png" />
+    <figcaption>前往審核作業頁面查看該筆申請：核准前的新增差異，欄位（品牌／名稱／入金點差／出金點差／幣種對）皆顯示修改後的新值</figcaption>
+  </figure>
+  <figure id="frame-3">
+    <img src="step-4.png" />
+    <figcaption>點擊「送出」：關閉表單並顯示「已送出新增點差群組申請，待審核」提示，列表暫不變動</figcaption>
+  </figure></div>
+  <svg class="arrows" width="2438" height="1188">
+    <defs>
+      <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#888" />
+      </marker>
+    </defs>
+    <line x1="776.4666666666667" y1="231.4" x2="1059" y2="155.66666666666666" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="1635" y1="281" x2="1693" y2="281" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="2240.733333333333" y1="410.59999999999997" x2="2077" y2="1098.2" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="1693" y1="903" x2="1416.3333333333335" y2="799" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="1372.6" y1="1004.6" x2="787.1333333333333" y2="957.8000000000001" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" />
+  </svg></div></body></html>

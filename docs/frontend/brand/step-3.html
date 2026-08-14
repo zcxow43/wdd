@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>品牌管理</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "PingFang TC", "Noto Sans TC", sans-serif; background: #f5f6f8; color: #1f2329; }
+  .page { padding: 32px 40px; }
+  .page-title { font-size: 22px; font-weight: 600; margin: 0 0 20px; }
+  .card { background: #fff; border: 1px solid #e4e7ec; border-radius: 10px; box-shadow: 0 1px 2px rgba(16,24,40,.04); }
+  .card-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #eef0f3; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 12px 20px; text-align: left; font-size: 14px; }
+  th { color: #6b7280; font-weight: 500; border-bottom: 1px solid #eef0f3; }
+  tbody tr:not(:last-child) td { border-bottom: 1px solid #f3f4f6; }
+  tr.highlight td { background: #f0fdf4; }
+  .col-code { font-family: "SF Mono", Menlo, monospace; font-weight: 700; letter-spacing: .02em; }
+  .toggle { display: inline-flex; align-items: center; gap: 10px; }
+  .switch { position: relative; width: 40px; height: 22px; border-radius: 11px; background: #d1d5db; transition: background .15s; }
+  .switch.on { background: #16a34a; }
+  .knob { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: left .15s; }
+  .switch.on .knob { left: 20px; }
+  .status-label { font-size: 13px; color: #374151; }
+  .status-label.on { color: #16a34a; font-weight: 600; }
+  .card-footer { padding: 12px 20px; font-size: 13px; color: #6b7280; border-top: 1px solid #eef0f3; }
+</style>
+</head>
+<body>
+  <div class="page">
+    <h1 class="page-title">品牌管理</h1>
+    <div class="card">
+      <div class="card-header"><span>品牌列表</span></div>
+      <table>
+        <thead>
+          <tr><th style="width:120px">代碼</th><th>名稱</th><th style="width:160px">狀態</th></tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div class="card-footer">Total <span id="count">7</span> items</div>
+    </div>
+  </div>
+  <script>
+    // PUT /api/brands/{id} resolved: AU is now persisted as inactive.
+    const brands = [
+      { code: 'AU', active: false, justChanged: true },
+      { code: 'MONETA', active: true },
+      { code: 'PUG', active: false },
+      { code: 'STAR', active: true },
+      { code: 'UM', active: true },
+      { code: 'VJP', active: false },
+      { code: 'VT', active: true },
+    ]
+    document.getElementById('rows').innerHTML = brands.map(b => `
+      <tr class="${b.justChanged ? 'highlight' : ''}">
+        <td class="col-code">${b.code}</td>
+        <td>${b.code}</td>
+        <td>
+          <span class="toggle">
+            <span class="switch ${b.active ? 'on' : ''}"><span class="knob"></span></span>
+            <span class="status-label ${b.active ? 'on' : ''}">${b.active ? '啟用' : '停用'}</span>
+          </span>
+        </td>
+      </tr>`).join('')
+    document.getElementById('count').textContent = brands.length
+  </script>
+</body>
+</html>

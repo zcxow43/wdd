@@ -1,0 +1,5 @@
+[
+  { "file": "step-1.html", "caption": "初始畫面：品牌列表，顯示 7 個固定品牌與各自的啟用/停用狀態" },
+  { "file": "step-2.html", "caption": "點擊「AU」品牌的狀態切換開關：立即切換為停用並停用該開關，等待 PUT /api/brands/{id} 回應" },
+  { "file": "step-3.html", "caption": "更新成功：AU 狀態確定為停用" }
+]

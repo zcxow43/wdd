@@ -1,0 +1,39 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+  body { margin: 0; padding: 32px; background: #f4f5f7; font-family: -apple-system, "PingFang TC", "Noto Sans TC", sans-serif; }
+  .board { position: relative; display: flex; flex-direction: column; gap: 56px; width: max-content; }
+  .row { display: flex; align-items: flex-start; gap: 40px; }
+  figure { margin: 0; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 8px; }
+  figure img { display: block; max-height: 480px; border-radius: 4px; }
+  figcaption { margin-top: 8px; max-width: 360px; font-size: 14px; color: #333; text-align: center; }
+  .arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; }
+</style></head>
+<body><div class="board"><div class="row">
+  <figure id="frame-0">
+    <img src="step-1.png" />
+    <figcaption>初始畫面：審核作業列表，狀態篩選為「待審核」，顯示 3 筆待審核申請（新增/修改/刪除）</figcaption>
+  </figure>
+  <figure id="frame-1">
+    <img src="step-2.png" />
+    <figcaption>點擊 Bob 這筆「修改」申請的「查看」：開啟審核異動申請 Modal，以 renderGenericDiff 通用鍵值表呈現 AU · EUR/TWD 的 rate 欄位異動（34.20 → 34.85）</figcaption>
+  </figure>
+  <figure id="frame-2">
+    <img src="step-3.png" />
+    <figcaption>點擊「核准」按鈕：彈出確認對話框「確定要核准此異動申請嗎？」</figcaption>
+  </figure></div><div class="row">
+  <figure id="frame-4">
+    <img src="step-5.png" />
+    <figcaption>將「狀態」篩選切換為「全部」：AU · EUR/TWD 這筆已顯示為「已核准」並附審核人/審核時間，其餘申請仍為「待審核」</figcaption>
+  </figure>
+  <figure id="frame-3">
+    <img src="step-4.png" />
+    <figcaption>確認核准：呼叫核准 API 成功，顯示「核准成功」Toast，Modal 關閉，該筆申請自「待審核」列表移除</figcaption>
+  </figure></div>
+  <svg class="arrows" width="2438" height="1188">
+    <defs>
+      <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#888" />
+      </marker>
+    </defs>
+    <line x1="774.3333333333334" y1="211.66666666666666" x2="1059" y2="171.4" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="1430.2" y1="388.73333333333335" x2="1981" y2="280.99583333333334" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="2099.9333333333334" y1="302.96666666666664" x2="1588.2333333333333" y2="675.8" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="867" y1="903" x2="809" y2="903" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" />
+  </svg></div></body></html>

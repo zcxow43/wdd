@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>點差管理</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "PingFang TC", "Noto Sans TC", sans-serif; background: #f5f6f8; color: #1f2329; }
+  .page { padding: 32px 40px; }
+  .page-title { font-size: 22px; font-weight: 600; margin: 0 0 20px; }
+  .filter-card { background: #fff; border: 1px solid #e4e7ec; border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; box-shadow: 0 1px 2px rgba(16,24,40,.04); }
+  .filter-row { display: flex; align-items: center; gap: 16px; }
+  .filter-group { display: flex; align-items: center; gap: 10px; }
+  .filter-label { font-size: 13px; color: #6b7280; font-weight: 500; }
+  .filter-input { padding: 7px 12px; border: 1px solid #d0d5dd; border-radius: 6px; font-size: 14px; background: #fff; min-width: 160px; }
+  .card { background: #fff; border: 1px solid #e4e7ec; border-radius: 10px; box-shadow: 0 1px 2px rgba(16,24,40,.04); margin-bottom: 20px; }
+  .card-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #eef0f3; font-weight: 600; }
+  .btn { border: none; border-radius: 6px; padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .btn-primary { background: #2563eb; color: #fff; }
+  .btn-secondary { background: #fff; color: #374151; border: 1px solid #d0d5dd; }
+  .spread-default-body { display: flex; align-items: center; justify-content: space-between; padding: 20px; }
+  .spread-default-values { display: flex; align-items: center; gap: 24px; font-size: 15px; }
+  .spread-default-values b { font-weight: 700; color: #111827; margin-left: 4px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 12px 20px; text-align: left; font-size: 14px; }
+  th { color: #6b7280; font-weight: 500; border-bottom: 1px solid #eef0f3; }
+  tbody tr:not(:last-child) td { border-bottom: 1px solid #f3f4f6; }
+  .currency-code { display: inline-block; font-family: "SF Mono", Menlo, monospace; font-size: 12px; font-weight: 700; background: #eef2ff; color: #3730a3; padding: 2px 8px; border-radius: 5px; margin: 2px 3px 2px 0; letter-spacing: .01em; }
+  .table-footer { padding: 12px 20px; font-size: 13px; color: #6b7280; border-top: 1px solid #eef0f3; }
+  .action-link { border: none; background: none; color: #2563eb; font-size: 13px; font-weight: 500; cursor: pointer; padding: 0; margin-right: 14px; }
+  .action-link.danger { color: #dc2626; }
+  .toast { position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%); background: #111827; color: #fff; padding: 12px 22px; border-radius: 8px; font-size: 14px; box-shadow: 0 10px 25px rgba(0,0,0,.25); display: flex; align-items: center; gap: 10px; }
+  .toast-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
+</style>
+</head>
+<body>
+  <div class="page">
+    <h1 class="page-title">點差管理</h1>
+
+    <div class="filter-card">
+      <div class="filter-row">
+        <div class="filter-group">
+          <span class="filter-label">品牌</span>
+          <select class="filter-input"><option selected>VT</option></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span>預設點差</span></div>
+      <div class="spread-default-body">
+        <div class="spread-default-values">
+          <span>入金：<b>0.05</b></span>
+          <span>出金：<b>0.05</b></span>
+        </div>
+        <button class="btn btn-secondary">編輯</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span>客制點差群組</span>
+        <button class="btn btn-primary">+新增群組</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>名稱</th>
+            <th style="width:90px">入金點差</th>
+            <th style="width:90px">出金點差</th>
+            <th>幣種對</th>
+            <th style="width:120px">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- 尚未核准：新群組尚未出現在此表格中 -->
+          <tr>
+            <td>歐系貨幣群組</td>
+            <td>0.15</td>
+            <td>0.25</td>
+            <td><span class="currency-code">USD/EUR</span><span class="currency-code">GBP/USD</span><span class="currency-code">EUR/JPY</span></td>
+            <td><button class="action-link">編輯</button><button class="action-link danger">刪除</button></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="table-footer">Total <span id="count">1</span> items</div>
+    </div>
+  </div>
+
+  <div class="toast" data-target><span class="toast-dot"></span>已送出新增點差群組申請，待審核</div>
+</body>
+</html>

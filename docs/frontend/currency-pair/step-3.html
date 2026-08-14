@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>審核作業</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "PingFang TC", "Noto Sans TC", sans-serif; background: #f5f6f8; color: #1f2329; }
+  .page { padding: 32px 40px; }
+  .page-title { font-size: 22px; font-weight: 600; margin: 0 0 20px; }
+  .filter-bar { display: flex; gap: 12px; margin-bottom: 16px; }
+  .filter-bar select { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; background: #fff; min-width: 140px; }
+  .card { background: #fff; border: 1px solid #e4e7ec; border-radius: 10px; box-shadow: 0 1px 2px rgba(16,24,40,.04); }
+  .card-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #eef0f3; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 12px 20px; text-align: left; font-size: 14px; }
+  th { color: #6b7280; font-weight: 500; border-bottom: 1px solid #eef0f3; }
+  tbody tr:not(:last-child) td { border-bottom: 1px solid #f3f4f6; }
+  tr.active-row td { background: #eff6ff; }
+  .badge-action { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; background: #eef2ff; color: #4338ca; }
+  .badge-status { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; background: #fef3c7; color: #92400e; }
+  .row-actions button { background: none; border: none; color: #2563eb; font-size: 13px; cursor: pointer; padding: 2px 6px; }
+  .card-footer { padding: 12px 20px; font-size: 13px; color: #6b7280; border-top: 1px solid #eef0f3; }
+
+  .overlay { position: fixed; inset: 0; background: rgba(15,23,42,.45); display: flex; align-items: center; justify-content: center; }
+  .modal { background: #fff; border-radius: 10px; width: 620px; box-shadow: 0 10px 30px rgba(0,0,0,.18); }
+  .modal-header { padding: 16px 20px; border-bottom: 1px solid #eef0f3; font-weight: 600; font-size: 16px; }
+  .modal-body { padding: 20px; }
+  .diff-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+  .diff-table th, .diff-table td { padding: 10px 16px; font-size: 14px; text-align: left; border-bottom: 1px solid #f3f4f6; }
+  .diff-table th { color: #6b7280; font-weight: 500; }
+  .diff-table th.diff-col { text-align: center; width: 180px; }
+  .diff-label { color: #6b7280; width: 130px; }
+  .diff-row-changed td { background: #fffbeb; }
+  .diff-row-changed .diff-value { font-weight: 700; }
+  .diff-value { text-align: center; }
+  .meta-line { font-size: 13px; color: #6b7280; margin-bottom: 20px; }
+  .modal-footer { padding: 14px 20px; border-top: 1px solid #eef0f3; display: flex; justify-content: flex-end; gap: 10px; }
+  .btn { padding: 9px 18px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; border: 1px solid transparent; }
+  .btn-primary { background: #2563eb; color: #fff; }
+  .btn-danger-outline { background: #fff; color: #dc2626; border-color: #fecaca; }
+</style>
+</head>
+<body>
+  <div class="page">
+    <h1 class="page-title">審核作業</h1>
+    <div class="filter-bar">
+      <select><option selected>類型：全部</option><option>幣種對</option></select>
+      <select><option selected>狀態：待審核</option><option>已核准</option><option>已拒絕</option><option>全部</option></select>
+    </div>
+    <div class="card">
+      <div class="card-header"><span>待審核申請</span></div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:90px">類型</th>
+            <th>摘要</th>
+            <th style="width:100px">申請人</th>
+            <th style="width:170px">申請時間</th>
+            <th style="width:90px">狀態</th>
+            <th style="width:90px">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div class="card-footer">Total <span id="count">1</span> items</div>
+    </div>
+  </div>
+
+  <div class="overlay">
+    <div class="modal">
+      <div class="modal-header" data-target>審核異動申請 — 修改</div>
+      <div class="modal-body">
+        <table class="diff-table">
+          <thead>
+            <tr><th></th><th class="diff-col">修改前</th><th class="diff-col">修改後</th></tr>
+          </thead>
+          <tbody id="diff-rows"></tbody>
+        </table>
+        <div class="meta-line">申請人: Alice　申請時間: 2026-08-13 15:42</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-danger-outline">拒絕</button>
+        <button class="btn btn-primary" data-trigger>核准</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('rows').innerHTML = `
+      <tr class="active-row">
+        <td><span class="badge-action">修改</span></td>
+        <td>AU · AUD/TWD</td>
+        <td>Alice</td>
+        <td>2026-08-13 15:42</td>
+        <td><span class="badge-status">待審核</span></td>
+        <td class="row-actions"><button>查看</button></td>
+      </tr>`
+
+    const fields = [
+      { label: '品牌', before: 'AU', after: 'AU' },
+      { label: '基準幣別', before: 'AUD', after: 'AUD' },
+      { label: '對應幣別', before: 'TWD', after: 'TWD' },
+      { label: '匯率', before: '—', after: '21.5', changed: true },
+      { label: '匯率類型', before: '自動', after: '手動', changed: true },
+      { label: '狀態', before: '啟用', after: '啟用' },
+    ]
+    document.getElementById('diff-rows').innerHTML = fields.map(f => `
+      <tr class="${f.changed ? 'diff-row-changed' : ''}">
+        <td class="diff-label">${f.label}</td>
+        <td class="diff-value">${f.before}</td>
+        <td class="diff-value">${f.after}</td>
+      </tr>`).join('')
+  </script>
+</body>
+</html>

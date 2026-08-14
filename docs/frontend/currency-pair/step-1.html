@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>幣種對主檔</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "PingFang TC", "Noto Sans TC", sans-serif; background: #f5f6f8; color: #1f2329; }
+  .page { padding: 32px 40px; }
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .page-title { font-size: 22px; font-weight: 600; margin: 0; }
+  .btn { padding: 9px 18px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; border: 1px solid transparent; }
+  .btn-primary { background: #2563eb; color: #fff; }
+  .card { background: #fff; border: 1px solid #e4e7ec; border-radius: 10px; box-shadow: 0 1px 2px rgba(16,24,40,.04); }
+  .card-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #eef0f3; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 12px 20px; text-align: left; font-size: 14px; }
+  th { color: #6b7280; font-weight: 500; border-bottom: 1px solid #eef0f3; }
+  tbody tr:not(:last-child) td { border-bottom: 1px solid #f3f4f6; }
+  .col-code { font-family: "SF Mono", Menlo, monospace; font-weight: 700; letter-spacing: .02em; }
+  .col-num { text-align: center; }
+  .row-actions button { background: none; border: none; color: #2563eb; font-size: 13px; cursor: pointer; padding: 2px 6px; }
+  .row-actions button.danger { color: #dc2626; }
+  .card-footer { padding: 12px 20px; font-size: 13px; color: #6b7280; border-top: 1px solid #eef0f3; }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1 class="page-title">幣種對主檔</h1>
+      <button class="btn btn-primary" data-trigger>+新增幣種對</button>
+    </div>
+    <div class="card">
+      <div class="card-header"><span>幣種對主檔列表</span></div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:120px">基準幣別</th>
+            <th style="width:120px">對應幣別</th>
+            <th style="width:120px" class="col-num">正向精度</th>
+            <th style="width:120px" class="col-num">反向精度</th>
+            <th style="width:140px">操作</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div class="card-footer">Total <span id="count">4</span> items</div>
+    </div>
+  </div>
+  <script>
+    const defs = [
+      { base: 'USD', quote: 'TWD', fwd: 2, rev: 5 },
+      { base: 'EUR', quote: 'TWD', fwd: 2, rev: 5 },
+      { base: 'USD', quote: 'JPY', fwd: 2, rev: 5 },
+      { base: 'GBP', quote: 'TWD', fwd: 2, rev: 5 },
+    ]
+    document.getElementById('rows').innerHTML = defs.map(d => `
+      <tr>
+        <td class="col-code">${d.base}</td>
+        <td class="col-code">${d.quote}</td>
+        <td class="col-num">${d.fwd}</td>
+        <td class="col-num">${d.rev}</td>
+        <td class="row-actions"><button>編輯</button><button class="danger">刪除</button></td>
+      </tr>`).join('')
+    document.getElementById('count').textContent = defs.length
+  </script>
+</body>
+</html>
