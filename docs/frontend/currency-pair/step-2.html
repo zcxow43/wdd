@@ -76,7 +76,7 @@
 
   <div class="overlay">
     <div class="modal">
-      <div class="modal-header" data-target>編輯幣種對</div>
+      <div class="modal-header">編輯幣種對</div>
       <div class="modal-body">
         <div class="field">
           <label>品牌</label>
@@ -121,7 +121,7 @@
       { base: 'AUD', quote: 'TWD', rate: null, type: '自動', active: true, added: true },
     ]
     document.getElementById('rows').innerHTML = pairs.map(p => `
-      <tr class="${p.added ? 'highlight' : ''}">
+      <tr class="${p.added ? 'highlight' : ''}" ${p.added ? 'data-target' : ''}>
         <td class="col-code">AU</td>
         <td class="col-code">${p.base}</td>
         <td class="col-code">${p.quote}</td>
