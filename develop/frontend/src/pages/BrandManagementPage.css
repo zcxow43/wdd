@@ -1,0 +1,67 @@
+.brand-page__breadcrumb {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.brand-page__title {
+  margin: 0 0 24px;
+  color: #111827;
+}
+
+.brand-page__status {
+  color: #6b7280;
+}
+
+.brand-page__error {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+  color: #d92d20;
+}
+
+.brand-page__error button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid #d92d20;
+  background: #fff;
+  color: #d92d20;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.brand-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px #e5e7eb;
+}
+
+.brand-table th {
+  text-align: left;
+  padding: 16px 24px;
+  background: #f9fafb;
+  font-weight: 500;
+  font-size: 14px;
+  color: #6b7280;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.brand-table td {
+  padding: 16px 24px;
+  border-bottom: 1px solid #f1f2f5;
+  font-size: 15px;
+  color: #1f2430;
+}
+
+.brand-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.brand-table__code-cell {
+  font-family: 'SF Mono', Menlo, monospace;
+  color: #374151;
+}

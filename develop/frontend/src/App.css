@@ -1,0 +1,9 @@
+.health-check {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  place-content: center;
+  place-items: center;
+  height: 100vh;
+  text-align: center;
+}

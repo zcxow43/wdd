@@ -1,5 +1,5 @@
 ---
-status: pending
+status: done
 title: "Brand Master Table"
 requirement: "匯率中心需要品牌主檔，內建七個品牌 au, moneta, pug, star, um, vjp, vt，品牌可以開啟關閉"
 ---
@@ -51,7 +51,13 @@ INSERT INTO brand (code, name, active) VALUES
 ```
 
 ## Acceptance Criteria
-- [ ] `brand` table exists with columns `id, code, name, active, created_at, updated_at` exactly as defined above.
-- [ ] `code` has a unique constraint.
-- [ ] After migration, `SELECT COUNT(*) FROM brand` returns 7.
-- [ ] All seven seeded rows have `active = TRUE` and codes `au, moneta, pug, star, um, vjp, vt`.
+- [x] `brand` table exists with columns `id, code, name, active, created_at, updated_at` exactly as defined above.
+- [x] `code` has a unique constraint.
+- [x] After migration, `SELECT COUNT(*) FROM brand` returns 7.
+- [x] All seven seeded rows have `active = TRUE` and codes `au, moneta, pug, star, um, vjp, vt`.
+
+---
+## Execution Result
+- Status: DONE
+- Files changed: `specs/dba/brand.md` (this spec, checked off acceptance criteria and status). No standalone `.sql` files created — migration SQL applied directly against the live MySQL database at `127.0.0.1:3306`, database `wdd`, via the `mysql` CLI.
+- Notes: Ran pre-flight validation (env.md fields present, connection succeeded, database `wdd` already existed, target table `brand` did not exist). Executed `V001__create_brand.sql` from the Migration SQL section above directly against the live database: created the `brand` table with `id, code, name, active, created_at, updated_at` and unique constraint `uk_brand_code` on `code`, then seeded the 7 rows (`au, moneta, pug, star, um, vjp, vt`), all with `active = TRUE`. Verified via `DESCRIBE brand`, `SHOW INDEX FROM brand`, `SELECT COUNT(*) FROM brand` (returned 7), and `SELECT code, name, active FROM brand` (all 7 codes present, all `active = 1`).
