@@ -112,12 +112,20 @@ await page2.setViewportSize({ width: box.width + 80, height: box.height + 80 })
 
 // Now that layout is final, measure exactly where each frame landed on the
 // board so arrows can be drawn between real coordinates, not guessed ones.
+// The overlay <svg> is an absolutely-positioned child of .board (top:0,
+// left:0), so its own coordinate space starts at .board's top-left corner,
+// not the page viewport's. getBoundingClientRect() below is viewport-
+// relative (it includes the body's own padding), so every rect is
+// re-anchored to .board's viewport position — otherwise every arrow point
+// lands off by exactly that padding, easily enough to point at the wrong
+// row in a dense table.
 const frameRects = await page2.evaluate((n) => {
+  const boardR = document.querySelector('.board').getBoundingClientRect()
   const rects = []
   for (let i = 0; i < n; i++) {
     const img = document.querySelector(`#frame-${i} img`)
     const r = img.getBoundingClientRect()
-    rects.push({ left: r.left, top: r.top, width: r.width, height: r.height })
+    rects.push({ left: r.left - boardR.left, top: r.top - boardR.top, width: r.width, height: r.height })
   }
   return rects
 }, manifest.length)

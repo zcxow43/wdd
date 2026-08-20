@@ -11,15 +11,15 @@
 <body><div class="board"><div class="row">
   <figure id="frame-0">
     <img src="step-1.png" />
-    <figcaption>初始畫面：品牌列表，顯示 7 個固定品牌與各自的啟用/停用狀態</figcaption>
+    <figcaption>初始畫面：載入 GET /api/brands，列出七個品牌（au、moneta、pug、star、um、vjp、vt），star 目前為停用。</figcaption>
   </figure>
   <figure id="frame-1">
     <img src="step-2.png" />
-    <figcaption>點擊「AU」品牌的狀態切換開關：立即切換為停用並停用該開關，等待 PUT /api/brands/{id} 回應</figcaption>
+    <figcaption>點擊 star 的狀態切換開關：立即呼叫 PUT /api/brands/{id}，切換開關停用並顯示「更新中...」。</figcaption>
   </figure>
   <figure id="frame-2">
     <img src="step-3.png" />
-    <figcaption>更新成功：AU 狀態確定為停用</figcaption>
+    <figcaption>請求成功：star 更新為啟用，切換開關恢復可互動。</figcaption>
   </figure></div>
   <svg class="arrows" width="2438" height="546">
     <defs>
@@ -27,5 +27,5 @@
         <path d="M0,0 L10,5 L0,10 z" fill="#888" />
       </marker>
     </defs>
-    <line x1="733.8000000000001" y1="150.86666666666667" x2="1538.4666666666667" y2="150.86666666666667" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="1635" y1="281" x2="1693" y2="281" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" />
+    <line x1="585.0333333333333" y1="190.86666666666667" x2="1416.3666666666668" y2="190.86666666666667" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="1603" y1="249" x2="1800.2" y2="190.86666666666665" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" />
   </svg></div></body></html>

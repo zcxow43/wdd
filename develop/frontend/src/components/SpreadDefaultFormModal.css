@@ -1,8 +1,0 @@
-.spread-default-form-fields {
-  display: flex;
-  gap: 16px;
-}
-
-.spread-default-form-fields .form-field {
-  flex: 1;
-}
