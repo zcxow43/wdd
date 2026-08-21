@@ -1,0 +1,35 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+  body { margin: 0; padding: 32px; background: #f4f5f7; font-family: -apple-system, "PingFang TC", "Noto Sans TC", sans-serif; }
+  .board { position: relative; display: flex; flex-direction: column; gap: 56px; width: max-content; }
+  .row { display: flex; align-items: flex-start; gap: 40px; }
+  figure { margin: 0; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 8px; }
+  figure img { display: block; max-height: 480px; border-radius: 4px; }
+  figcaption { margin-top: 8px; max-width: 360px; font-size: 14px; color: #333; text-align: center; }
+  .arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; }
+</style></head>
+<body><div class="board"><div class="row">
+  <figure id="frame-0">
+    <img src="step-1.png" />
+    <figcaption>初始畫面：載入 GET /api/currency-pair-definitions，列出既有三個幣種對定義（USD/TWD 精度2 啟用品牌數5/7、EUR/TWD 精度2 啟用品牌數7/7、JPY/TWD 精度0 啟用品牌數0/7）。</figcaption>
+  </figure>
+  <figure id="frame-1">
+    <img src="step-2.png" />
+    <figcaption>點擊「+ 新增幣種對」按鈕：開啟新增表單，基準幣／報價幣尚未選擇，精度預設為 4。</figcaption>
+  </figure>
+  <figure id="frame-2">
+    <img src="step-3.png" />
+    <figcaption>選擇基準幣 USD、報價幣 JPY，精度維持 4，準備點擊「儲存」。</figcaption>
+  </figure></div><div class="row">
+  <figure id="frame-3">
+    <img src="step-4.png" />
+    <figcaption>點擊「儲存」：呼叫 POST /api/currency-pair-definitions，新增 USD/JPY 列（啟用品牌數 0 / 7），並顯示成功提示「幣種對已新增，已為 7 個品牌建立品牌幣種對」。</figcaption>
+  </figure></div>
+  <svg class="arrows" width="2438" height="1228">
+    <defs>
+      <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#888" />
+      </marker>
+    </defs>
+    <line x1="755.6666666666666" y1="50.6" x2="1107" y2="249" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="1603" y1="249" x2="1661" y2="249" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="2126.0666666666666" y1="333.79999999999995" x2="451.66666666666663" y2="833.9333333333334" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" />
+  </svg></div></body></html>

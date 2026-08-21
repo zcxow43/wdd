@@ -1,0 +1,6 @@
+[
+  { "file": "step-1.html", "caption": "初始畫面：載入 GET /api/currency-pair-definitions，列出既有三個幣種對定義（USD/TWD 精度2 啟用品牌數5/7、EUR/TWD 精度2 啟用品牌數7/7、JPY/TWD 精度0 啟用品牌數0/7）。" },
+  { "file": "step-2.html", "caption": "點擊「+ 新增幣種對」按鈕：開啟新增表單，基準幣／報價幣尚未選擇，精度預設為 4。" },
+  { "file": "step-3.html", "caption": "選擇基準幣 USD、報價幣 JPY，精度維持 4，準備點擊「儲存」。" },
+  { "file": "step-4.html", "caption": "點擊「儲存」：呼叫 POST /api/currency-pair-definitions，新增 USD/JPY 列（啟用品牌數 0 / 7），並顯示成功提示「幣種對已新增，已為 7 個品牌建立品牌幣種對」。" }
+]

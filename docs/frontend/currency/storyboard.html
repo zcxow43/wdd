@@ -1,0 +1,39 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+  body { margin: 0; padding: 32px; background: #f4f5f7; font-family: -apple-system, "PingFang TC", "Noto Sans TC", sans-serif; }
+  .board { position: relative; display: flex; flex-direction: column; gap: 56px; width: max-content; }
+  .row { display: flex; align-items: flex-start; gap: 40px; }
+  figure { margin: 0; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 8px; }
+  figure img { display: block; max-height: 480px; border-radius: 4px; }
+  figcaption { margin-top: 8px; max-width: 360px; font-size: 14px; color: #333; text-align: center; }
+  .arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; }
+</style></head>
+<body><div class="board"><div class="row">
+  <figure id="frame-0">
+    <img src="step-1.png" />
+    <figcaption>初始畫面：載入 GET /api/currencies，列出四個幣種（TWD、USD、JPY、EUR）。</figcaption>
+  </figure>
+  <figure id="frame-1">
+    <img src="step-2.png" />
+    <figcaption>點擊「+ 新增幣種」按鈕：開啟新增幣種表單（代碼／名稱／符號／小數位數均為空）。</figcaption>
+  </figure>
+  <figure id="frame-2">
+    <img src="step-3.png" />
+    <figcaption>填入表單：代碼 GBP、名稱英鎊、符號 £、小數位數 2，準備點擊「儲存」。</figcaption>
+  </figure></div><div class="row">
+  <figure id="frame-4">
+    <img src="step-5.png" />
+    <figcaption>請求成功：關閉表單，新增 GBP 幣種列於表格最後一列，並顯示成功提示「幣種已新增」。</figcaption>
+  </figure>
+  <figure id="frame-3">
+    <img src="step-4.png" />
+    <figcaption>點擊「儲存」：呼叫 POST /api/currencies，表單欄位鎖定、按鈕顯示「儲存中...」。</figcaption>
+  </figure></div>
+  <svg class="arrows" width="2438" height="1148">
+    <defs>
+      <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#888" />
+      </marker>
+    </defs>
+    <line x1="755.6666666666667" y1="50.6" x2="1107" y2="249" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="1603" y1="249" x2="1661" y2="249" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="2126.0666666666666" y1="353" x2="1293.2208333333335" y2="933.6666666666667" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="835" y1="851" x2="755.1333333333332" y2="840.8666666666667" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" />
+  </svg></div></body></html>

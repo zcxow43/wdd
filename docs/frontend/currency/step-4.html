@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>幣別管理</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    width: 1440px;
+    height: 900px;
+    font-family: -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    background: #f5f6f8;
+    color: #1f2430;
+    display: flex;
+  }
+  .sidebar {
+    width: 220px;
+    background: #1f2937;
+    color: #cbd5e1;
+    padding: 24px 0;
+    flex-shrink: 0;
+  }
+  .sidebar .logo {
+    color: #fff;
+    font-size: 18px;
+    font-weight: 700;
+    padding: 0 24px 24px;
+    border-bottom: 1px solid #334155;
+    margin-bottom: 12px;
+  }
+  .sidebar .group-title {
+    padding: 10px 24px 4px;
+    font-size: 12px;
+    color: #94a3b8;
+    letter-spacing: 1px;
+  }
+  .sidebar .nav-item {
+    padding: 10px 24px;
+    font-size: 14px;
+    cursor: default;
+  }
+  .sidebar .nav-item.active {
+    background: #334155;
+    color: #fff;
+    border-left: 3px solid #3b82f6;
+    font-weight: 600;
+  }
+  .main {
+    flex: 1;
+    padding: 32px 40px;
+    overflow: hidden;
+    position: relative;
+  }
+  .breadcrumb {
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 8px;
+  }
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .page-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #111827;
+  }
+  .btn {
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 9px 18px;
+    border: 1px solid transparent;
+    cursor: default;
+  }
+  .btn-primary { background: #2563eb; color: #fff; }
+  .btn-primary.disabled { background: #93b8f5; }
+  .btn-secondary { background: #fff; border-color: #d1d5db; color: #374151; }
+  .btn-secondary.disabled { color: #9ca3af; }
+  .btn-danger { background: #dc2626; color: #fff; }
+  .btn-sm { padding: 5px 12px; font-size: 13px; }
+  .card {
+    background: #fff;
+    border: 1px solid #e2e5eb;
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    overflow: hidden;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    text-align: left;
+    font-size: 13px;
+    color: #6b7280;
+    font-weight: 600;
+    background: #f9fafb;
+    padding: 14px 24px;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  tbody td {
+    padding: 14px 24px;
+    font-size: 14px;
+    color: #1f2430;
+    border-bottom: 1px solid #f1f2f5;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  .code-cell { font-family: "SF Mono", Menlo, monospace; color: #374151; }
+  .actions-cell { display: flex; gap: 8px; }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal {
+    width: 420px;
+    background: #fff;
+    border: 1px solid #e2e5eb;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    padding: 24px;
+  }
+  .modal h3 { margin: 0 0 18px; font-size: 17px; color: #111827; }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 13px; color: #374151; margin-bottom: 6px; font-weight: 600; }
+  .field input {
+    width: 100%;
+    padding: 9px 12px;
+    font-size: 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    color: #1f2430;
+  }
+  .field input:disabled { background: #f9fafb; color: #6b7280; }
+  .field-error { color: #d92d20; font-size: 12px; margin-top: 6px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
+  .toast {
+    position: absolute;
+    top: 24px;
+    right: 40px;
+    background: #ecfdf5;
+    border: 1px solid #bbf7d0;
+    color: #16a34a;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    display: none;
+  }
+</style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">匯率中心 WDD</div>
+    <div class="group-title">匯率中心</div>
+    <div class="nav-item active">幣別管理</div>
+    <div class="nav-item">幣別對管理</div>
+    <div class="nav-item">價差群組管理</div>
+    <div class="nav-item">品牌管理</div>
+    <div class="nav-item">審核紀錄</div>
+  </div>
+  <div class="main">
+    <div class="breadcrumb">匯率中心 &gt; 幣別管理</div>
+    <div class="page-header">
+      <div class="page-title">幣別管理</div>
+      <button class="btn btn-primary">+ 新增幣種</button>
+    </div>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:15%">代碼</th>
+            <th style="width:25%">名稱</th>
+            <th style="width:15%">符號</th>
+            <th style="width:20%">小數位數</th>
+            <th style="width:25%">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="code-cell">TWD</td>
+            <td>新台幣</td>
+            <td>NT$</td>
+            <td>0</td>
+            <td class="actions-cell">
+              <button class="btn btn-secondary btn-sm">編輯</button>
+              <button class="btn btn-danger btn-sm">刪除</button>
+            </td>
+          </tr>
+          <tr>
+            <td class="code-cell">USD</td>
+            <td>美元</td>
+            <td>$</td>
+            <td>2</td>
+            <td class="actions-cell">
+              <button class="btn btn-secondary btn-sm">編輯</button>
+              <button class="btn btn-danger btn-sm">刪除</button>
+            </td>
+          </tr>
+          <tr>
+            <td class="code-cell">JPY</td>
+            <td>日圓</td>
+            <td>¥</td>
+            <td>0</td>
+            <td class="actions-cell">
+              <button class="btn btn-secondary btn-sm">編輯</button>
+              <button class="btn btn-danger btn-sm">刪除</button>
+            </td>
+          </tr>
+          <tr>
+            <td class="code-cell">EUR</td>
+            <td>歐元</td>
+            <td>&euro;</td>
+            <td>2</td>
+            <td class="actions-cell">
+              <button class="btn btn-secondary btn-sm">編輯</button>
+              <button class="btn btn-danger btn-sm">刪除</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="overlay">
+    <div class="modal">
+      <h3>新增幣種</h3>
+      <div class="field">
+        <label>代碼</label>
+        <input type="text" value="GBP" disabled />
+      </div>
+      <div class="field">
+        <label>名稱</label>
+        <input type="text" value="英鎊" disabled />
+      </div>
+      <div class="field">
+        <label>符號</label>
+        <input type="text" value="£" disabled />
+      </div>
+      <div class="field">
+        <label>小數位數</label>
+        <input type="text" value="2" disabled />
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary disabled">取消</button>
+        <button class="btn btn-primary disabled" data-target>儲存中...</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

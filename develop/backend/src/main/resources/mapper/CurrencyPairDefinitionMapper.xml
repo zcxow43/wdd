@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wdd.backend.mapper.CurrencyPairDefinitionMapper">
+
+    <resultMap id="CurrencyPairDefinitionResultMap" type="com.wdd.backend.dto.CurrencyPairDefinition">
+        <id property="id" column="id" />
+        <result property="baseCurrencyId" column="base_currency_id" />
+        <result property="baseCurrencyCode" column="base_currency_code" />
+        <result property="quoteCurrencyId" column="quote_currency_id" />
+        <result property="quoteCurrencyCode" column="quote_currency_code" />
+        <result property="precision" column="precision" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <sql id="selectColumns">
+        SELECT d.id, d.base_currency_id, bc.code AS base_currency_code,
+               d.quote_currency_id, qc.code AS quote_currency_code,
+               d.`precision`, d.created_at, d.updated_at
+        FROM currency_pair_definition d
+        JOIN currency bc ON bc.id = d.base_currency_id
+        JOIN currency qc ON qc.id = d.quote_currency_id
+    </sql>
+
+    <select id="findAll" resultMap="CurrencyPairDefinitionResultMap">
+        <include refid="selectColumns" />
+        ORDER BY d.id
+    </select>
+
+    <select id="findById" resultMap="CurrencyPairDefinitionResultMap">
+        <include refid="selectColumns" />
+        WHERE d.id = #{id}
+    </select>
+
+    <select id="findByCurrencyPair" resultMap="CurrencyPairDefinitionResultMap">
+        <include refid="selectColumns" />
+        WHERE d.base_currency_id = #{baseCurrencyId} AND d.quote_currency_id = #{quoteCurrencyId}
+    </select>
+
+    <insert id="insert" parameterType="com.wdd.backend.dto.CurrencyPairDefinition" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO currency_pair_definition (base_currency_id, quote_currency_id, `precision`)
+        VALUES (#{baseCurrencyId}, #{quoteCurrencyId}, #{precision})
+    </insert>
+
+    <update id="updatePrecision">
+        UPDATE currency_pair_definition
+        SET `precision` = #{precision}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM currency_pair_definition
+        WHERE id = #{id}
+    </delete>
+
+</mapper>

@@ -1,0 +1,39 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+  body { margin: 0; padding: 32px; background: #f4f5f7; font-family: -apple-system, "PingFang TC", "Noto Sans TC", sans-serif; }
+  .board { position: relative; display: flex; flex-direction: column; gap: 56px; width: max-content; }
+  .row { display: flex; align-items: flex-start; gap: 40px; }
+  figure { margin: 0; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 8px; }
+  figure img { display: block; max-height: 480px; border-radius: 4px; }
+  figcaption { margin-top: 8px; max-width: 360px; font-size: 14px; color: #333; text-align: center; }
+  .arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; }
+</style></head>
+<body><div class="board"><div class="row">
+  <figure id="frame-0">
+    <img src="step-1.png" />
+    <figcaption>初始畫面：載入 GET /api/brands 顯示品牌選擇器（au 預設選中），並呼叫 GET /api/currency-pairs?brandId={au的id} 列出 au 的幣種對（USD/TWD、EUR/TWD 自動啟用，USD/JPY 自動停用）。</figcaption>
+  </figure>
+  <figure id="frame-1">
+    <img src="step-2.png" />
+    <figcaption>將 USD/JPY 列的「匯率類型」切換為「手動」：匯率欄位轉為可輸入，填入 31.520000，準備點擊該列的「儲存」。</figcaption>
+  </figure>
+  <figure id="frame-2">
+    <img src="step-3.png" />
+    <figcaption>點擊「儲存」：呼叫 PUT /api/currency-pairs/{id}，成功更新為手動匯率 31.520000，顯示成功提示「品牌幣種對已更新」。</figcaption>
+  </figure></div><div class="row">
+  <figure id="frame-4">
+    <img src="step-5.png" />
+    <figcaption>請求成功：USD/JPY 狀態更新為「啟用」，切換開關與其他控制項恢復可互動。</figcaption>
+  </figure>
+  <figure id="frame-3">
+    <img src="step-4.png" />
+    <figcaption>點擊 USD/JPY 列的狀態切換開關：立即呼叫 PUT，該列控制項停用並顯示「更新中...」。</figcaption>
+  </figure></div>
+  <svg class="arrows" width="2438" height="1188">
+    <defs>
+      <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#888" />
+      </marker>
+    </defs>
+    <line x1="328.90833333333336" y1="207.53333333333333" x2="1229.1" y2="207.4" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="1490.2499999999998" y1="207.4" x2="1661" y2="249" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="2188.8749999999995" y1="213.93333333333334" x2="1393.0874999999999" y2="844.7333333333333" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="835" y1="891" x2="777" y2="891" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" />
+  </svg></div></body></html>

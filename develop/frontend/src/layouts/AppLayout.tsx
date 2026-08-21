@@ -8,7 +8,7 @@ interface NavItem {
 }
 
 const EXCHANGE_RATE_CENTER_ITEMS: NavItem[] = [
-  { label: '幣別管理', path: '/currencies', enabled: false },
+  { label: '幣別管理', path: '/currencies', enabled: true },
   { label: '幣別對管理', path: '/currency-pairs', enabled: false },
   { label: '價差群組管理', path: '/spreads', enabled: false },
   { label: '品牌管理', path: '/brands', enabled: true },
