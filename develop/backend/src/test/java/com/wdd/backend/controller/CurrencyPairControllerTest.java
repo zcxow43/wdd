@@ -20,6 +20,14 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+/**
+ * Integration tests against the real DB. Every write on this API is now
+ * audited ({@code POST}/{@code PUT}/{@code DELETE} return {@code 202} with
+ * a pending {@code audit_request} row and change nothing until approved via
+ * {@code POST /api/audit-requests/{id}/approve} — see {@code CurrencyPairAuditHandler}).
+ * The fan-out on {@code POST /api/currency-pair-definitions} and the
+ * cascade on its delete remain unaudited direct writes.
+ */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class CurrencyPairControllerTest {
 
@@ -32,6 +40,7 @@ class CurrencyPairControllerTest {
     private final TestRestTemplate restTemplate = new TestRestTemplate();
 
     private final List<Long> createdCurrencyPairIds = new ArrayList<>();
+    private final List<Long> createdAuditRequestIds = new ArrayList<>();
     private final List<Long> createdDefinitionIds = new ArrayList<>();
     private final List<Long> createdCurrencyIds = new ArrayList<>();
 
@@ -47,12 +56,20 @@ class CurrencyPairControllerTest {
         return "http://localhost:" + port + "/api/currencies";
     }
 
+    private String auditRequestsUrl() {
+        return "http://localhost:" + port + "/api/audit-requests";
+    }
+
     @AfterEach
     void cleanUp() {
         for (Long id : createdCurrencyPairIds) {
-            restTemplate.delete(currencyPairsUrl() + "/" + id);
+            jdbcTemplate.update("DELETE FROM currency_pair WHERE id = ?", id);
         }
         createdCurrencyPairIds.clear();
+        for (Long id : createdAuditRequestIds) {
+            jdbcTemplate.update("DELETE FROM audit_request WHERE id = ?", id);
+        }
+        createdAuditRequestIds.clear();
         for (Long id : createdDefinitionIds) {
             // ON DELETE CASCADE removes any remaining fanned-out currency_pair rows.
             restTemplate.delete(definitionsUrl() + "/" + id);
@@ -103,7 +120,7 @@ class CurrencyPairControllerTest {
         return jdbcTemplate.queryForObject("SELECT id FROM brand ORDER BY id LIMIT 1 OFFSET 1", Long.class);
     }
 
-    private ResponseEntity<Map> createCurrencyPair(Long definitionId, Long brandId, String rateType,
+    private ResponseEntity<Map> postCurrencyPair(Long definitionId, Long brandId, String rateType,
             String rate, Boolean active) {
         StringBuilder body = new StringBuilder("{");
         body.append("\"currencyPairDefinitionId\": ").append(definitionId).append(", ");
@@ -120,10 +137,55 @@ class CurrencyPairControllerTest {
         body.append("}");
         ResponseEntity<Map> response = restTemplate.postForEntity(currencyPairsUrl(), jsonEntity(body.toString()),
                 Map.class);
-        if (response.getStatusCode() == HttpStatus.CREATED) {
-            createdCurrencyPairIds.add(((Number) response.getBody().get("id")).longValue());
+        if (response.getStatusCode() == HttpStatus.ACCEPTED) {
+            createdAuditRequestIds.add(((Number) response.getBody().get("auditRequestId")).longValue());
         }
         return response;
+    }
+
+    private ResponseEntity<Map> putCurrencyPair(Long id, String body) {
+        ResponseEntity<Map> response = restTemplate.exchange(currencyPairsUrl() + "/" + id, HttpMethod.PUT,
+                jsonEntity(body), Map.class);
+        if (response.getStatusCode() == HttpStatus.ACCEPTED) {
+            createdAuditRequestIds.add(((Number) response.getBody().get("auditRequestId")).longValue());
+        }
+        return response;
+    }
+
+    private ResponseEntity<Map> deleteCurrencyPair(Long id) {
+        ResponseEntity<Map> response = restTemplate.exchange(currencyPairsUrl() + "/" + id, HttpMethod.DELETE, null,
+                Map.class);
+        if (response.getStatusCode() == HttpStatus.ACCEPTED) {
+            createdAuditRequestIds.add(((Number) response.getBody().get("auditRequestId")).longValue());
+        }
+        return response;
+    }
+
+    private ResponseEntity<Map> approve(Long auditRequestId) {
+        return restTemplate.postForEntity(auditRequestsUrl() + "/" + auditRequestId + "/approve",
+                jsonEntity("{}"), Map.class);
+    }
+
+    private ResponseEntity<Map> reject(Long auditRequestId) {
+        return restTemplate.postForEntity(auditRequestsUrl() + "/" + auditRequestId + "/reject",
+                jsonEntity("{\"comment\": \"no\"}"), Map.class);
+    }
+
+    private ResponseEntity<Map> cancel(Long auditRequestId) {
+        return restTemplate.postForEntity(auditRequestsUrl() + "/" + auditRequestId + "/cancel",
+                jsonEntity("{}"), Map.class);
+    }
+
+    private Long findPairId(Long definitionId, Long brandId) {
+        return jdbcTemplate.queryForObject(
+                "SELECT id FROM currency_pair WHERE currency_pair_definition_id = ? AND brand_id = ?", Long.class,
+                definitionId, brandId);
+    }
+
+    private Integer countPairs(Long definitionId, Long brandId) {
+        return jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM currency_pair WHERE currency_pair_definition_id = ? AND brand_id = ?",
+                Integer.class, definitionId, brandId);
     }
 
     @Test
@@ -161,20 +223,36 @@ class CurrencyPairControllerTest {
     }
 
     @Test
-    void createWithAutoRateTypeCreatesRowWithNullRateEvenIfRateSent() {
+    void createReturns202AndCreatesRowOnlyAfterApproval() {
         Long baseId = createCurrency("QPC");
         Long quoteId = createCurrency("QPD");
         Long definitionId = createDefinition(baseId, quoteId, 4);
         deleteFannedOutPairs(definitionId);
         Long brandId = firstBrandId();
 
-        ResponseEntity<Map> response = createCurrencyPair(definitionId, brandId, "AUTO", "150.25", false);
+        ResponseEntity<Map> response = postCurrencyPair(definitionId, brandId, "AUTO", "150.25", false);
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(response.getBody().get("rateType")).isEqualTo("AUTO");
-        assertThat(response.getBody().get("rate")).isNull();
-        assertThat(response.getBody().get("baseCurrencyCode")).isEqualTo("QPC");
-        assertThat(response.getBody().get("quoteCurrencyCode")).isEqualTo("QPD");
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        assertThat(response.getBody().get("status")).isEqualTo("PENDING");
+        assertThat(response.getBody().get("entityType")).isEqualTo("CURRENCY_PAIR");
+        assertThat(response.getBody().get("actionType")).isEqualTo("CREATE");
+        assertThat(response.getBody().get("entityId")).isNull();
+        Long auditRequestId = ((Number) response.getBody().get("auditRequestId")).longValue();
+
+        // Row must not exist yet.
+        assertThat(countPairs(definitionId, brandId)).isEqualTo(0);
+
+        ResponseEntity<Map> approveResponse = approve(auditRequestId);
+        assertThat(approveResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(approveResponse.getBody().get("status")).isEqualTo("APPROVED");
+
+        Long pairId = findPairId(definitionId, brandId);
+        createdCurrencyPairIds.add(pairId);
+        ResponseEntity<Map> pair = restTemplate.getForEntity(currencyPairsUrl() + "/" + pairId, Map.class);
+        assertThat(pair.getBody().get("rateType")).isEqualTo("AUTO");
+        assertThat(pair.getBody().get("rate")).isNull();
+        assertThat(pair.getBody().get("baseCurrencyCode")).isEqualTo("QPC");
+        assertThat(pair.getBody().get("quoteCurrencyCode")).isEqualTo("QPD");
     }
 
     @Test
@@ -185,7 +263,7 @@ class CurrencyPairControllerTest {
         deleteFannedOutPairs(definitionId);
         Long brandId = firstBrandId();
 
-        ResponseEntity<Map> response = createCurrencyPair(definitionId, brandId, "MANUAL", null, false);
+        ResponseEntity<Map> response = postCurrencyPair(definitionId, brandId, "MANUAL", null, false);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
@@ -198,7 +276,7 @@ class CurrencyPairControllerTest {
         deleteFannedOutPairs(definitionId);
         Long brandId = firstBrandId();
 
-        ResponseEntity<Map> response = createCurrencyPair(definitionId, brandId, "MANUAL", "0", false);
+        ResponseEntity<Map> response = postCurrencyPair(definitionId, brandId, "MANUAL", "0", false);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
@@ -211,7 +289,7 @@ class CurrencyPairControllerTest {
         deleteFannedOutPairs(definitionId);
         Long brandId = firstBrandId();
 
-        ResponseEntity<Map> response = createCurrencyPair(definitionId, brandId, "MANUAL", "150.255", false);
+        ResponseEntity<Map> response = postCurrencyPair(definitionId, brandId, "MANUAL", "150.255", false);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
@@ -224,7 +302,7 @@ class CurrencyPairControllerTest {
         Long brandId = firstBrandId();
 
         // A currency_pair row for this (definition, brand) already exists via fan-out.
-        ResponseEntity<Map> response = createCurrencyPair(definitionId, brandId, "AUTO", null, false);
+        ResponseEntity<Map> response = postCurrencyPair(definitionId, brandId, "AUTO", null, false);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     }
@@ -233,7 +311,7 @@ class CurrencyPairControllerTest {
     void createWithNonExistentDefinitionOrBrandReturnsBadRequest() {
         Long brandId = firstBrandId();
 
-        ResponseEntity<Map> badDefinition = createCurrencyPair(999999L, brandId, "AUTO", null, false);
+        ResponseEntity<Map> badDefinition = postCurrencyPair(999999L, brandId, "AUTO", null, false);
         assertThat(badDefinition.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
 
         Long baseId = createCurrency("QPM");
@@ -241,45 +319,62 @@ class CurrencyPairControllerTest {
         Long definitionId = createDefinition(baseId, quoteId, 4);
         deleteFannedOutPairs(definitionId);
 
-        ResponseEntity<Map> badBrand = createCurrencyPair(definitionId, 999999L, "AUTO", null, false);
+        ResponseEntity<Map> badBrand = postCurrencyPair(definitionId, 999999L, "AUTO", null, false);
         assertThat(badBrand.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test
-    void updateCanToggleActiveIndependentlyOfRateTypeAndRate() {
+    void updateReturns202AndChangesRowOnlyAfterApproval() {
         Long baseId = createCurrency("QPO");
         Long quoteId = createCurrency("QPP");
         Long definitionId = createDefinition(baseId, quoteId, 4);
         deleteFannedOutPairs(definitionId);
         Long brandId = firstBrandId();
-        ResponseEntity<Map> created = createCurrencyPair(definitionId, brandId, "MANUAL", "150.25", false);
-        Long id = ((Number) created.getBody().get("id")).longValue();
+        ResponseEntity<Map> created = postCurrencyPair(definitionId, brandId, "MANUAL", "150.25", false);
+        Long createAuditId = ((Number) created.getBody().get("auditRequestId")).longValue();
+        approve(createAuditId);
+        Long id = findPairId(definitionId, brandId);
+        createdCurrencyPairIds.add(id);
 
-        ResponseEntity<Map> response = restTemplate.exchange(currencyPairsUrl() + "/" + id, HttpMethod.PUT,
-                jsonEntity("{\"active\": true}"), Map.class);
+        ResponseEntity<Map> response = putCurrencyPair(id, "{\"active\": true}");
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody().get("active")).isEqualTo(Boolean.TRUE);
-        assertThat(response.getBody().get("rateType")).isEqualTo("MANUAL");
-        assertThat(response.getBody().get("rate")).isEqualTo(150.25);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        assertThat(response.getBody().get("actionType")).isEqualTo("UPDATE");
+        assertThat(response.getBody().get("entityId")).isEqualTo(id.intValue());
+        Long auditRequestId = ((Number) response.getBody().get("auditRequestId")).longValue();
+
+        // Row must be unchanged until approved.
+        ResponseEntity<Map> beforeApprove = restTemplate.getForEntity(currencyPairsUrl() + "/" + id, Map.class);
+        assertThat(beforeApprove.getBody().get("active")).isEqualTo(Boolean.FALSE);
+
+        ResponseEntity<Map> approveResponse = approve(auditRequestId);
+        assertThat(approveResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        ResponseEntity<Map> afterApprove = restTemplate.getForEntity(currencyPairsUrl() + "/" + id, Map.class);
+        assertThat(afterApprove.getBody().get("active")).isEqualTo(Boolean.TRUE);
+        assertThat(afterApprove.getBody().get("rateType")).isEqualTo("MANUAL");
+        assertThat(afterApprove.getBody().get("rate")).isEqualTo(150.25);
     }
 
     @Test
-    void updateSwitchingRateTypeFromManualToAutoClearsRate() {
+    void updateSwitchingRateTypeFromManualToAutoClearsRateAfterApproval() {
         Long baseId = createCurrency("QPQ");
         Long quoteId = createCurrency("QPR");
         Long definitionId = createDefinition(baseId, quoteId, 4);
         deleteFannedOutPairs(definitionId);
         Long brandId = firstBrandId();
-        ResponseEntity<Map> created = createCurrencyPair(definitionId, brandId, "MANUAL", "150.25", false);
-        Long id = ((Number) created.getBody().get("id")).longValue();
+        ResponseEntity<Map> created = postCurrencyPair(definitionId, brandId, "MANUAL", "150.25", false);
+        approve(((Number) created.getBody().get("auditRequestId")).longValue());
+        Long id = findPairId(definitionId, brandId);
+        createdCurrencyPairIds.add(id);
 
-        ResponseEntity<Map> response = restTemplate.exchange(currencyPairsUrl() + "/" + id, HttpMethod.PUT,
-                jsonEntity("{\"rateType\": \"AUTO\"}"), Map.class);
+        ResponseEntity<Map> response = putCurrencyPair(id, "{\"rateType\": \"AUTO\"}");
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        approve(((Number) response.getBody().get("auditRequestId")).longValue());
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody().get("rateType")).isEqualTo("AUTO");
-        assertThat(response.getBody().get("rate")).isNull();
+        ResponseEntity<Map> afterApprove = restTemplate.getForEntity(currencyPairsUrl() + "/" + id, Map.class);
+        assertThat(afterApprove.getBody().get("rateType")).isEqualTo("AUTO");
+        assertThat(afterApprove.getBody().get("rate")).isNull();
     }
 
     @Test
@@ -294,22 +389,30 @@ class CurrencyPairControllerTest {
     }
 
     @Test
-    void deleteSucceedsRegardlessOfActiveState() {
+    void deleteReturns202AndRemovesRowOnlyAfterApprovalRegardlessOfActiveState() {
         Long baseId = createCurrency("QPS");
         Long quoteId = createCurrency("QPT");
         Long definitionId = createDefinition(baseId, quoteId, 4);
         deleteFannedOutPairs(definitionId);
         Long brandId = firstBrandId();
-        ResponseEntity<Map> created = createCurrencyPair(definitionId, brandId, "AUTO", null, true);
-        Long id = ((Number) created.getBody().get("id")).longValue();
-        createdCurrencyPairIds.remove(id);
+        ResponseEntity<Map> created = postCurrencyPair(definitionId, brandId, "AUTO", null, true);
+        approve(((Number) created.getBody().get("auditRequestId")).longValue());
+        Long id = findPairId(definitionId, brandId);
 
-        assertThat(created.getBody().get("active")).isEqualTo(Boolean.TRUE);
+        ResponseEntity<Map> beforeDelete = restTemplate.getForEntity(currencyPairsUrl() + "/" + id, Map.class);
+        assertThat(beforeDelete.getBody().get("active")).isEqualTo(Boolean.TRUE);
 
-        ResponseEntity<Void> response = restTemplate.exchange(currencyPairsUrl() + "/" + id, HttpMethod.DELETE,
-                null, Void.class);
+        ResponseEntity<Map> response = deleteCurrencyPair(id);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        assertThat(response.getBody().get("actionType")).isEqualTo("DELETE");
+        Long auditRequestId = ((Number) response.getBody().get("auditRequestId")).longValue();
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        // Row still present until approved.
+        ResponseEntity<Map> stillThere = restTemplate.getForEntity(currencyPairsUrl() + "/" + id, Map.class);
+        assertThat(stillThere.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        ResponseEntity<Map> approveResponse = approve(auditRequestId);
+        assertThat(approveResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
 
         ResponseEntity<String> getResponse = restTemplate.getForEntity(currencyPairsUrl() + "/" + id, String.class);
         assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
@@ -327,9 +430,141 @@ class CurrencyPairControllerTest {
                 "DELETE FROM currency_pair WHERE currency_pair_definition_id = ? AND brand_id = ?",
                 definitionId, brandId);
 
-        ResponseEntity<Map> response = createCurrencyPair(definitionId, brandId, "AUTO", null, false);
+        ResponseEntity<Map> response = postCurrencyPair(definitionId, brandId, "AUTO", null, false);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        approve(((Number) response.getBody().get("auditRequestId")).longValue());
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(response.getBody().get("brandId")).isEqualTo(brandId.intValue());
+        Long id = findPairId(definitionId, brandId);
+        createdCurrencyPairIds.add(id);
+        ResponseEntity<Map> pair = restTemplate.getForEntity(currencyPairsUrl() + "/" + id, Map.class);
+        assertThat(pair.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(pair.getBody().get("brandId")).isEqualTo(brandId.intValue());
+    }
+
+    // --- new audited-flow acceptance criteria ---
+
+    @Test
+    void secondMutationOnPairWithPendingRequestReturns409() {
+        Long baseId = createCurrency("QPW");
+        Long quoteId = createCurrency("QPX");
+        Long definitionId = createDefinition(baseId, quoteId, 4);
+        deleteFannedOutPairs(definitionId);
+        Long brandId = firstBrandId();
+        ResponseEntity<Map> created = postCurrencyPair(definitionId, brandId, "AUTO", null, false);
+        approve(((Number) created.getBody().get("auditRequestId")).longValue());
+        Long id = findPairId(definitionId, brandId);
+        createdCurrencyPairIds.add(id);
+
+        ResponseEntity<Map> firstUpdate = putCurrencyPair(id, "{\"active\": true}");
+        assertThat(firstUpdate.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+
+        ResponseEntity<String> secondUpdate = restTemplate.exchange(currencyPairsUrl() + "/" + id, HttpMethod.PUT,
+                jsonEntity("{\"active\": false}"), String.class);
+        assertThat(secondUpdate.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+
+        ResponseEntity<String> deleteAttempt = restTemplate.exchange(currencyPairsUrl() + "/" + id,
+                HttpMethod.DELETE, null, String.class);
+        assertThat(deleteAttempt.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
+    void rejectingOrCancellingAnAuditRequestLeavesRowUntouched() {
+        Long baseId = createCurrency("QPY");
+        Long quoteId = createCurrency("QPZ");
+        Long definitionId = createDefinition(baseId, quoteId, 4);
+        deleteFannedOutPairs(definitionId);
+        Long brandId = firstBrandId();
+        ResponseEntity<Map> created = postCurrencyPair(definitionId, brandId, "AUTO", null, false);
+        approve(((Number) created.getBody().get("auditRequestId")).longValue());
+        Long id = findPairId(definitionId, brandId);
+        createdCurrencyPairIds.add(id);
+
+        ResponseEntity<Map> updateResponse = putCurrencyPair(id, "{\"active\": true}");
+        Long auditRequestId = ((Number) updateResponse.getBody().get("auditRequestId")).longValue();
+
+        ResponseEntity<Map> rejectResponse = reject(auditRequestId);
+        assertThat(rejectResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(rejectResponse.getBody().get("status")).isEqualTo("REJECTED");
+
+        ResponseEntity<Map> afterReject = restTemplate.getForEntity(currencyPairsUrl() + "/" + id, Map.class);
+        assertThat(afterReject.getBody().get("active")).isEqualTo(Boolean.FALSE);
+
+        // A new request can be raised and cancelled without changing the row either.
+        ResponseEntity<Map> secondUpdate = putCurrencyPair(id, "{\"active\": true}");
+        Long secondAuditRequestId = ((Number) secondUpdate.getBody().get("auditRequestId")).longValue();
+
+        ResponseEntity<Map> cancelResponse = cancel(secondAuditRequestId);
+        assertThat(cancelResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(cancelResponse.getBody().get("status")).isEqualTo("CANCELLED");
+
+        ResponseEntity<Map> afterCancel = restTemplate.getForEntity(currencyPairsUrl() + "/" + id, Map.class);
+        assertThat(afterCancel.getBody().get("active")).isEqualTo(Boolean.FALSE);
+    }
+
+    @Test
+    void approvalRevalidatesAgainstCurrentDataAndRejectsIfPrecisionTightened() {
+        Long baseId = createCurrency("QRA");
+        Long quoteId = createCurrency("QRB");
+        Long definitionId = createDefinition(baseId, quoteId, 4);
+        deleteFannedOutPairs(definitionId);
+        Long brandId = firstBrandId();
+        ResponseEntity<Map> created = postCurrencyPair(definitionId, brandId, "AUTO", null, false);
+        approve(((Number) created.getBody().get("auditRequestId")).longValue());
+        Long id = findPairId(definitionId, brandId);
+        createdCurrencyPairIds.add(id);
+
+        // Submitted while precision is 4: legal at submit time.
+        ResponseEntity<Map> updateResponse = putCurrencyPair(id, "{\"rateType\": \"MANUAL\", \"rate\": 1.2345}");
+        assertThat(updateResponse.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        Long auditRequestId = ((Number) updateResponse.getBody().get("auditRequestId")).longValue();
+
+        // The parent definition's precision tightens to 2 before anyone approves.
+        ResponseEntity<Map> precisionUpdate = restTemplate.exchange(definitionsUrl() + "/" + definitionId,
+                HttpMethod.PUT, jsonEntity("{\"precision\": 2}"), Map.class);
+        assertThat(precisionUpdate.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        ResponseEntity<Map> approveResponse = approve(auditRequestId);
+        assertThat(approveResponse.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(approveResponse.getBody().get("auditRequestId")).isEqualTo(auditRequestId.intValue());
+
+        // Row left untouched.
+        ResponseEntity<Map> afterFailedApprove = restTemplate.getForEntity(currencyPairsUrl() + "/" + id, Map.class);
+        assertThat(afterFailedApprove.getBody().get("rateType")).isEqualTo("AUTO");
+        assertThat(afterFailedApprove.getBody().get("rate")).isNull();
+
+        // The request stays PENDING so it can be inspected/withdrawn.
+        ResponseEntity<Map> detail = restTemplate.getForEntity(auditRequestsUrl() + "/" + auditRequestId, Map.class);
+        assertThat(detail.getBody().get("status")).isEqualTo("PENDING");
+        assertThat(detail.getBody().get("applyError")).isNotNull();
+    }
+
+    @Test
+    void definitionFanOutAndDeleteCascadeWriteDirectlyWithNoAuditRequests() {
+        Long baseId = createCurrency("QRC");
+        Long quoteId = createCurrency("QRD");
+
+        Integer auditCountBefore = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM audit_request WHERE entity_type = 'CURRENCY_PAIR'", Integer.class);
+
+        Long definitionId = createDefinition(baseId, quoteId, 4);
+        ResponseEntity<Map[]> fannedOut = restTemplate.getForEntity(
+                currencyPairsUrl() + "?currencyPairDefinitionId=" + definitionId, Map[].class);
+        assertThat(fannedOut.getBody()).hasSize(7);
+
+        Integer auditCountAfterCreate = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM audit_request WHERE entity_type = 'CURRENCY_PAIR'", Integer.class);
+        assertThat(auditCountAfterCreate).isEqualTo(auditCountBefore);
+
+        restTemplate.delete(definitionsUrl() + "/" + definitionId);
+        createdDefinitionIds.remove(definitionId);
+
+        Integer remainingPairs = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM currency_pair WHERE currency_pair_definition_id = ?", Integer.class,
+                definitionId);
+        assertThat(remainingPairs).isEqualTo(0);
+
+        Integer auditCountAfterDelete = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM audit_request WHERE entity_type = 'CURRENCY_PAIR'", Integer.class);
+        assertThat(auditCountAfterDelete).isEqualTo(auditCountBefore);
     }
 }

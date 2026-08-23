@@ -5,10 +5,12 @@ const API_BASE = '/api'
 
 export class ApiError extends Error {
   status: number
+  body: unknown
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, body?: unknown) {
     super(message)
     this.status = status
+    this.body = body
     this.name = 'ApiError'
   }
 }
@@ -26,10 +28,23 @@ export async function apiRequest<T>(
   })
 
   if (!response.ok) {
-    throw new ApiError(
-      response.status,
-      `Request to ${path} failed with status ${response.status}`,
-    )
+    let body: unknown
+    try {
+      body = await response.json()
+    } catch {
+      body = undefined
+    }
+
+    let message = `Request to ${path} failed with status ${response.status}`
+    if (body && typeof body === 'object') {
+      const { error, message: bodyMessage } = body as {
+        error?: string
+        message?: string
+      }
+      message = error ?? bodyMessage ?? message
+    }
+
+    throw new ApiError(response.status, message, body)
   }
 
   if (response.status === 204) {

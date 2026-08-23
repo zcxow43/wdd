@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wdd.backend.mapper.BrandSpreadMapper">
+
+    <resultMap id="BrandSpreadResultMap" type="com.wdd.backend.dto.BrandSpread">
+        <id property="id" column="id" />
+        <result property="brandId" column="brand_id" />
+        <result property="brandCode" column="brand_code" />
+        <result property="depositSpread" column="deposit_spread" />
+        <result property="withdrawalSpread" column="withdrawal_spread" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <sql id="selectColumns">
+        SELECT bs.id, bs.brand_id, b.code AS brand_code, bs.deposit_spread, bs.withdrawal_spread,
+               bs.created_at, bs.updated_at
+        FROM brand_spread bs
+        JOIN brand b ON b.id = bs.brand_id
+    </sql>
+
+    <select id="findAll" resultMap="BrandSpreadResultMap">
+        <include refid="selectColumns" />
+        <where>
+            <if test="brandId != null">
+                AND bs.brand_id = #{brandId}
+            </if>
+        </where>
+        ORDER BY bs.brand_id
+    </select>
+
+    <select id="findByBrandId" resultMap="BrandSpreadResultMap">
+        <include refid="selectColumns" />
+        WHERE bs.brand_id = #{brandId}
+    </select>
+
+    <insert id="insertZero">
+        INSERT INTO brand_spread (brand_id, deposit_spread, withdrawal_spread)
+        VALUES (#{brandId}, 0, 0)
+    </insert>
+
+    <update id="update">
+        UPDATE brand_spread
+        SET deposit_spread = #{depositSpread}, withdrawal_spread = #{withdrawalSpread}
+        WHERE brand_id = #{brandId}
+    </update>
+
+</mapper>

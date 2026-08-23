@@ -1,0 +1,9 @@
+{
+  "name": "wdd-doc-scripts",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "mermaid": "^11.4.0",
+    "playwright": "^1.47.0"
+  }
+}

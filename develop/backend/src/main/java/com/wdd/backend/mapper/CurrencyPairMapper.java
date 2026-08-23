@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import com.wdd.backend.dto.CurrencyPair;
+import com.wdd.backend.dto.EffectiveSpread;
 
 /**
  * Mapper for the {@code currency_pair} table — backs both the currency pair
@@ -32,5 +33,15 @@ public interface CurrencyPairMapper {
     int update(CurrencyPair currencyPair);
 
     int deleteById(@Param("id") Long id);
+
+    List<CurrencyPair> findByIds(@Param("ids") List<Long> ids);
+
+    List<CurrencyPair> findBySpreadGroupId(@Param("spreadGroupId") Long spreadGroupId);
+
+    int updateSpreadGroupForIds(@Param("ids") List<Long> ids, @Param("spreadGroupId") Long spreadGroupId);
+
+    int clearSpreadGroupIfMember(@Param("id") Long id, @Param("spreadGroupId") Long spreadGroupId);
+
+    List<EffectiveSpread> findEffectiveSpreadsByBrandId(@Param("brandId") Long brandId);
 
 }

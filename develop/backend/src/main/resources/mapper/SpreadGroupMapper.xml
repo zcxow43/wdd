@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wdd.backend.mapper.SpreadGroupMapper">
+
+    <resultMap id="SpreadGroupResultMap" type="com.wdd.backend.dto.SpreadGroup">
+        <id property="id" column="id" />
+        <result property="brandId" column="brand_id" />
+        <result property="brandCode" column="brand_code" />
+        <result property="name" column="name" />
+        <result property="depositSpread" column="deposit_spread" />
+        <result property="withdrawalSpread" column="withdrawal_spread" />
+        <result property="memberCount" column="member_count" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <sql id="selectColumns">
+        SELECT sg.id, sg.brand_id, b.code AS brand_code, sg.name, sg.deposit_spread, sg.withdrawal_spread,
+               COALESCE(mc.member_count, 0) AS member_count, sg.created_at, sg.updated_at
+        FROM spread_group sg
+        JOIN brand b ON b.id = sg.brand_id
+        LEFT JOIN (
+            SELECT cp.spread_group_id AS spread_group_id, COUNT(*) AS member_count
+            FROM currency_pair cp
+            WHERE cp.spread_group_id IS NOT NULL
+            GROUP BY cp.spread_group_id
+        ) mc ON mc.spread_group_id = sg.id
+    </sql>
+
+    <select id="findAll" resultMap="SpreadGroupResultMap">
+        <include refid="selectColumns" />
+        <where>
+            <if test="brandId != null">
+                AND sg.brand_id = #{brandId}
+            </if>
+        </where>
+        ORDER BY sg.id
+    </select>
+
+    <select id="findById" resultMap="SpreadGroupResultMap">
+        <include refid="selectColumns" />
+        WHERE sg.id = #{id}
+    </select>
+
+    <select id="findByBrandAndName" resultMap="SpreadGroupResultMap">
+        <include refid="selectColumns" />
+        WHERE sg.brand_id = #{brandId} AND sg.name = #{name}
+    </select>
+
+    <insert id="insert" parameterType="com.wdd.backend.dto.SpreadGroup" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO spread_group (brand_id, name, deposit_spread, withdrawal_spread)
+        VALUES (#{brandId}, #{name}, #{depositSpread}, #{withdrawalSpread})
+    </insert>
+
+    <update id="update" parameterType="com.wdd.backend.dto.SpreadGroup">
+        UPDATE spread_group
+        SET name = #{name}, deposit_spread = #{depositSpread}, withdrawal_spread = #{withdrawalSpread}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM spread_group
+        WHERE id = #{id}
+    </delete>
+
+</mapper>

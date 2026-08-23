@@ -185,6 +185,8 @@ public class CurrencyPairDefinitionService {
                 currencyPair.getRateType(),
                 currencyPair.getRate(),
                 currencyPair.getActive(),
+                currencyPair.getSpreadGroupId(),
+                currencyPair.getSpreadGroupName(),
                 currencyPair.getCreatedAt(),
                 currencyPair.getUpdatedAt());
     }

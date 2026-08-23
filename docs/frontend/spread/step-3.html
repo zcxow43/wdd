@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="utf-8" /><title>價差群組管理</title><style>
+  * { box-sizing: border-box; }
+  body { margin:0; width:1440px; height:900px;
+    font-family:-apple-system,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;
+    background:#f5f6f8; color:#1f2430; display:flex; }
+  .sidebar { width:220px; background:#1f2937; color:#cbd5e1; padding:24px 0; flex-shrink:0; }
+  .sidebar .logo { color:#fff; font-size:18px; font-weight:700; padding:0 24px 24px; border-bottom:1px solid #334155; margin-bottom:12px; }
+  .sidebar .group-title { padding:10px 24px 4px; font-size:12px; color:#94a3b8; letter-spacing:1px; }
+  .sidebar .nav-item { padding:10px 24px; font-size:14px; }
+  .sidebar .nav-item.active { background:#334155; color:#fff; border-left:3px solid #3b82f6; font-weight:600; }
+  .main { flex:1; padding:26px 36px; overflow:hidden; position:relative; }
+  .breadcrumb { font-size:13px; color:#64748b; margin-bottom:6px; }
+  .page-title { font-size:22px; font-weight:700; margin-bottom:16px; color:#111827; }
+  .brand-selector { display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap; }
+  .brand-tab { padding:8px 20px; border-radius:8px; border:1px solid #e2e5eb; background:#fff; color:#374151; font-size:14px; font-weight:600; }
+  .brand-tab.selected { background:#eff6ff; border-color:#2563eb; color:#2563eb; }
+  .card { background:#fff; border:1px solid #e2e5eb; border-radius:10px; box-shadow:0 1px 2px rgba(0,0,0,.04); overflow:hidden; margin-bottom:16px; }
+  .card-head { display:flex; align-items:center; justify-content:space-between; padding:14px 22px; border-bottom:1px solid #f1f2f5; }
+  .card-title { font-size:15px; font-weight:700; color:#111827; display:flex; align-items:center; gap:10px; }
+  .card-body { padding:16px 22px; }
+  .caption { font-size:12px; color:#6b7280; margin-top:10px; }
+  .filter-bar { display:flex; align-items:flex-end; gap:18px; flex-wrap:wrap; }
+  .field { display:flex; flex-direction:column; gap:6px; }
+  .field label { font-size:13px; color:#374151; font-weight:600; }
+  .input { padding:7px 10px; font-size:13px; border:1px solid #d1d5db; border-radius:6px; color:#1f2430; background:#fff; min-width:150px; }
+  .input.num { font-family:"SF Mono",Menlo,monospace; width:180px; }
+  .input:disabled { background:#f3f4f6; color:#9ca3af; }
+  .seg { display:flex; border:1px solid #d1d5db; border-radius:8px; overflow:hidden; }
+  .seg span { padding:7px 14px; font-size:13px; color:#374151; background:#fff; border-right:1px solid #e5e7eb; }
+  .seg span:last-child { border-right:none; }
+  .seg span.on { background:#eff6ff; color:#2563eb; font-weight:600; }
+  table { width:100%; border-collapse:collapse; }
+  thead th { text-align:left; font-size:13px; color:#6b7280; font-weight:600; background:#f9fafb; padding:11px 20px; border-bottom:1px solid #e5e7eb; }
+  tbody td { padding:11px 20px; font-size:14px; color:#1f2430; border-bottom:1px solid #f1f2f5; vertical-align:middle; }
+  tbody tr:last-child td { border-bottom:none; }
+  td.code { font-family:"SF Mono",Menlo,monospace; color:#374151; }
+  td.num { font-family:"SF Mono",Menlo,monospace; color:#1f2430; }
+  td.muted { color:#374151; }
+  .actions { display:flex; gap:8px; }
+  .btn { border-radius:6px; font-size:13px; font-weight:600; padding:6px 14px; border:1px solid transparent; }
+  .btn-primary { background:#2563eb; color:#fff; }
+  .btn-secondary { background:#fff; border-color:#d1d5db; color:#374151; }
+  .btn-danger { background:#dc2626; color:#fff; }
+  .btn:disabled, .btn.disabled { background:#f3f4f6; color:#9ca3af; border-color:#e5e7eb; }
+  .badge { display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:600; }
+  .b-pending { background:#fffbeb; color:#b45309; }
+  .b-approved { background:#ecfdf5; color:#047857; }
+  .b-rejected { background:#fef2f2; color:#b91c1c; }
+  .b-cancelled { background:#f3f4f6; color:#6b7280; }
+  .b-grey { background:#f3f4f6; color:#6b7280; }
+  .b-blue { background:#eff6ff; color:#2563eb; }
+  .act-create { color:#047857; font-weight:600; }
+  .act-update { color:#2563eb; font-weight:600; }
+  .act-delete { color:#b91c1c; font-weight:600; }
+  .empty { padding:26px 20px; font-size:13px; color:#6b7280; text-align:center; }
+  .overlay { position:absolute; inset:0; background:rgba(0,0,0,.4); display:flex; align-items:center; justify-content:center; }
+  .modal { width:560px; background:#fff; border:1px solid #e2e5eb; border-radius:12px; box-shadow:0 12px 36px rgba(0,0,0,.15); overflow:hidden; }
+  .modal.wide { width:680px; }
+  .modal-head { padding:16px 22px; border-bottom:1px solid #f1f2f5; font-size:16px; font-weight:700; color:#111827; }
+  .modal-body { padding:18px 22px; }
+  .modal-foot { padding:14px 22px; border-top:1px solid #f1f2f5; display:flex; justify-content:flex-end; gap:10px; }
+  .meta { display:grid; grid-template-columns:auto 1fr; gap:6px 16px; font-size:13px; color:#374151; margin-bottom:16px; }
+  .meta b { color:#6b7280; font-weight:600; }
+  .diff th { background:#f9fafb; }
+  .diff td.old { color:#6b7280; }
+  .diff td.new { color:#1f2430; font-weight:600; }
+  .section-label { font-size:13px; font-weight:600; color:#374151; margin:14px 0 8px; }
+  .err-banner { background:#fef2f2; border:1px solid #fecaca; color:#b91c1c; font-size:13px; padding:10px 14px; border-radius:8px; margin-bottom:14px; }
+  .err-text { color:#d92d20; font-size:12px; margin-top:6px; }
+  textarea.input { width:100%; min-height:72px; font-family:inherit; resize:none; }
+  .toast { position:absolute; right:32px; bottom:28px; background:#111827; color:#fff; font-size:13px; padding:12px 18px; border-radius:8px; box-shadow:0 6px 20px rgba(0,0,0,.2); }
+  .radio-group { display:flex; gap:14px; }
+  .radio-option { display:flex; align-items:center; gap:6px; font-size:13px; color:#374151; }
+  .radio-dot { width:16px; height:16px; border-radius:50%; border:2px solid #d1d5db; position:relative; flex-shrink:0; }
+  .radio-dot.sel { border-color:#2563eb; }
+  .radio-dot.sel::after { content:''; position:absolute; top:3px; left:3px; width:6px; height:6px; border-radius:50%; background:#2563eb; }
+  .toggle { position:relative; width:44px; height:24px; border-radius:12px; background:#d1d5db; flex-shrink:0; }
+  .toggle.on { background:#22c55e; }
+  .toggle .knob { position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.3); }
+  .toggle.on .knob { left:23px; }
+  .status-cell { display:flex; align-items:center; gap:10px; }
+  .status-label { font-size:13px; color:#6b7280; }
+  .status-label.on { color:#16a34a; font-weight:600; }
+  .picker { border:1px solid #e5e7eb; border-radius:8px; padding:10px 14px; }
+  .picker-row { display:flex; align-items:center; gap:10px; padding:6px 0; font-size:13px; }
+  .cbox { width:15px; height:15px; border:1px solid #d1d5db; border-radius:3px; background:#fff; position:relative; flex-shrink:0; }
+  .cbox.checked { background:#2563eb; border-color:#2563eb; }
+  .cbox.checked::after { content:''; position:absolute; left:4px; top:1px; width:4px; height:8px; border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg); }
+  .hint { font-size:12px; color:#6b7280; padding-top:8px; }
+</style></head>
+<body>
+  <div class="sidebar">
+    <div class="logo">匯率中心 WDD</div>
+    <div class="group-title">匯率中心</div>
+    <div class="nav-item">幣別管理</div>
+    <div class="nav-item">幣別對管理</div>
+    <div class="nav-item">品牌幣種對</div>
+    <div class="nav-item active">價差群組管理</div>
+    <div class="nav-item">品牌管理</div>
+    <div class="nav-item">審核紀錄</div>
+  </div>
+  <div class="main">
+    <div class="breadcrumb">匯率中心 &gt; 價差群組管理</div>
+    <div class="page-title">價差群組管理</div>
+    <div class="brand-selector">
+      <div class="brand-tab selected">au</div>
+      <div class="brand-tab">moneta</div>
+      <div class="brand-tab">pug</div>
+      <div class="brand-tab">star</div>
+      <div class="brand-tab">um</div>
+      <div class="brand-tab">vjp</div>
+      <div class="brand-tab">vt</div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">預設點差 <span class="badge b-pending">審核中</span></div></div>
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="field"><label>入金點差</label><input class="input num" value="0.00050000" disabled /></div>
+          <div class="field"><label>出金點差</label><input class="input num" value="0.00080000" disabled /></div>
+          <button class="btn btn-primary disabled">儲存</button>
+        </div>
+        <div class="caption">未加入任何群組的品牌幣種對，將套用此預設點差</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">點差群組</div><button class="btn btn-primary">+ 新增群組</button></div>
+      <table>
+        <thead><tr>
+          <th style="width:20%">群組名稱</th><th style="width:16%">入金點差</th><th style="width:16%">出金點差</th>
+          <th style="width:10%">成員數</th><th style="width:10%">審核</th><th style="width:28%">操作</th>
+        </tr></thead>
+        <tbody><tr>
+          <td class="code">VIP</td><td class="num">0.00020000</td><td class="num">0.00030000</td>
+          <td><span class="badge b-grey">0</span></td><td></td>
+          <td><div class="actions">
+            <button class="btn btn-secondary">管理成員</button>
+            <button class="btn btn-secondary">編輯</button>
+            <button class="btn btn-danger">刪除</button>
+          </div></td>
+        </tr></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">生效點差總覽</div></div>
+      <table>
+        <thead><tr><th style="width:26%">幣種對</th><th style="width:24%">來源</th><th style="width:25%">入金點差</th><th style="width:25%">出金點差</th></tr></thead>
+        <tbody>
+          <tr><td class="code">USD/JPY</td><td><span class="badge b-grey">預設</span></td><td class="num">0.00050000</td><td class="num">0.00080000</td></tr>
+          <tr><td class="code">EUR/USD</td><td><span class="badge b-grey">預設</span></td><td class="num">0.00050000</td><td class="num">0.00080000</td></tr>
+          <tr><td class="code">USD/TWD</td><td><span class="badge b-grey">預設</span></td><td class="num">0.00050000</td><td class="num">0.00080000</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="overlay"><div class="modal wide" data-target>
+      <div class="modal-head">管理成員 — VIP</div>
+      <div class="modal-body">
+        <div class="section-label">群組成員</div>
+        <div class="empty" style="padding:16px 0">此群組尚無成員</div>
+        <div class="section-label">加入品牌幣種對</div>
+        <div class="picker">
+          <div class="picker-row"><span class="cbox checked"></span><span class="code">USD/JPY</span></div>
+          <div class="picker-row"><span class="cbox checked"></span><span class="code">EUR/USD</span></div>
+          <div class="picker-row"><span class="cbox"></span><span class="code">USD/TWD</span></div>
+        </div>
+        <div class="hint">僅列出尚未加入任何群組的幣種對 — 每個品牌幣種對只能加入一個群組</div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-secondary">關閉</button>
+        <button class="btn btn-primary" data-trigger>加入</button>
+      </div>
+    </div></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,381 @@
+.sgm-page {
+  background: #f5f6f8;
+}
+
+.sgm-page__breadcrumb {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.sgm-page__title {
+  margin: 0 0 24px;
+  color: #111827;
+}
+
+.sgm-page__status {
+  color: #6b7280;
+}
+
+.sgm-page__error {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+  color: #d92d20;
+}
+
+.sgm-page__error button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid #d92d20;
+  background: #fff;
+  color: #d92d20;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.sgm-page__btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.sgm-page__btn:disabled {
+  cursor: not-allowed;
+  background: #f3f4f6;
+  color: #9ca3af;
+  border-color: #e5e7eb;
+}
+
+.sgm-page__btn--primary {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+
+.sgm-page__btn--primary:hover:not(:disabled) {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.sgm-page__btn--secondary {
+  background: #fff;
+  color: #374151;
+  border-color: #d1d5db;
+}
+
+.sgm-page__btn--danger {
+  background: #dc2626;
+  color: #fff;
+  border-color: #dc2626;
+}
+
+.sgm-page__btn--danger:hover:not(:disabled) {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.sgm-brand-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.sgm-brand-selector__item {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.sgm-brand-selector__item--selected {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.sgm-card {
+  background: #fff;
+  border: 1px solid #e2e5eb;
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.sgm-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.sgm-card__heading {
+  margin: 0 0 16px;
+  color: #111827;
+  font-size: 16px;
+}
+
+.sgm-card__header .sgm-card__heading {
+  margin: 0;
+}
+
+.sgm-card__caption {
+  margin: 16px 0 0;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.sgm-empty-state {
+  color: #6b7280;
+  background: #fff;
+  border: 1px solid #e2e5eb;
+  border-radius: 8px;
+  padding: 24px;
+}
+
+.sgm-default-form {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.sgm-form__field {
+  margin-bottom: 0;
+}
+
+.sgm-form__label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  color: #374151;
+}
+
+.sgm-form__input {
+  width: 160px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #1f2430;
+  background: #fff;
+}
+
+.sgm-form__input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.sgm-form__input:disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.sgm-form__error {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #d92d20;
+}
+
+.sgm-form__save-btn {
+  margin-top: 26px;
+}
+
+.sgm-modal-form__field {
+  margin-bottom: 16px;
+}
+
+.sgm-modal-form__input {
+  width: 100%;
+}
+
+.sgm-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.sgm-table th {
+  text-align: left;
+  padding: 16px 24px;
+  background: #f9fafb;
+  font-weight: 500;
+  font-size: 14px;
+  color: #6b7280;
+  border-bottom: 1px solid #e2e5eb;
+}
+
+.sgm-table td {
+  padding: 16px 24px;
+  border-bottom: 1px solid #f1f2f5;
+  font-size: 15px;
+  color: #1f2430;
+  vertical-align: middle;
+}
+
+.sgm-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* These per-cell colors must out-specify `.sgm-table td`'s own `color`,
+   hence the `.sgm-table td` prefix. Dropping it makes every one of them
+   lose to the generic td rule and silently render #1f2430 instead of the
+   color specs/frontend/spread.md's Visual Style table requires. */
+.sgm-table td.sgm-table__name-cell {
+  font-family: 'SF Mono', Menlo, monospace;
+  color: #374151;
+}
+
+.sgm-table td.sgm-table__code-cell {
+  font-family: 'SF Mono', Menlo, monospace;
+  color: #374151;
+}
+
+.sgm-table td.sgm-table__spread-cell {
+  font-family: 'SF Mono', Menlo, monospace;
+  color: #1f2430;
+}
+
+.sgm-table__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.sgm-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.sgm-badge--member-zero {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.sgm-badge--member-some {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.sgm-badge--source-default {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.sgm-badge--source-group {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.sgm-table td.sgm-status--active {
+  color: #16a34a;
+  font-weight: 700;
+}
+
+.sgm-table td.sgm-status--inactive {
+  color: #6b7280;
+}
+
+.sgm-modal__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.sgm-modal__card {
+  background: #fff;
+  border: 1px solid #e2e5eb;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  padding: 24px;
+  width: 400px;
+  max-width: calc(100vw - 48px);
+}
+
+.sgm-modal__card--wide {
+  width: 640px;
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+}
+
+.sgm-modal__title {
+  margin: 0 0 16px;
+  color: #111827;
+  font-size: 18px;
+}
+
+.sgm-modal__confirm-text {
+  margin: 0 0 24px;
+  color: #1f2430;
+}
+
+.sgm-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.sgm-member-picker {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #f1f2f5;
+}
+
+.sgm-member-picker__heading {
+  margin: 0 0 12px;
+  color: #111827;
+  font-size: 15px;
+}
+
+.sgm-picker-list {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid #f1f2f5;
+  border-radius: 6px;
+}
+
+.sgm-picker-list__item {
+  padding: 10px 16px;
+  border-bottom: 1px solid #f1f2f5;
+}
+
+.sgm-picker-list__item:last-child {
+  border-bottom: none;
+}
+
+.sgm-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #1f2430;
+  cursor: pointer;
+  font-family: 'SF Mono', Menlo, monospace;
+}
+
+.sgm-checkbox input[type='checkbox'] {
+  accent-color: #2563eb;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+}

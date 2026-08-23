@@ -1,7 +1,22 @@
 [
-  { "file": "step-1.html", "caption": "初始畫面：載入 GET /api/brands 顯示品牌選擇器（au 預設選中），並呼叫 GET /api/currency-pairs?brandId={au的id} 列出 au 的幣種對（USD/TWD、EUR/TWD 自動啟用，USD/JPY 自動停用）。" },
-  { "file": "step-2.html", "caption": "將 USD/JPY 列的「匯率類型」切換為「手動」：匯率欄位轉為可輸入，填入 31.520000，準備點擊該列的「儲存」。" },
-  { "file": "step-3.html", "caption": "點擊「儲存」：呼叫 PUT /api/currency-pairs/{id}，成功更新為手動匯率 31.520000，顯示成功提示「品牌幣種對已更新」。" },
-  { "file": "step-4.html", "caption": "點擊 USD/JPY 列的狀態切換開關：立即呼叫 PUT，該列控制項停用並顯示「更新中...」。" },
-  { "file": "step-5.html", "caption": "請求成功：USD/JPY 狀態更新為「啟用」，切換開關與其他控制項恢復可互動。" }
+  {
+    "file": "step-1.html",
+    "caption": "初始畫面：載入 au 的幣種對清單。EUR/TWD 已有待審核的變更，該列標記「審核中」且控制項停用；其餘列可正常操作。"
+  },
+  {
+    "file": "step-2.html",
+    "caption": "將 USD/JPY 的匯率類型切為「手動」：匯率欄位轉為可輸入，填入 150.25，準備點擊該列的「儲存」。"
+  },
+  {
+    "file": "step-3.html",
+    "caption": "點擊「儲存」：變更不會立即生效，而是送出審核申請。該列匯率仍維持原本的「自動」，並標記「審核中」，顯示提示「已送出審核，核准後才會生效」。"
+  },
+  {
+    "file": "step-4.html",
+    "caption": "對 USD/TWD 點擊「刪除」：確認視窗說明這是送出刪除申請，核准後才會真正刪除。"
+  },
+  {
+    "file": "step-5.html",
+    "caption": "確認送出後：該列並未消失，而是留在畫面上標記「審核中」，等待審核人員核准後才會真正刪除。"
+  }
 ]

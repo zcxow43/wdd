@@ -1,0 +1,39 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+  body { margin: 0; padding: 32px; background: #f4f5f7; font-family: -apple-system, "PingFang TC", "Noto Sans TC", sans-serif; }
+  .board { position: relative; display: flex; flex-direction: column; gap: 56px; width: max-content; }
+  .row { display: flex; align-items: flex-start; gap: 40px; }
+  figure { margin: 0; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 8px; }
+  figure img { display: block; max-height: 480px; border-radius: 4px; }
+  figcaption { margin-top: 8px; max-width: 360px; font-size: 14px; color: #333; text-align: center; }
+  .arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; }
+</style></head>
+<body><div class="board"><div class="row">
+  <figure id="frame-0">
+    <img src="step-1.png" />
+    <figcaption>初始畫面：預設載入待審核清單，顯示三筆待審申請（品牌幣種對修改、點差群組新增、預設點差修改），每列都有檢視／核准／駁回。</figcaption>
+  </figure>
+  <figure id="frame-1">
+    <img src="step-2.png" />
+    <figcaption>點擊「檢視」：開啟申請明細，變更內容以「欄位 / 原值 / 新值」逐欄比對——匯率類型 AUTO → MANUAL、匯率 — → 150.25。</figcaption>
+  </figure>
+  <figure id="frame-2">
+    <img src="step-3.png" />
+    <figcaption>點擊「核准」：開啟核准確認視窗，可填寫選填的審核意見，並說明核准後會立即套用此變更。</figcaption>
+  </figure></div><div class="row">
+  <figure id="frame-4">
+    <img src="step-5.png" />
+    <figcaption>對另一筆點擊「駁回」：駁回原因為必填，未填寫時顯示「請填寫駁回原因」且不送出。</figcaption>
+  </figure>
+  <figure id="frame-3">
+    <img src="step-4.png" />
+    <figcaption>點擊「確認核准」：變更立即套用，該筆狀態改為「已核准」，顯示成功提示「已核准，變更已套用」。</figcaption>
+  </figure></div>
+  <svg class="arrows" width="2438" height="1168">
+    <defs>
+      <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#888" />
+      </marker>
+    </defs>
+    <line x1="684.6166666666667" y1="162.06666666666666" x2="1096.3333333333333" y2="249" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="1446.7333333333333" y1="351.1333333333333" x2="1954.3333333333333" y2="249" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="2218.866666666667" y1="317" x2="1277.6666666666665" y2="765.1333333333333" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="1545.875" y1="812.8666666666666" x2="601" y2="871" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" />
+  </svg></div></body></html>

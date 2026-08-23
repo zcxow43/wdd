@@ -1,0 +1,412 @@
+.aud-page {
+  background: #f5f6f8;
+}
+
+.aud-page__breadcrumb {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.aud-page__title {
+  margin: 0 0 24px;
+  color: #111827;
+}
+
+.aud-page__status {
+  color: #6b7280;
+}
+
+.aud-page__error {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+  color: #d92d20;
+}
+
+.aud-page__error button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid #d92d20;
+  background: #fff;
+  color: #d92d20;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.aud-page__btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.aud-page__btn:disabled {
+  cursor: not-allowed;
+  background: #f3f4f6;
+  color: #9ca3af;
+  border-color: #e5e7eb;
+}
+
+.aud-page__btn--primary {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+
+.aud-page__btn--primary:hover:not(:disabled) {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.aud-page__btn--secondary {
+  background: #fff;
+  color: #374151;
+  border-color: #d1d5db;
+}
+
+.aud-page__btn--danger {
+  background: #dc2626;
+  color: #fff;
+  border-color: #dc2626;
+}
+
+.aud-page__btn--danger:hover:not(:disabled) {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.aud-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 24px;
+  background: #fff;
+  border: 1px solid #e2e5eb;
+  border-radius: 8px;
+  padding: 16px 24px;
+  margin-bottom: 24px;
+}
+
+.aud-filter-bar__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.aud-filter-bar__label {
+  font-size: 14px;
+  color: #374151;
+}
+
+.aud-filter-bar__select,
+.aud-filter-bar__input {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #1f2430;
+  background: #fff;
+}
+
+.aud-filter-bar__select:focus,
+.aud-filter-bar__input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.aud-segmented {
+  display: flex;
+  gap: 8px;
+}
+
+.aud-segmented__item {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.aud-segmented__item--selected {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.aud-table-card {
+  background: #fff;
+  border: 1px solid #e2e5eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.aud-empty-state {
+  color: #6b7280;
+  background: #fff;
+  border: 1px solid #e2e5eb;
+  border-radius: 8px;
+  padding: 24px;
+}
+
+.aud-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.aud-table th {
+  text-align: left;
+  padding: 16px 24px;
+  background: #f9fafb;
+  font-weight: 500;
+  font-size: 14px;
+  color: #6b7280;
+  border-bottom: 1px solid #e2e5eb;
+}
+
+.aud-table td {
+  padding: 16px 24px;
+  border-bottom: 1px solid #f1f2f5;
+  font-size: 15px;
+  color: #1f2430;
+  vertical-align: middle;
+}
+
+.aud-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Per-cell colors must out-specify the generic `.aud-table td` rule above,
+   hence the `.aud-table td` prefix — dropping it makes these lose the
+   cascade to the generic rule and silently render the wrong color. */
+.aud-table td.aud-table__requested-at {
+  color: #374151;
+}
+
+.aud-table td.aud-table__requested-by {
+  color: #374151;
+}
+
+.aud-table td.aud-table__summary {
+  color: #1f2430;
+}
+
+.aud-table td.aud-table__action.aud-action--create {
+  color: #047857;
+}
+
+.aud-table td.aud-table__action.aud-action--update {
+  color: #2563eb;
+}
+
+.aud-table td.aud-table__action.aud-action--delete {
+  color: #b91c1c;
+}
+
+.aud-table__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.aud-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.aud-badge--pending {
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.aud-badge--approved {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.aud-badge--rejected {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.aud-badge--cancelled {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.aud-modal__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.aud-modal__card {
+  background: #fff;
+  border: 1px solid #e2e5eb;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  padding: 24px;
+  width: 400px;
+  max-width: calc(100vw - 48px);
+}
+
+.aud-modal__card--wide {
+  width: 640px;
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+}
+
+.aud-modal__title {
+  margin: 0 0 16px;
+  color: #111827;
+  font-size: 18px;
+}
+
+.aud-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.aud-detail-meta {
+  margin: 0 0 16px;
+}
+
+.aud-detail-meta__row {
+  display: flex;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.aud-detail-meta__row dt {
+  width: 96px;
+  flex-shrink: 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.aud-detail-meta__row dd {
+  margin: 0;
+  color: #1f2430;
+  font-size: 14px;
+}
+
+.aud-detail-meta__row dd.aud-action--create {
+  color: #047857;
+}
+
+.aud-detail-meta__row dd.aud-action--update {
+  color: #2563eb;
+}
+
+.aud-detail-meta__row dd.aud-action--delete {
+  color: #b91c1c;
+}
+
+.aud-detail-section-title {
+  margin: 16px 0 12px;
+  color: #111827;
+  font-size: 15px;
+}
+
+.aud-apply-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.aud-diff-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #f1f2f5;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.aud-diff-table th {
+  text-align: left;
+  padding: 10px 16px;
+  background: #f9fafb;
+  font-weight: 500;
+  font-size: 13px;
+  color: #6b7280;
+  border-bottom: 1px solid #e2e5eb;
+}
+
+.aud-diff-table td {
+  padding: 10px 16px;
+  border-bottom: 1px solid #f1f2f5;
+  font-size: 14px;
+  color: #1f2430;
+}
+
+.aud-diff-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.aud-diff-table td.aud-diff-table__before {
+  color: #6b7280;
+}
+
+.aud-diff-table td.aud-diff-table__after {
+  color: #1f2430;
+  font-weight: 600;
+}
+
+.aud-form__field {
+  margin-bottom: 0;
+}
+
+.aud-form__label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  color: #374151;
+}
+
+.aud-form__textarea {
+  width: 100%;
+  min-height: 88px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #1f2430;
+  background: #fff;
+  resize: vertical;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.aud-form__textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.aud-form__textarea:disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.aud-form__error {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #d92d20;
+}

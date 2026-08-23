@@ -1,11 +1,14 @@
 package com.wdd.backend.service;
 
 import java.math.BigDecimal;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
+import com.wdd.backend.dto.AuditPendingResponse;
+import com.wdd.backend.dto.Brand;
 import com.wdd.backend.dto.CurrencyPair;
 import com.wdd.backend.dto.CurrencyPairCreateRequest;
 import com.wdd.backend.dto.CurrencyPairDefinition;
@@ -22,22 +25,38 @@ import com.wdd.backend.mapper.CurrencyPairMapper;
  * Brand-scoped CRUD for {@code currency_pair} rows. Most rows are created by
  * {@link CurrencyPairDefinitionService}'s fan-out; this service additionally
  * supports creating/deleting individual rows directly.
+ *
+ * <p>Every {@code create}/{@code update}/{@code delete} here validates
+ * exactly as before (immediate {@code 400}/{@code 404}/{@code 409}) but,
+ * instead of writing, submits an audited change via {@link AuditService}
+ * and returns the resulting pending request. The real write is performed
+ * only on approval, by {@link CurrencyPairAuditHandler}. The definition
+ * fan-out ({@link CurrencyPairDefinitionService}) writes {@link CurrencyPairMapper}
+ * directly and is untouched by this — it is not a user action on this
+ * entity.
  */
 @Service
 public class CurrencyPairService {
 
+    private static final String ENTITY_TYPE = "CURRENCY_PAIR";
+    private static final String ACTION_CREATE = "CREATE";
+    private static final String ACTION_UPDATE = "UPDATE";
+    private static final String ACTION_DELETE = "DELETE";
     private static final String RATE_TYPE_AUTO = "AUTO";
     private static final String RATE_TYPE_MANUAL = "MANUAL";
 
     private final CurrencyPairMapper currencyPairMapper;
     private final CurrencyPairDefinitionMapper currencyPairDefinitionMapper;
     private final BrandMapper brandMapper;
+    private final AuditService auditService;
 
     public CurrencyPairService(CurrencyPairMapper currencyPairMapper,
-            CurrencyPairDefinitionMapper currencyPairDefinitionMapper, BrandMapper brandMapper) {
+            CurrencyPairDefinitionMapper currencyPairDefinitionMapper, BrandMapper brandMapper,
+            AuditService auditService) {
         this.currencyPairMapper = currencyPairMapper;
         this.currencyPairDefinitionMapper = currencyPairDefinitionMapper;
         this.brandMapper = brandMapper;
+        this.auditService = auditService;
     }
 
     public List<CurrencyPairResponse> findAll(Long currencyPairDefinitionId, Long brandId, Boolean active) {
@@ -54,8 +73,7 @@ public class CurrencyPairService {
         return toResponse(currencyPair);
     }
 
-    @Transactional
-    public CurrencyPairResponse create(CurrencyPairCreateRequest request) {
+    public AuditPendingResponse create(CurrencyPairCreateRequest request, String actor) {
         if (request == null) {
             throw new InvalidRequestException("request body is required");
         }
@@ -74,7 +92,8 @@ public class CurrencyPairService {
             throw new InvalidRequestException(
                     "currencyPairDefinitionId does not reference an existing currency pair definition");
         }
-        if (brandMapper.findById(brandId) == null) {
+        Brand brand = brandMapper.findById(brandId);
+        if (brand == null) {
             throw new InvalidRequestException("brandId does not reference an existing brand");
         }
 
@@ -90,20 +109,21 @@ public class CurrencyPairService {
             active = false;
         }
 
-        CurrencyPair currencyPair = new CurrencyPair();
-        currencyPair.setCurrencyPairDefinitionId(currencyPairDefinitionId);
-        currencyPair.setBrandId(brandId);
-        currencyPair.setRateType(rateType);
-        currencyPair.setRate(rate);
-        currencyPair.setActive(active);
-        currencyPairMapper.insert(currencyPair);
+        Map<String, Object> afterData = new LinkedHashMap<>();
+        afterData.put("currencyPairDefinitionId", currencyPairDefinitionId);
+        afterData.put("brandId", brandId);
+        afterData.put("rateType", rateType);
+        afterData.put("rate", rate);
+        afterData.put("active", active);
 
-        CurrencyPair created = currencyPairMapper.findById(currencyPair.getId());
-        return toResponse(created);
+        String summary = buildCreateSummary(brand.getCode(), definition, rateType, rate);
+
+        var submitted = auditService.submit(ENTITY_TYPE, ACTION_CREATE, null, brandId, summary, null, afterData,
+                actor);
+        return AuditPendingResponse.from(submitted);
     }
 
-    @Transactional
-    public CurrencyPairResponse update(Long id, CurrencyPairUpdateRequest request) {
+    public AuditPendingResponse update(Long id, CurrencyPairUpdateRequest request, String actor) {
         if (request == null) {
             throw new InvalidRequestException("request body is required");
         }
@@ -124,24 +144,45 @@ public class CurrencyPairService {
 
         Boolean active = request.getActive() != null ? request.getActive() : existing.getActive();
 
-        CurrencyPair toUpdate = new CurrencyPair();
-        toUpdate.setId(id);
-        toUpdate.setRateType(rateType);
-        toUpdate.setRate(rate);
-        toUpdate.setActive(active);
-        currencyPairMapper.update(toUpdate);
+        Map<String, Object> beforeData = new LinkedHashMap<>();
+        beforeData.put("currencyPairDefinitionId", existing.getCurrencyPairDefinitionId());
+        beforeData.put("brandId", existing.getBrandId());
+        beforeData.put("rateType", existing.getRateType());
+        beforeData.put("rate", existing.getRate());
+        beforeData.put("active", existing.getActive());
 
-        CurrencyPair updated = currencyPairMapper.findById(id);
-        return toResponse(updated);
+        Map<String, Object> afterData = new LinkedHashMap<>();
+        afterData.put("currencyPairDefinitionId", existing.getCurrencyPairDefinitionId());
+        afterData.put("brandId", existing.getBrandId());
+        afterData.put("rateType", rateType);
+        afterData.put("rate", rate);
+        afterData.put("active", active);
+
+        String summary = buildUpdateSummary(existing, rateType, rate, active);
+
+        var submitted = auditService.submit(ENTITY_TYPE, ACTION_UPDATE, id, existing.getBrandId(), summary,
+                beforeData, afterData, actor);
+        return AuditPendingResponse.from(submitted);
     }
 
-    @Transactional
-    public void delete(Long id) {
+    public AuditPendingResponse delete(Long id, String actor) {
         CurrencyPair existing = currencyPairMapper.findById(id);
         if (existing == null) {
             throw new CurrencyPairNotFoundException(id);
         }
-        currencyPairMapper.deleteById(id);
+
+        Map<String, Object> beforeData = new LinkedHashMap<>();
+        beforeData.put("currencyPairDefinitionId", existing.getCurrencyPairDefinitionId());
+        beforeData.put("brandId", existing.getBrandId());
+        beforeData.put("rateType", existing.getRateType());
+        beforeData.put("rate", existing.getRate());
+        beforeData.put("active", existing.getActive());
+
+        String summary = buildDeleteSummary(existing);
+
+        var submitted = auditService.submit(ENTITY_TYPE, ACTION_DELETE, id, existing.getBrandId(), summary,
+                beforeData, null, actor);
+        return AuditPendingResponse.from(submitted);
     }
 
     private static String normalizeRateType(String rateType) {
@@ -171,6 +212,47 @@ public class CurrencyPairService {
         return rate;
     }
 
+    private static String buildCreateSummary(String brandCode, CurrencyPairDefinition definition, String rateType,
+            BigDecimal rate) {
+        String pairLabel = definition.getBaseCurrencyCode() + "/" + definition.getQuoteCurrencyCode();
+        if (RATE_TYPE_MANUAL.equals(rateType)) {
+            return brandCode + " " + pairLabel + " 新增幣種對，手動匯率 " + rate;
+        }
+        return brandCode + " " + pairLabel + " 新增幣種對";
+    }
+
+    private static String buildUpdateSummary(CurrencyPair existing, String rateType, BigDecimal rate,
+            Boolean active) {
+        String pairLabel = existing.getBaseCurrencyCode() + "/" + existing.getQuoteCurrencyCode();
+        StringBuilder changes = new StringBuilder();
+        boolean rateTypeChanged = !rateType.equals(existing.getRateType());
+        boolean rateChanged = rateTypeChanged
+                || (RATE_TYPE_MANUAL.equals(rateType)
+                        && (existing.getRate() == null || existing.getRate().compareTo(rate) != 0));
+        if (rateChanged) {
+            if (RATE_TYPE_MANUAL.equals(rateType)) {
+                changes.append("改為手動匯率 ").append(rate);
+            } else {
+                changes.append("改為自動匯率");
+            }
+        }
+        if (!active.equals(existing.getActive())) {
+            if (changes.length() > 0) {
+                changes.append("，");
+            }
+            changes.append(Boolean.TRUE.equals(active) ? "啟用" : "停用");
+        }
+        if (changes.length() == 0) {
+            changes.append("更新設定");
+        }
+        return existing.getBrandCode() + " " + pairLabel + " " + changes;
+    }
+
+    private static String buildDeleteSummary(CurrencyPair existing) {
+        String pairLabel = existing.getBaseCurrencyCode() + "/" + existing.getQuoteCurrencyCode();
+        return existing.getBrandCode() + " " + pairLabel + " 刪除幣種對";
+    }
+
     private static CurrencyPairResponse toResponse(CurrencyPair currencyPair) {
         return new CurrencyPairResponse(
                 currencyPair.getId(),
@@ -182,6 +264,8 @@ public class CurrencyPairService {
                 currencyPair.getRateType(),
                 currencyPair.getRate(),
                 currencyPair.getActive(),
+                currencyPair.getSpreadGroupId(),
+                currencyPair.getSpreadGroupName(),
                 currencyPair.getCreatedAt(),
                 currencyPair.getUpdatedAt());
     }

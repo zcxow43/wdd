@@ -10,9 +10,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.wdd.backend.dto.AuditPendingResponse;
 import com.wdd.backend.dto.CurrencyPairCreateRequest;
 import com.wdd.backend.dto.CurrencyPairResponse;
 import com.wdd.backend.dto.CurrencyPairUpdateRequest;
@@ -41,20 +43,24 @@ public class CurrencyPairController {
     }
 
     @PostMapping("/api/currency-pairs")
-    public ResponseEntity<CurrencyPairResponse> createCurrencyPair(@RequestBody CurrencyPairCreateRequest request) {
-        CurrencyPairResponse created = currencyPairService.create(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    public ResponseEntity<AuditPendingResponse> createCurrencyPair(@RequestBody CurrencyPairCreateRequest request,
+            @RequestHeader(value = "X-Actor", required = false) String actor) {
+        AuditPendingResponse pending = currencyPairService.create(request, actor);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(pending);
     }
 
     @PutMapping("/api/currency-pairs/{id}")
-    public CurrencyPairResponse updateCurrencyPair(@PathVariable Long id,
-            @RequestBody CurrencyPairUpdateRequest request) {
-        return currencyPairService.update(id, request);
+    public ResponseEntity<AuditPendingResponse> updateCurrencyPair(@PathVariable Long id,
+            @RequestBody CurrencyPairUpdateRequest request,
+            @RequestHeader(value = "X-Actor", required = false) String actor) {
+        AuditPendingResponse pending = currencyPairService.update(id, request, actor);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(pending);
     }
 
     @DeleteMapping("/api/currency-pairs/{id}")
-    public ResponseEntity<Void> deleteCurrencyPair(@PathVariable Long id) {
-        currencyPairService.delete(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<AuditPendingResponse> deleteCurrencyPair(@PathVariable Long id,
+            @RequestHeader(value = "X-Actor", required = false) String actor) {
+        AuditPendingResponse pending = currencyPairService.delete(id, actor);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(pending);
     }
 }

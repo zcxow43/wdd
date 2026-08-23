@@ -1,0 +1,247 @@
+.bcp-page__breadcrumb {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.bcp-page__title {
+  margin: 0 0 24px;
+  color: #111827;
+}
+
+.bcp-page__status {
+  color: #6b7280;
+}
+
+.bcp-page__error {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+  color: #d92d20;
+}
+
+.bcp-page__error button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid #d92d20;
+  background: #fff;
+  color: #d92d20;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.bcp-page__btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.bcp-page__btn:disabled {
+  cursor: not-allowed;
+}
+
+.bcp-page__btn--secondary {
+  background: #fff;
+  color: #374151;
+  border-color: #d1d5db;
+}
+
+.bcp-page__btn--danger {
+  background: #dc2626;
+  color: #fff;
+  border-color: #dc2626;
+}
+
+.bcp-page__btn--danger:hover:not(:disabled) {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
+/* Row control, disabled by pending review (also covers the busy-in-flight
+   state) — qualified with the variant class so this wins over
+   `.bcp-page__btn--secondary`/`--danger`'s own background/text colors
+   despite matching specificity. */
+.bcp-page__btn--secondary:disabled,
+.bcp-page__btn--danger:disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+  border-color: #d1d5db;
+}
+
+.bcp-brand-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.bcp-brand-selector__item {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.bcp-brand-selector__item--selected {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.bcp-empty-state {
+  color: #6b7280;
+  background: #fff;
+  border: 1px solid #e2e5eb;
+  border-radius: 8px;
+  padding: 24px;
+}
+
+.bcp-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px #e2e5eb;
+}
+
+.bcp-table th {
+  text-align: left;
+  padding: 16px 24px;
+  background: #f9fafb;
+  font-weight: 500;
+  font-size: 14px;
+  color: #6b7280;
+  border-bottom: 1px solid #e2e5eb;
+}
+
+.bcp-table td {
+  padding: 16px 24px;
+  border-bottom: 1px solid #f1f2f5;
+  font-size: 15px;
+  color: #1f2430;
+  vertical-align: middle;
+}
+
+.bcp-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.bcp-table__code-cell {
+  font-family: 'SF Mono', Menlo, monospace;
+  color: #374151;
+}
+
+.bcp-table__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.bcp-radio-group {
+  display: flex;
+  gap: 16px;
+}
+
+.bcp-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #1f2430;
+  cursor: pointer;
+}
+
+.bcp-radio input[type='radio'] {
+  accent-color: #2563eb;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.bcp-radio:has(input[type='radio']:disabled) {
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.bcp-radio input[type='radio']:disabled {
+  cursor: not-allowed;
+}
+
+.bcp-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.bcp-badge--pending {
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.bcp-form__input {
+  width: 120px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #1f2430;
+  background: #fff;
+}
+
+.bcp-form__input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.bcp-form__input:disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.bcp-form__error {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #d92d20;
+}
+
+.bcp-modal__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.bcp-modal__card {
+  background: #fff;
+  border: 1px solid #e2e5eb;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  padding: 24px;
+  width: 400px;
+  max-width: calc(100vw - 48px);
+}
+
+.bcp-modal__confirm-text {
+  margin: 0 0 24px;
+  color: #1f2430;
+}
+
+.bcp-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}

@@ -4,13 +4,25 @@
     {
       "name": "backend",
       "runtimeExecutable": "mvn",
-      "runtimeArgs": ["-f", "develop/backend/pom.xml", "spring-boot:run"],
-      "port": 8080
+      "runtimeArgs": [
+        "-f",
+        "develop/backend/pom.xml",
+        "spring-boot:run"
+      ],
+      "port": 8080,
+      "env": {
+        "JAVA_HOME": "C:\\Users\\user\\.jdks\\corretto-17.0.11"
+      }
     },
     {
       "name": "frontend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "develop/frontend", "run", "dev"],
+      "runtimeArgs": [
+        "--prefix",
+        "develop/frontend",
+        "run",
+        "dev"
+      ],
       "port": 5173
     }
   ]

@@ -30,6 +30,7 @@ This project is built and rebuilt from `specs/` rather than by hand:
 - `/start` — start containers (docker compose) then backend/frontend dev servers, in that order
 - `/close` — the inverse of `/start`: stop backend/frontend and containers without deleting anything
 - `/destroy` — the inverse of `/init`: wipe `develop/`, `docker/`, and every container, and reset all specs back to pending
+- `/reset-env` — drop every table in the database and rebuild it from `specs/dba/` (specs re-applied even when already `done`)
 - `/commit` — commit and push both this repo and the `.claude` submodule
 
 A fresh checkout is: `/init` → `/dev`. Config and tooling shared across sessions live in the `.claude/` submodule (agents, commands, skills).

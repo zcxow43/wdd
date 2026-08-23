@@ -11,29 +11,29 @@
 <body><div class="board"><div class="row">
   <figure id="frame-0">
     <img src="step-1.png" />
-    <figcaption>初始畫面：載入 GET /api/brands 顯示品牌選擇器（au 預設選中），並呼叫 GET /api/currency-pairs?brandId={au的id} 列出 au 的幣種對（USD/TWD、EUR/TWD 自動啟用，USD/JPY 自動停用）。</figcaption>
+    <figcaption>初始畫面：載入 au 的幣種對清單。EUR/TWD 已有待審核的變更，該列標記「審核中」且控制項停用；其餘列可正常操作。</figcaption>
   </figure>
   <figure id="frame-1">
     <img src="step-2.png" />
-    <figcaption>將 USD/JPY 列的「匯率類型」切換為「手動」：匯率欄位轉為可輸入，填入 31.520000，準備點擊該列的「儲存」。</figcaption>
+    <figcaption>將 USD/JPY 的匯率類型切為「手動」：匯率欄位轉為可輸入，填入 150.25，準備點擊該列的「儲存」。</figcaption>
   </figure>
   <figure id="frame-2">
     <img src="step-3.png" />
-    <figcaption>點擊「儲存」：呼叫 PUT /api/currency-pairs/{id}，成功更新為手動匯率 31.520000，顯示成功提示「品牌幣種對已更新」。</figcaption>
+    <figcaption>點擊「儲存」：變更不會立即生效，而是送出審核申請。該列匯率仍維持原本的「自動」，並標記「審核中」，顯示提示「已送出審核，核准後才會生效」。</figcaption>
   </figure></div><div class="row">
   <figure id="frame-4">
     <img src="step-5.png" />
-    <figcaption>請求成功：USD/JPY 狀態更新為「啟用」，切換開關與其他控制項恢復可互動。</figcaption>
+    <figcaption>確認送出後：該列並未消失，而是留在畫面上標記「審核中」，等待審核人員核准後才會真正刪除。</figcaption>
   </figure>
   <figure id="frame-3">
     <img src="step-4.png" />
-    <figcaption>點擊 USD/JPY 列的狀態切換開關：立即呼叫 PUT，該列控制項停用並顯示「更新中...」。</figcaption>
+    <figcaption>對 USD/TWD 點擊「刪除」：確認視窗說明這是送出刪除申請，核准後才會真正刪除。</figcaption>
   </figure></div>
-  <svg class="arrows" width="2438" height="1188">
+  <svg class="arrows" width="2438" height="1168">
     <defs>
       <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
         <path d="M0,0 L10,5 L0,10 z" fill="#888" />
       </marker>
     </defs>
-    <line x1="328.90833333333336" y1="207.53333333333333" x2="1229.1" y2="207.4" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="1490.2499999999998" y1="207.4" x2="1661" y2="249" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="2188.8749999999995" y1="213.93333333333334" x2="1393.0874999999999" y2="844.7333333333333" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="835" y1="891" x2="777" y2="891" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" />
+    <line x1="297.7666666666667" y1="129" x2="1182.625" y2="129" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="1494.6083333333333" y1="129" x2="1798.0666666666666" y2="129" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="2339.8083333333334" y1="195.93333333333334" x2="1277.6666666666665" y2="824.3333333333334" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="1371" y1="901.4" x2="757.2666666666667" y2="809.5333333333333" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" />
   </svg></div></body></html>

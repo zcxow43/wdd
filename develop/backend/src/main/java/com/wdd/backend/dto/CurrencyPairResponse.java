@@ -7,8 +7,11 @@ import java.time.LocalDateTime;
  * A single brand's currency pair — embedded in the fan-out list returned by
  * {@code POST /api/currency-pair-definitions}, and also the response shape
  * for the brand-scoped {@code /api/currency-pairs} CRUD API.
- * {@code baseCurrencyCode}/{@code quoteCurrencyCode} are read-only
- * enrichment fields populated via the parent currency pair definition.
+ * {@code baseCurrencyCode}/{@code quoteCurrencyCode} and
+ * {@code spreadGroupId}/{@code spreadGroupName} are read-only enrichment
+ * fields populated via the parent currency pair definition and (via a
+ * {@code LEFT JOIN}) {@code spread_group} respectively; never writable
+ * through this API.
  */
 public class CurrencyPairResponse {
 
@@ -21,6 +24,8 @@ public class CurrencyPairResponse {
     private String rateType;
     private BigDecimal rate;
     private Boolean active;
+    private Long spreadGroupId;
+    private String spreadGroupName;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -29,7 +34,8 @@ public class CurrencyPairResponse {
 
     public CurrencyPairResponse(Long id, Long currencyPairDefinitionId, String baseCurrencyCode,
             String quoteCurrencyCode, Long brandId, String brandCode, String rateType, BigDecimal rate,
-            Boolean active, LocalDateTime createdAt, LocalDateTime updatedAt) {
+            Boolean active, Long spreadGroupId, String spreadGroupName, LocalDateTime createdAt,
+            LocalDateTime updatedAt) {
         this.id = id;
         this.currencyPairDefinitionId = currencyPairDefinitionId;
         this.baseCurrencyCode = baseCurrencyCode;
@@ -39,6 +45,8 @@ public class CurrencyPairResponse {
         this.rateType = rateType;
         this.rate = rate;
         this.active = active;
+        this.spreadGroupId = spreadGroupId;
+        this.spreadGroupName = spreadGroupName;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -113,6 +121,22 @@ public class CurrencyPairResponse {
 
     public void setActive(Boolean active) {
         this.active = active;
+    }
+
+    public Long getSpreadGroupId() {
+        return spreadGroupId;
+    }
+
+    public void setSpreadGroupId(Long spreadGroupId) {
+        this.spreadGroupId = spreadGroupId;
+    }
+
+    public String getSpreadGroupName() {
+        return spreadGroupName;
+    }
+
+    public void setSpreadGroupName(String spreadGroupName) {
+        this.spreadGroupName = spreadGroupName;
     }
 
     public LocalDateTime getCreatedAt() {

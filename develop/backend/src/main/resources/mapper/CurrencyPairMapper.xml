@@ -12,6 +12,8 @@
         <result property="rateType" column="rate_type" />
         <result property="rate" column="rate" />
         <result property="active" column="active" />
+        <result property="spreadGroupId" column="spread_group_id" />
+        <result property="spreadGroupName" column="spread_group_name" />
         <result property="createdAt" column="created_at" />
         <result property="updatedAt" column="updated_at" />
     </resultMap>
@@ -19,12 +21,14 @@
     <sql id="selectColumns">
         SELECT cp.id, cp.currency_pair_definition_id, cp.brand_id, b.code AS brand_code,
                bc.code AS base_currency_code, qc.code AS quote_currency_code,
-               cp.rate_type, cp.rate, cp.active, cp.created_at, cp.updated_at
+               cp.rate_type, cp.rate, cp.active, cp.spread_group_id, sg.name AS spread_group_name,
+               cp.created_at, cp.updated_at
         FROM currency_pair cp
         JOIN brand b ON b.id = cp.brand_id
         JOIN currency_pair_definition d ON d.id = cp.currency_pair_definition_id
         JOIN currency bc ON bc.id = d.base_currency_id
         JOIN currency qc ON qc.id = d.quote_currency_id
+        LEFT JOIN spread_group sg ON sg.id = cp.spread_group_id
     </sql>
 
     <select id="findByDefinitionId" resultMap="CurrencyPairResultMap">
@@ -82,5 +86,66 @@
         DELETE FROM currency_pair
         WHERE id = #{id}
     </delete>
+
+    <select id="findByIds" resultMap="CurrencyPairResultMap">
+        <include refid="selectColumns" />
+        WHERE cp.id IN
+        <foreach item="id" collection="ids" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <select id="findBySpreadGroupId" resultMap="CurrencyPairResultMap">
+        <include refid="selectColumns" />
+        WHERE cp.spread_group_id = #{spreadGroupId}
+        ORDER BY cp.id
+    </select>
+
+    <update id="updateSpreadGroupForIds">
+        UPDATE currency_pair
+        SET spread_group_id = #{spreadGroupId}
+        WHERE id IN
+        <foreach item="id" collection="ids" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+    <update id="clearSpreadGroupIfMember">
+        UPDATE currency_pair
+        SET spread_group_id = NULL
+        WHERE id = #{id} AND spread_group_id = #{spreadGroupId}
+    </update>
+
+    <resultMap id="EffectiveSpreadResultMap" type="com.wdd.backend.dto.EffectiveSpread">
+        <id property="currencyPairId" column="currency_pair_id" />
+        <result property="currencyPairDefinitionId" column="currency_pair_definition_id" />
+        <result property="baseCurrencyCode" column="base_currency_code" />
+        <result property="quoteCurrencyCode" column="quote_currency_code" />
+        <result property="brandId" column="brand_id" />
+        <result property="brandCode" column="brand_code" />
+        <result property="spreadGroupId" column="spread_group_id" />
+        <result property="spreadGroupName" column="spread_group_name" />
+        <result property="source" column="source" />
+        <result property="depositSpread" column="deposit_spread" />
+        <result property="withdrawalSpread" column="withdrawal_spread" />
+    </resultMap>
+
+    <select id="findEffectiveSpreadsByBrandId" resultMap="EffectiveSpreadResultMap">
+        SELECT cp.id AS currency_pair_id, cp.currency_pair_definition_id,
+               bc.code AS base_currency_code, qc.code AS quote_currency_code,
+               cp.brand_id, b.code AS brand_code, cp.spread_group_id, sg.name AS spread_group_name,
+               CASE WHEN cp.spread_group_id IS NOT NULL THEN 'GROUP' ELSE 'DEFAULT' END AS source,
+               CASE WHEN cp.spread_group_id IS NOT NULL THEN sg.deposit_spread ELSE bs.deposit_spread END AS deposit_spread,
+               CASE WHEN cp.spread_group_id IS NOT NULL THEN sg.withdrawal_spread ELSE bs.withdrawal_spread END AS withdrawal_spread
+        FROM currency_pair cp
+        JOIN brand b ON b.id = cp.brand_id
+        JOIN currency_pair_definition d ON d.id = cp.currency_pair_definition_id
+        JOIN currency bc ON bc.id = d.base_currency_id
+        JOIN currency qc ON qc.id = d.quote_currency_id
+        LEFT JOIN spread_group sg ON sg.id = cp.spread_group_id
+        LEFT JOIN brand_spread bs ON bs.brand_id = cp.brand_id
+        WHERE cp.brand_id = #{brandId}
+        ORDER BY cp.id
+    </select>
 
 </mapper>

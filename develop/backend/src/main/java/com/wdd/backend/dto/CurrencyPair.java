@@ -5,10 +5,11 @@ import java.time.LocalDateTime;
 
 /**
  * Persistence model mapped to the {@code currency_pair} table (a brand's
- * pair under a {@link CurrencyPairDefinition}). {@code brandCode} and
- * {@code baseCurrencyCode}/{@code quoteCurrencyCode} are read-only
- * enrichment fields populated by joins against {@code brand} and (via the
- * parent definition) {@code currency}.
+ * pair under a {@link CurrencyPairDefinition}). {@code brandCode},
+ * {@code baseCurrencyCode}/{@code quoteCurrencyCode}, and
+ * {@code spreadGroupId}/{@code spreadGroupName} are read-only enrichment
+ * fields populated by joins against {@code brand}, (via the parent
+ * definition) {@code currency}, and {@code spread_group} respectively.
  */
 public class CurrencyPair {
 
@@ -21,6 +22,8 @@ public class CurrencyPair {
     private String rateType;
     private BigDecimal rate;
     private Boolean active;
+    private Long spreadGroupId;
+    private String spreadGroupName;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -94,6 +97,22 @@ public class CurrencyPair {
 
     public void setActive(Boolean active) {
         this.active = active;
+    }
+
+    public Long getSpreadGroupId() {
+        return spreadGroupId;
+    }
+
+    public void setSpreadGroupId(Long spreadGroupId) {
+        this.spreadGroupId = spreadGroupId;
+    }
+
+    public String getSpreadGroupName() {
+        return spreadGroupName;
+    }
+
+    public void setSpreadGroupName(String spreadGroupName) {
+        this.spreadGroupName = spreadGroupName;
     }
 
     public LocalDateTime getCreatedAt() {

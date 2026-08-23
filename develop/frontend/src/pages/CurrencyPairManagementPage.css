@@ -1,0 +1,220 @@
+.currency-pair-page__breadcrumb {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.currency-pair-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.currency-pair-page__title {
+  margin: 0;
+  color: #111827;
+}
+
+.currency-pair-page__status {
+  color: #6b7280;
+}
+
+.currency-pair-page__error {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+  color: #d92d20;
+}
+
+.currency-pair-page__error button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid #d92d20;
+  background: #fff;
+  color: #d92d20;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.currency-pair-page__btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.currency-pair-page__btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.currency-pair-page__btn--primary {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+
+.currency-pair-page__btn--primary:hover:not(:disabled) {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.currency-pair-page__btn--secondary {
+  background: #fff;
+  color: #374151;
+  border-color: #d1d5db;
+}
+
+.currency-pair-page__btn--danger {
+  background: #dc2626;
+  color: #fff;
+  border-color: #dc2626;
+}
+
+.currency-pair-page__btn--danger:hover:not(:disabled) {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.currency-pair-page__btn--danger:disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+  border-color: #e5e7eb;
+}
+
+.currency-pair-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px #e2e5eb;
+}
+
+.currency-pair-table th {
+  text-align: left;
+  padding: 16px 24px;
+  background: #f9fafb;
+  font-weight: 500;
+  font-size: 14px;
+  color: #6b7280;
+  border-bottom: 1px solid #e2e5eb;
+}
+
+.currency-pair-table td {
+  padding: 16px 24px;
+  border-bottom: 1px solid #f1f2f5;
+  font-size: 15px;
+  color: #1f2430;
+}
+
+.currency-pair-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.currency-pair-table__code-cell {
+  font-family: 'SF Mono', Menlo, monospace;
+  color: #374151;
+}
+
+.currency-pair-table__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.currency-pair-table__badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.currency-pair-table__badge--inactive {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.currency-pair-table__badge--active {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.currency-pair-modal__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.currency-pair-modal__card {
+  background: #fff;
+  border: 1px solid #e2e5eb;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  padding: 24px;
+  width: 400px;
+  max-width: calc(100vw - 48px);
+}
+
+.currency-pair-modal__title {
+  margin: 0 0 16px;
+  color: #111827;
+  font-size: 18px;
+}
+
+.currency-pair-modal__confirm-text {
+  margin: 0 0 24px;
+  color: #1f2430;
+}
+
+.currency-pair-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.currency-pair-form__field {
+  margin-bottom: 16px;
+}
+
+.currency-pair-form__label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  color: #374151;
+}
+
+.currency-pair-form__input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #1f2430;
+  background: #fff;
+}
+
+.currency-pair-form__input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.currency-pair-form__input:disabled {
+  background: #f9fafb;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+.currency-pair-form__error {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #d92d20;
+}
