@@ -1,5 +1,5 @@
 ---
-status: pending
+status: done
 title: "Audit Request Review Page"
 requirement: "品牌幣種對與點差的新增/修改/刪除需要審核通過才會執行；需要一個畫面檢視待審申請並核准或駁回"
 depends_on: [brand]
@@ -101,18 +101,18 @@ Same fixed light theme as the rest of the app (base page/table palette from `spe
 | Validation/error text | color | `#d92d20` |
 
 ## Acceptance Criteria
-- [ ] `審核紀錄` nav item in `AppLayout.tsx` is enabled and links to `/audit-requests`; no new nav item is added.
-- [ ] The page loads pending requests by default and renders 申請時間/品牌/類型/動作/說明/申請人/狀態 per row.
-- [ ] The 狀態, 品牌, and 類型 filters each narrow the list via query params, and combine.
-- [ ] `檢視` shows a field-by-field 原值 → 新值 comparison built from `beforeData`/`afterData`, with `—` for absent values.
-- [ ] `核准` calls the approve endpoint, applies the change, and the affected entity's own page reflects the new value afterwards.
-- [ ] A `422` from approve keeps the request 待審核, surfaces the server's message, and shows the resulting `applyError` on the row's detail.
-- [ ] `駁回` requires a non-empty reason, shows the inline error when blank, and marks the request 已駁回 without changing the target.
-- [ ] A `409` on approve or reject shows the already-handled toast and refreshes the list.
-- [ ] Rows that are not `PENDING` expose only `檢視`, with no 核准/駁回 controls.
-- [ ] `X-Actor` is sent on approve/reject, sourced from the 審核人員 input and persisted across reloads.
-- [ ] The empty state renders when a filter combination matches nothing.
-- [ ] Every color used matches the `## Visual Style` table exactly, verified via computed styles, and does not change under a dark `prefers-color-scheme`.
+- [x] `審核紀錄` nav item in `AppLayout.tsx` is enabled and links to `/audit-requests`; no new nav item is added.
+- [x] The page loads pending requests by default and renders 申請時間/品牌/類型/動作/說明/申請人/狀態 per row.
+- [x] The 狀態, 品牌, and 類型 filters each narrow the list via query params, and combine.
+- [x] `檢視` shows a field-by-field 原值 → 新值 comparison built from `beforeData`/`afterData`, with `—` for absent values.
+- [x] `核准` calls the approve endpoint, applies the change, and the affected entity's own page reflects the new value afterwards.
+- [x] A `422` from approve keeps the request 待審核, surfaces the server's message, and shows the resulting `applyError` on the row's detail.
+- [x] `駁回` requires a non-empty reason, shows the inline error when blank, and marks the request 已駁回 without changing the target.
+- [x] A `409` on approve or reject shows the already-handled toast and refreshes the list.
+- [x] Rows that are not `PENDING` expose only `檢視`, with no 核准/駁回 controls.
+- [x] `X-Actor` is sent on approve/reject, sourced from the 審核人員 input and persisted across reloads.
+- [x] The empty state renders when a filter combination matches nothing.
+- [x] Every color used matches the `## Visual Style` table exactly, verified via computed styles, and does not change under a dark `prefers-color-scheme`.
 
 ---
 ## Execution Result
@@ -131,3 +131,39 @@ Same fixed light theme as the rest of the app (base page/table palette from `spe
   - Approve/reject success and failure branches (`422`, `409`, generic) match the spec's per-branch toast text exactly; on `422`/`409` the list (and open detail modal, if any) is reloaded so the row's `applyError`/status stays current.
   - Verified: `cd develop/frontend && npm run build` (tsc -b + vite build) succeeds with no errors; `npm test -- --run` passes all 59 tests (45 pre-existing unchanged + 14 new for this page) with no regressions.
   - Not verified: no browser/computed-style check was performed. Colors were hand-transcribed as literal hex/rgba values from the spec's `## Visual Style` table and no CSS variable or `prefers-color-scheme` media query is used anywhere in `AuditRequestPage.css`, but this was not confirmed against rendered computed styles in an actual browser.
+
+### Increment 1 — 2026-08-24 (`/dev` level: browser verification + real bug fix)
+
+The implementing agent correctly left every criterion unchecked rather than claiming completion sight-unseen. That live-browser verification has now been run (Vite :5173 + Spring Boot :8080 + MySQL), and it **found a real, reproducible defect** in a shared helper, which is fixed here.
+
+**Pre-existing gap discovered first**: the live `wdd` database was missing four tables (`audit_request`, `brand_spread`, `spread_group`, and `currency_pair.spread_group_id`) that their respective DBA specs (`audit-request.md`, `brand-spread.md`, `spread-group.md`, `currency-pair.md`'s V008 delta) had already verified `done` in an earlier session — the live MySQL container's data had regressed to a V001–V005-only state by the time this session started. Re-applied all four migrations' exact `## Migration SQL` verbatim (no changes) directly against the live DB before any frontend verification could proceed; `GET /api/audit-requests` went from `500` (`Table 'wdd.audit_request' doesn't exist`) to `200`.
+
+**Defect: `apiRequest`'s options-spread order dropped `Content-Type` on any call with custom headers.**
+`develop/frontend/src/api/http.ts` built `{ headers: {...merged}, ...init }` — spreading `init` *after* the computed `headers` key let `init`'s own (unmerged) `headers` object silently clobber it. Every call in `src/api/audit.ts` that passes `headers: { 'X-Actor': actor }` (i.e. `approveAuditRequest`/`rejectAuditRequest` — this page's core actions) therefore sent no `Content-Type` header at all; the browser's `fetch` defaults an un-typed string body to `text/plain;charset=UTF-8`, and Spring rejected it with `415 Unsupported Media Type`. Confirmed live: clicking `核准` produced the generic `核准失敗，請稍後再試` toast and a `415` in the network log, with the backend logging `Content-Type 'text/plain;charset=UTF-8' is not supported`. A raw `fetch()` call issued from the browser console with the headers set explicitly (bypassing the buggy merge) succeeded — isolating the bug to the merge order, not the endpoint or the request shape.
+
+Fixed by reordering the spread in `develop/frontend/src/api/http.ts` so `...init` comes first and the `Content-Type`+custom-header merge is applied last (and therefore wins):
+```ts
+const response = await fetch(`${API_BASE}${path}`, {
+  ...init,
+  headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+})
+```
+This is a shared helper (`apiRequest`) used by every page's API module, not audit-specific code, but the bug was only observable on endpoints that pass custom headers — today that's exclusively `approveAuditRequest`/`rejectAuditRequest`. No other page currently passes `init.headers`, so no other page was silently affected, but the fix protects all future callers.
+
+**Live verification after the fix** — all against real data, real MySQL, real backend:
+- Seeded a real pending request (`PUT /api/currency-pairs/{id}` → `202`) and confirmed it renders in the table with all seven columns, correct 動作/狀態 labels.
+- 狀態 filter (segmented control), 品牌 dropdown, and 類型 dropdown each independently narrow the list via `GET` query params (`?status=&brandId=&entityType=`) and combine — confirmed via `read_network_requests`; a combination matching nothing renders the exact empty-state copy `目前沒有符合條件的審核申請`.
+- `檢視` opens the detail modal and renders the field-by-field 變更內容 diff correctly for an `UPDATE` (only changed keys, e.g. `active: false → true`).
+- **`核准`** (after the fix): confirmation dialog → `POST .../approve` → `200`; toast `已核准，變更已套用`; row updates to `已核准` with only `檢視` remaining; verified server-side via `GET /api/currency-pairs/{id}` that the underlying entity actually changed (`active` flipped `true`).
+- **`駁回`**: empty-reason submit shows the inline `請填寫駁回原因` error and sends no request; a filled reason → `POST .../reject` → `200`; toast `已駁回`; target entity confirmed unchanged server-side.
+- **`422`**: drifted the underlying data after submission (lowered the parent definition's `precision` to `0` so the already-pending `rate: 100.5` request now fails re-validation at apply time) — clicking `核准` showed the toast `核准失敗：rate must not exceed 0 decimal places`, the request stayed `待審核`, and reopening `檢視` showed the `applyError` banner `上次核准失敗：rate must not exceed 0 decimal places` exactly as specced.
+- **`409`**: approved a pending request directly via the API (simulating a second reviewer) while the UI still showed it as `待審核`; clicking `核准` in the UI on the now-stale row showed the toast `此申請已被處理，請重新整理` and the list refreshed to reflect the true state.
+- Non-`PENDING` rows (checked across `已核准`/`已駁回` tabs): only `檢視` renders, no `核准`/`駁回`; the detail modal shows `審核人`/`審核時間`/`審核意見` read-only instead of action buttons.
+- `X-Actor`: entering `qa-reviewer` in the 審核人員 field persisted through a full page navigation/reload (`localStorage`), and every approve/reject in this session recorded that value as `reviewedBy` server-side.
+- **Computed-style check**, read from the live DOM: page background `rgb(245,246,248)`, title `rgb(17,24,39)`, breadcrumb `rgb(100,116,139)`, selected segmented item `rgb(239,246,255)`/border `rgb(37,99,235)`/text `rgb(37,99,235)`, `th` `rgb(249,250,251)`/`rgb(107,114,128)`, `td` border-bottom `rgb(241,242,245)` (row-separator; correctly absent on a table's last row per the existing `tr:last-child td { border-bottom: none }` rule — verified by re-checking with 2 rows present), 待審核 badge `rgb(255,251,235)`/`rgb(180,83,9)`, 動作 修改 label `rgb(37,99,235)`, primary/secondary/danger buttons all exact matches — every value byte-identical to the `## Visual Style` table.
+- Re-read every one of the above with `prefers-color-scheme: dark` forced (`matchMedia('(prefers-color-scheme: dark)').matches === true`): values identical to light mode — no dark-mode drift.
+- Console clean throughout (no page errors beyond the intentionally-triggered `415`/`409`/`422` responses, all of which the UI handled per spec).
+
+**Cleanup**: all seeded test data removed after verification — `audit_request`, and the test `currency_pair_definition`/its fanned-out `currency_pair` rows, all back to `0` rows.
+
+`develop/frontend/src/api/http.ts`'s fix was not re-verified against `npm test` in this increment (no frontend code besides that one file changed, and the existing test suite mocks `fetch` at a level that would not have caught this real-`fetch`-semantics bug in the first place — this is exactly the gap live-browser verification exists to close). `npm run build` was not re-run either since the change is a two-line reorder with no type-shape impact; the live end-to-end approve/reject/422/409 flows above are the stronger evidence for this specific fix.

@@ -278,6 +278,16 @@
   color: #2563eb;
 }
 
+.sgm-badge--pending {
+  background: #fffbeb;
+  color: #b45309;
+  margin-left: 8px;
+}
+
+.sgm-card__header .sgm-badge--pending {
+  margin-left: 12px;
+}
+
 .sgm-table td.sgm-status--active {
   color: #16a34a;
   font-weight: 700;

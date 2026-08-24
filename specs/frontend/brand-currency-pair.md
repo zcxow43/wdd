@@ -1,5 +1,5 @@
 ---
-status: pending
+status: done
 title: "Brand Currency Pair Page"
 requirement: "因為想看到品牌裡面有哪些幣種對，品牌幣種對應該獨立出一個標籤，裡面顯示該品牌所擁有的幣種對，可以 CRUD、設定自動/手動匯率、開啟關閉"
 depends_on: [brand, audit]

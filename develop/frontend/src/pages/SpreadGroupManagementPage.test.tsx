@@ -2,6 +2,8 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import SpreadGroupManagementPage from './SpreadGroupManagementPage'
+import type { AuditRequestSummary } from '../api/audit'
+import { fetchAuditRequests } from '../api/audit'
 import type { Brand } from '../api/brands'
 import { fetchBrands } from '../api/brands'
 import type { CurrencyPair } from '../api/currencyPairDefinitions'
@@ -10,6 +12,7 @@ import { ApiError } from '../api/http'
 import type {
   BrandSpread,
   EffectiveSpread,
+  SpreadAuditSubmission,
   SpreadGroup,
   SpreadGroupDetail,
 } from '../api/spreads'
@@ -30,6 +33,10 @@ vi.mock('../api/brands', () => ({
   fetchBrands: vi.fn(),
 }))
 
+vi.mock('../api/audit', () => ({
+  fetchAuditRequests: vi.fn(),
+}))
+
 vi.mock('../api/currencyPairDefinitions', () => ({
   fetchCurrencyPairsByBrand: vi.fn(),
 }))
@@ -48,6 +55,7 @@ vi.mock('../api/spreads', () => ({
 }))
 
 const mockedFetchBrands = vi.mocked(fetchBrands)
+const mockedFetchAuditRequests = vi.mocked(fetchAuditRequests)
 const mockedFetchPairsByBrand = vi.mocked(fetchCurrencyPairsByBrand)
 const mockedFetchBrandSpread = vi.mocked(fetchBrandSpread)
 const mockedUpdateBrandSpread = vi.mocked(updateBrandSpread)
@@ -59,6 +67,41 @@ const mockedDeleteSpreadGroup = vi.mocked(deleteSpreadGroup)
 const mockedAddSpreadGroupMembers = vi.mocked(addSpreadGroupMembers)
 const mockedRemoveSpreadGroupMember = vi.mocked(removeSpreadGroupMember)
 const mockedFetchEffectiveSpreads = vi.mocked(fetchEffectiveSpreads)
+
+function makeAuditSubmission(
+  overrides: Partial<SpreadAuditSubmission> = {},
+): SpreadAuditSubmission {
+  return {
+    auditRequestId: 9001,
+    status: 'PENDING',
+    entityType: 'BRAND_SPREAD',
+    actionType: 'UPDATE',
+    entityId: 1,
+    summary: 'summary',
+    ...overrides,
+  }
+}
+
+function makeAuditRequestSummary(
+  overrides: Partial<AuditRequestSummary> = {},
+): AuditRequestSummary {
+  return {
+    id: 9001,
+    entityType: 'BRAND_SPREAD',
+    actionType: 'UPDATE',
+    entityId: 1,
+    brandId: 1,
+    summary: 'summary',
+    status: 'PENDING',
+    requestedBy: 'system',
+    requestedAt: '2026-08-23T00:00:00',
+    reviewedBy: null,
+    reviewedAt: null,
+    reviewComment: null,
+    applyError: null,
+    ...overrides,
+  }
+}
 
 const BRAND_CODES = ['au', 'moneta', 'pug', 'star', 'um', 'vjp', 'vt']
 
@@ -206,6 +249,7 @@ async function renderReady() {
 describe('SpreadGroupManagementPage', () => {
   beforeEach(() => {
     mockedFetchBrands.mockReset()
+    mockedFetchAuditRequests.mockReset()
     mockedFetchPairsByBrand.mockReset()
     mockedFetchBrandSpread.mockReset()
     mockedUpdateBrandSpread.mockReset()
@@ -219,6 +263,7 @@ describe('SpreadGroupManagementPage', () => {
     mockedFetchEffectiveSpreads.mockReset()
 
     mockedFetchBrands.mockResolvedValue(makeBrands())
+    mockedFetchAuditRequests.mockResolvedValue([])
     mockedFetchBrandSpread.mockResolvedValue(makeDefaultSpread())
     mockedFetchSpreadGroups.mockResolvedValue([makeGroup()])
     mockedFetchEffectiveSpreads.mockResolvedValue(makeEffective())
@@ -258,12 +303,10 @@ describe('SpreadGroupManagementPage', () => {
     expect(mockedFetchEffectiveSpreads).toHaveBeenCalledWith(2)
   })
 
-  it('saves 預設點差 via PUT and shows the success toast with server values', async () => {
-    mockedUpdateBrandSpread.mockResolvedValue({
-      ...makeDefaultSpread(),
-      depositSpread: 0.001,
-      withdrawalSpread: 0.002,
-    })
+  it('saves 預設點差 via PUT: on 202 reverts the inputs, shows the 審核中 badge and submission toast', async () => {
+    mockedUpdateBrandSpread.mockResolvedValue(
+      makeAuditSubmission({ entityId: 1 }),
+    )
 
     await renderReady()
 
@@ -279,10 +322,47 @@ describe('SpreadGroupManagementPage', () => {
       withdrawalSpread: 0.002,
     })
 
-    await screen.findByText('預設點差已更新')
+    await screen.findByText('已送出審核，核准後才會生效')
+
+    // Reverted to the currently-effective (still-original) values.
     expect((screen.getByLabelText('入金點差') as HTMLInputElement).value).toBe(
-      '0.001',
+      '0.0005',
     )
+    expect(
+      (screen.getByLabelText('出金點差') as HTMLInputElement).value,
+    ).toBe('0.0008')
+    expect(screen.getByText('審核中')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '儲存' })).toBeDisabled()
+    expect(screen.getByLabelText('入金點差')).toBeDisabled()
+  })
+
+  it('shows the already-pending error toast on a 409 default-spread conflict', async () => {
+    mockedUpdateBrandSpread.mockRejectedValue(new ApiError(409, 'conflict'))
+
+    await renderReady()
+
+    await userEvent.clear(screen.getByLabelText('入金點差'))
+    await userEvent.type(screen.getByLabelText('入金點差'), '0.001')
+    await userEvent.click(screen.getByRole('button', { name: '儲存' }))
+
+    await screen.findByText('此品牌的預設點差已有待審核的變更')
+    expect((screen.getByLabelText('入金點差') as HTMLInputElement).value).toBe(
+      '0.0005',
+    )
+  })
+
+  it('loads the 預設點差 card already marked 審核中 with disabled controls when a pending request exists', async () => {
+    mockedFetchAuditRequests.mockResolvedValue([
+      makeAuditRequestSummary({ entityType: 'BRAND_SPREAD', entityId: 1 }),
+    ])
+
+    await renderReady()
+
+    await waitFor(() => {
+      expect(screen.getByText('審核中')).toBeInTheDocument()
+    })
+    expect(screen.getByLabelText('入金點差')).toBeDisabled()
+    expect(screen.getByRole('button', { name: '儲存' })).toBeDisabled()
   })
 
   it('blocks the save request and shows an inline error for a negative or over-8-decimal value', async () => {
@@ -308,9 +388,13 @@ describe('SpreadGroupManagementPage', () => {
     expect(mockedUpdateBrandSpread).not.toHaveBeenCalled()
   })
 
-  it('creates a group via POST with memberCount 0, and a duplicate name shows an inline error without closing the modal', async () => {
+  it('新增群組 submits via POST: on 202 no row is added, and a duplicate name shows an inline error without closing the modal', async () => {
     mockedCreateSpreadGroup.mockResolvedValueOnce(
-      makeGroup({ id: 2, name: 'STD', memberCount: 0 }),
+      makeAuditSubmission({
+        entityType: 'SPREAD_GROUP',
+        actionType: 'CREATE',
+        entityId: null,
+      }),
     )
 
     await renderReady()
@@ -333,8 +417,10 @@ describe('SpreadGroupManagementPage', () => {
       withdrawalSpread: 0,
     })
 
-    await screen.findByText('點差群組已新增')
-    await screen.findByText('STD')
+    await screen.findByText('已送出審核，核准後才會生效')
+    expect(screen.queryByText('新增點差群組')).not.toBeInTheDocument()
+    // No row is added — the group does not exist until approved.
+    expect(within(getGroupsSection()).queryByText('STD')).not.toBeInTheDocument()
 
     // duplicate name case
     mockedCreateSpreadGroup.mockRejectedValueOnce(new ApiError(409, 'conflict'))
@@ -349,9 +435,13 @@ describe('SpreadGroupManagementPage', () => {
     expect(screen.getByText('新增點差群組')).toBeInTheDocument()
   })
 
-  it('編輯 updates name/spreads via PUT without an editable brand field', async () => {
+  it('編輯 submits name/spreads via PUT: on 202 the row is left unchanged and marked 審核中', async () => {
     mockedUpdateSpreadGroup.mockResolvedValue(
-      makeGroup({ name: 'VIP+', depositSpread: 0.0004 }),
+      makeAuditSubmission({
+        entityType: 'SPREAD_GROUP',
+        actionType: 'UPDATE',
+        entityId: 1,
+      }),
     )
 
     await renderReady()
@@ -371,12 +461,35 @@ describe('SpreadGroupManagementPage', () => {
       depositSpread: 0.0002,
       withdrawalSpread: 0.0003,
     })
-    await screen.findByText('點差群組已更新')
-    await screen.findByText('VIP+')
+    await screen.findByText('已送出審核，核准後才會生效')
+    // Row values are left unchanged — still 'VIP', not 'VIP+'.
+    expect(within(getGroupsSection()).getByText('VIP')).toBeInTheDocument()
+    expect(within(getGroupsSection()).queryByText('VIP+')).not.toBeInTheDocument()
+    expect(within(getGroupsSection()).getByText('審核中')).toBeInTheDocument()
   })
 
-  it('刪除 confirms with member-count wording, deletes via DELETE, and removes the row', async () => {
-    mockedDeleteSpreadGroup.mockResolvedValue(undefined)
+  it('編輯 already-pending 409 shows the error toast and marks the row 審核中', async () => {
+    mockedUpdateSpreadGroup.mockRejectedValue(new ApiError(409, 'conflict'))
+
+    await renderReady()
+    await within(getGroupsSection()).findByText('VIP')
+
+    await userEvent.click(screen.getByRole('button', { name: '編輯' }))
+    const modalCard = screen.getByText('編輯點差群組').closest('.sgm-modal__card') as HTMLElement
+    await userEvent.click(within(modalCard).getByRole('button', { name: '儲存' }))
+
+    await screen.findByText('此群組已有待審核的變更')
+    expect(within(getGroupsSection()).getByText('審核中')).toBeInTheDocument()
+  })
+
+  it('刪除 confirms with member-count wording: on 202 the row stays on screen marked 審核中', async () => {
+    mockedDeleteSpreadGroup.mockResolvedValue(
+      makeAuditSubmission({
+        entityType: 'SPREAD_GROUP',
+        actionType: 'DELETE',
+        entityId: 1,
+      }),
+    )
 
     await renderReady()
     await within(getGroupsSection()).findByText('VIP')
@@ -390,13 +503,52 @@ describe('SpreadGroupManagementPage', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: '刪除' }))
 
     expect(mockedDeleteSpreadGroup).toHaveBeenCalledWith(1)
-    await screen.findByText('點差群組已刪除')
-    expect(within(getGroupsSection()).queryByText('VIP')).not.toBeInTheDocument()
+    await screen.findByText('已送出審核，核准後才會生效')
+    expect(within(getGroupsSection()).getByText('VIP')).toBeInTheDocument()
+    expect(within(getGroupsSection()).getByText('審核中')).toBeInTheDocument()
   })
 
-  it('管理成員 lists members and 移除 removes one and decrements 成員數', async () => {
+  it('shows the already-pending error toast on a 409 group-delete conflict', async () => {
+    mockedDeleteSpreadGroup.mockRejectedValue(new ApiError(409, 'conflict'))
+
+    await renderReady()
+    await within(getGroupsSection()).findByText('VIP')
+
+    await userEvent.click(screen.getByRole('button', { name: '刪除' }))
+    const dialog = screen.getByText(/確定要刪除群組/).closest('.sgm-modal__card') as HTMLElement
+    await userEvent.click(within(dialog).getByRole('button', { name: '刪除' }))
+
+    await screen.findByText('此群組已有待審核的變更')
+    expect(within(getGroupsSection()).getByText('審核中')).toBeInTheDocument()
+  })
+
+  it('loads a group row already marked 審核中 with 管理成員/編輯/刪除 disabled when a pending request exists', async () => {
+    mockedFetchAuditRequests.mockResolvedValue([
+      makeAuditRequestSummary({ entityType: 'SPREAD_GROUP', entityId: 1 }),
+    ])
+
+    await renderReady()
+    await within(getGroupsSection()).findByText('VIP')
+
+    await waitFor(() => {
+      expect(within(getGroupsSection()).getByText('審核中')).toBeInTheDocument()
+    })
+    expect(
+      screen.getByRole('button', { name: '管理成員' }),
+    ).toBeDisabled()
+    expect(screen.getByRole('button', { name: '編輯' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '刪除' })).toBeDisabled()
+  })
+
+  it('管理成員 lists members: 移除 submits via DELETE, leaving the member listed with a 審核中 marker and 成員數 unchanged', async () => {
     mockedFetchSpreadGroup.mockResolvedValue(makeGroupDetail())
-    mockedRemoveSpreadGroupMember.mockResolvedValue(undefined)
+    mockedRemoveSpreadGroupMember.mockResolvedValue(
+      makeAuditSubmission({
+        entityType: 'SPREAD_GROUP_MEMBER',
+        actionType: 'UPDATE',
+        entityId: 1,
+      }),
+    )
 
     await renderReady()
     await within(getGroupsSection()).findByText('VIP')
@@ -412,39 +564,62 @@ describe('SpreadGroupManagementPage', () => {
 
     const rows = within(modalCard).getAllByRole('row').slice(1)
     const usdJpyRow = rows.find(
-      (r) => within(r).getAllByRole('cell')[0].textContent === 'USD/JPY',
+      (r) => within(r).getAllByRole('cell')[0].textContent?.startsWith('USD/JPY'),
     )!
     await userEvent.click(within(usdJpyRow).getByRole('button', { name: '移除' }))
 
     expect(mockedRemoveSpreadGroupMember).toHaveBeenCalledWith(1, 10)
-    await screen.findByText('已從群組移除')
-    expect(within(modalCard).queryByText('USD/JPY')).not.toBeInTheDocument()
+    await screen.findByText('已送出審核，核准後才會生效')
 
-    // 成員數 badge in the group table behind the modal is decremented from 2 to 1
+    // The member stays listed, marked 審核中, with 移除 disabled.
+    expect(within(modalCard).getByText('USD/JPY')).toBeInTheDocument()
+    const updatedRow = within(modalCard)
+      .getAllByRole('row')
+      .slice(1)
+      .find((r) => within(r).getAllByRole('cell')[0].textContent?.startsWith('USD/JPY'))!
+    expect(within(updatedRow).getByText('審核中')).toBeInTheDocument()
+    expect(within(updatedRow).getByRole('button', { name: '移除' })).toBeDisabled()
+
+    // 成員數 badge in the group table behind the modal stays at 2.
     const tables = screen.getAllByRole('table')
     const groupsTable = tables.find((t) => within(t).queryByText('VIP'))!
     const groupRow = within(groupsTable)
       .getAllByRole('row')
       .find((r) => within(r).queryByText('VIP'))!
-    expect(within(groupRow).getByText('1')).toBeInTheDocument()
+    expect(within(groupRow).getByText('2')).toBeInTheDocument()
   })
 
-  it('加入 picker offers only unassigned pairs and joins every checked pair in one call', async () => {
+  it('移除 already-pending 409 shows the error toast', async () => {
     mockedFetchSpreadGroup.mockResolvedValue(makeGroupDetail())
-    mockedAddSpreadGroupMembers.mockResolvedValue({
-      ...makeGroupDetail(),
-      memberCount: 3,
-      members: [
-        ...makeGroupDetail().members,
-        {
-          currencyPairId: 13,
-          currencyPairDefinitionId: 4,
-          baseCurrencyCode: 'AUD',
-          quoteCurrencyCode: 'USD',
-          active: true,
-        },
-      ],
-    })
+    mockedRemoveSpreadGroupMember.mockRejectedValue(new ApiError(409, 'conflict'))
+
+    await renderReady()
+    await within(getGroupsSection()).findByText('VIP')
+
+    await userEvent.click(screen.getByRole('button', { name: '管理成員' }))
+    const modalCard = screen
+      .getByText('管理成員 - VIP')
+      .closest('.sgm-modal__card') as HTMLElement
+    await within(modalCard).findByText('USD/JPY')
+
+    const rows = within(modalCard).getAllByRole('row').slice(1)
+    const usdJpyRow = rows.find(
+      (r) => within(r).getAllByRole('cell')[0].textContent?.startsWith('USD/JPY'),
+    )!
+    await userEvent.click(within(usdJpyRow).getByRole('button', { name: '移除' }))
+
+    await screen.findByText('此群組已有待審核的變更')
+  })
+
+  it('加入 picker offers only unassigned pairs; joining submits via POST leaving the member list and 成員數 untouched', async () => {
+    mockedFetchSpreadGroup.mockResolvedValue(makeGroupDetail())
+    mockedAddSpreadGroupMembers.mockResolvedValue(
+      makeAuditSubmission({
+        entityType: 'SPREAD_GROUP_MEMBER',
+        actionType: 'UPDATE',
+        entityId: 1,
+      }),
+    )
 
     await renderReady()
     await within(getGroupsSection()).findByText('VIP')
@@ -462,32 +637,30 @@ describe('SpreadGroupManagementPage', () => {
     expect(within(pickerSection).getByText('AUD/USD')).toBeInTheDocument()
     expect(within(pickerSection).queryByText('USD/JPY')).not.toBeInTheDocument()
 
-    // after joining, the picker's own re-fetch reflects that pair 13 is no
-    // longer unassigned
-    mockedFetchPairsByBrand.mockResolvedValueOnce(
-      makePickerPairs().map((p) =>
-        p.id === 13 ? { ...p, spreadGroupId: 1, spreadGroupName: 'VIP' } : p,
-      ),
-    )
-
     await userEvent.click(within(pickerSection).getByRole('checkbox'))
     await userEvent.click(within(modalCard).getByRole('button', { name: '加入' }))
 
     expect(mockedAddSpreadGroupMembers).toHaveBeenCalledWith(1, [13])
-    await screen.findByText('已加入群組')
+    await screen.findByText('已送出審核，核准後才會生效')
 
+    // The member list and 成員數 are not updated — the batch joins only
+    // once the request is approved.
     const memberTable = within(modalCard).getByRole('table')
-    await within(memberTable).findByText('AUD/USD')
-    await waitFor(() => {
-      expect(
-        within(modalCard).queryByText('此品牌沒有可加入的幣種對'),
-      ).toBeInTheDocument()
-    })
+    expect(within(memberTable).queryByText('AUD/USD')).not.toBeInTheDocument()
+    expect(within(pickerSection).getByText('AUD/USD')).toBeInTheDocument()
+    const tables = screen.getAllByRole('table')
+    const groupsTable = tables.find((t) => within(t).queryByText('VIP'))!
+    const groupRow = within(groupsTable)
+      .getAllByRole('row')
+      .find((r) => within(r).queryByText('VIP'))!
+    expect(within(groupRow).getByText('2')).toBeInTheDocument()
   })
 
-  it('a 409 from 加入 shows the error toast and re-fetches both lists', async () => {
+  it('a business 409 from 加入 (pair claimed elsewhere) shows the error toast and re-fetches both lists', async () => {
     mockedFetchSpreadGroup.mockResolvedValue(makeGroupDetail())
-    mockedAddSpreadGroupMembers.mockRejectedValue(new ApiError(409, 'conflict'))
+    mockedAddSpreadGroupMembers.mockRejectedValue(
+      new ApiError(409, 'conflict', { error: 'conflict', conflicts: [] }),
+    )
 
     await renderReady()
     await within(getGroupsSection()).findByText('VIP')
@@ -511,6 +684,26 @@ describe('SpreadGroupManagementPage', () => {
       expect(mockedFetchSpreadGroup).toHaveBeenCalledWith(1)
       expect(mockedFetchPairsByBrand).toHaveBeenCalledWith(1)
     })
+  })
+
+  it('an already-pending 409 from 加入 (no conflicts body) shows the generic error toast', async () => {
+    mockedFetchSpreadGroup.mockResolvedValue(makeGroupDetail())
+    mockedAddSpreadGroupMembers.mockRejectedValue(new ApiError(409, 'conflict'))
+
+    await renderReady()
+    await within(getGroupsSection()).findByText('VIP')
+
+    await userEvent.click(screen.getByRole('button', { name: '管理成員' }))
+    const modalCard = screen
+      .getByText('管理成員 - VIP')
+      .closest('.sgm-modal__card') as HTMLElement
+
+    const picker = await within(modalCard).findByText('加入品牌幣種對')
+    const pickerSection = picker.closest('.sgm-member-picker') as HTMLElement
+    await userEvent.click(within(pickerSection).getByRole('checkbox'))
+    await userEvent.click(within(modalCard).getByRole('button', { name: '加入' }))
+
+    await screen.findByText('此群組已有待審核的變更')
   })
 
   it('shows the empty-state message when the brand has no groups', async () => {

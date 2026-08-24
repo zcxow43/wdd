@@ -11,7 +11,7 @@
       ],
       "port": 8080,
       "env": {
-        "JAVA_HOME": "C:\\Users\\user\\.jdks\\corretto-17.0.11"
+        "JAVA_HOME": "/Library/Java/JavaVirtualMachines/amazon-corretto-17.jdk/Contents/Home"
       }
     },
     {

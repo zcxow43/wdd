@@ -532,6 +532,7 @@ function SpreadGroupManagementPage() {
     setManagingGroup(group)
     setMemberDetail(null)
     setSelectedPairIds(new Set())
+    setPendingMemberIds(new Set())
     loadMemberDetail(group.id)
     if (selectedBrandId !== null) {
       loadPickerPairs(selectedBrandId)
@@ -545,6 +546,7 @@ function SpreadGroupManagementPage() {
     setBrandPairsForPicker(null)
     setPickerError(false)
     setSelectedPairIds(new Set())
+    setPendingMemberIds(new Set())
   }
 
   const handleRemoveMember = (currencyPairId: number) => {
@@ -555,28 +557,20 @@ function SpreadGroupManagementPage() {
     setRemovingMemberId(currencyPairId)
     removeSpreadGroupMember(groupId, currencyPairId)
       .then(() => {
-        setMemberDetail((current) =>
-          current
-            ? {
-                ...current,
-                members: current.members.filter(
-                  (m) => m.currencyPairId !== currencyPairId,
-                ),
-                memberCount: current.memberCount - 1,
-              }
-            : current,
-        )
-        setGroups((current) =>
-          current?.map((g) =>
-            g.id === groupId ? { ...g, memberCount: g.memberCount - 1 } : g,
-          ) ?? current,
-        )
-        setToastMessage('已從群組移除')
-        loadEffective(selectedBrandId)
-        loadPickerPairs(selectedBrandId)
+        // 202: the member stays listed and 成員數 is unchanged — the
+        // removal only happens on approval. Only a local, modal-scoped
+        // 審核中 marker is added to that member row.
+        setPendingMemberIds((current) => new Set(current).add(currencyPairId))
+        setPendingGroupIds((current) => new Set(current).add(groupId))
+        setToastMessage(SUBMITTED_TOAST_MESSAGE)
       })
-      .catch(() => {
-        setToastMessage('移除失敗，請稍後再試')
+      .catch((error: unknown) => {
+        if (error instanceof ApiError && error.status === 409) {
+          setPendingGroupIds((current) => new Set(current).add(groupId))
+          setToastMessage('此群組已有待審核的變更')
+        } else {
+          setToastMessage('移除失敗，請稍後再試')
+        }
       })
       .finally(() => {
         setRemovingMemberId(null)
@@ -602,32 +596,29 @@ function SpreadGroupManagementPage() {
     const groupId = managingGroup.id
     setJoining(true)
     addSpreadGroupMembers(groupId, Array.from(selectedPairIds))
-      .then((detail) => {
-        setMemberDetail(detail)
-        setGroups((current) =>
-          current?.map((g) =>
-            g.id === detail.id
-              ? {
-                  ...g,
-                  memberCount: detail.memberCount,
-                  name: detail.name,
-                  depositSpread: detail.depositSpread,
-                  withdrawalSpread: detail.withdrawalSpread,
-                }
-              : g,
-          ) ?? current,
-        )
+      .then(() => {
+        // 202: the batch joins the group only once approved — the member
+        // list and 成員數 are intentionally left untouched here.
         setSelectedPairIds(new Set())
-        setToastMessage('已加入群組')
-        loadEffective(selectedBrandId)
-        loadPickerPairs(selectedBrandId)
+        setPendingGroupIds((current) => new Set(current).add(groupId))
+        setToastMessage(SUBMITTED_TOAST_MESSAGE)
       })
       .catch((error: unknown) => {
         if (error instanceof ApiError && error.status === 409) {
-          setToastMessage('部分幣種對已屬於其他群組，請重新整理')
-          setSelectedPairIds(new Set())
-          loadMemberDetail(groupId)
-          loadPickerPairs(selectedBrandId)
+          const body = error.body as { error?: string } | undefined
+          if (body?.error) {
+            // Business conflict: a picked pair was assigned to another
+            // group between load and submit (SpreadGroupMemberConflictException).
+            setToastMessage('部分幣種對已屬於其他群組，請重新整理')
+            setSelectedPairIds(new Set())
+            loadMemberDetail(groupId)
+            loadPickerPairs(selectedBrandId)
+          } else {
+            // Already-pending conflict: this group already has a pending
+            // membership change (AuditRequestConflictException).
+            setPendingGroupIds((current) => new Set(current).add(groupId))
+            setToastMessage('此群組已有待審核的變更')
+          }
         } else {
           setToastMessage('加入失敗，請稍後再試')
         }
@@ -679,7 +670,14 @@ function SpreadGroupManagementPage() {
 
           {/* Section 1: 預設點差 */}
           <div className="sgm-card">
-            <h2 className="sgm-card__heading">預設點差</h2>
+            <div className="sgm-card__header">
+              <h2 className="sgm-card__heading">預設點差</h2>
+              {defaultPending && (
+                <span className="sgm-badge sgm-badge--pending" title="此項目有待審核的變更，需先完成審核">
+                  審核中
+                </span>
+              )}
+            </div>
             {defaultLoading && <p className="sgm-page__status">載入中...</p>}
             {!defaultLoading && defaultError && (
               <div className="sgm-page__error">
@@ -706,7 +704,7 @@ function SpreadGroupManagementPage() {
                       type="number"
                       className="sgm-form__input"
                       value={defaultForm.depositSpread}
-                      disabled={defaultSaving}
+                      disabled={defaultSaving || defaultPending}
                       onChange={(e) =>
                         handleDefaultFieldChange('depositSpread', e.target.value)
                       }
@@ -729,7 +727,7 @@ function SpreadGroupManagementPage() {
                       type="number"
                       className="sgm-form__input"
                       value={defaultForm.withdrawalSpread}
-                      disabled={defaultSaving}
+                      disabled={defaultSaving || defaultPending}
                       onChange={(e) =>
                         handleDefaultFieldChange(
                           'withdrawalSpread',
@@ -746,7 +744,7 @@ function SpreadGroupManagementPage() {
                   <button
                     type="button"
                     className="sgm-page__btn sgm-page__btn--primary sgm-form__save-btn"
-                    disabled={defaultSaving}
+                    disabled={defaultSaving || defaultPending}
                     onClick={handleDefaultSave}
                   >
                     儲存
@@ -806,47 +804,63 @@ function SpreadGroupManagementPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {groups.map((group) => (
-                    <tr key={group.id}>
-                      <td className="sgm-table__name-cell">{group.name}</td>
-                      <td className="sgm-table__spread-cell">
-                        {group.depositSpread}
-                      </td>
-                      <td className="sgm-table__spread-cell">
-                        {group.withdrawalSpread}
-                      </td>
-                      <td>
-                        <span className={memberBadgeClass(group.memberCount)}>
-                          {group.memberCount}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="sgm-table__actions">
-                          <button
-                            type="button"
-                            className="sgm-page__btn sgm-page__btn--secondary"
-                            onClick={() => openMemberModal(group)}
-                          >
-                            管理成員
-                          </button>
-                          <button
-                            type="button"
-                            className="sgm-page__btn sgm-page__btn--secondary"
-                            onClick={() => openEditGroupModal(group)}
-                          >
-                            編輯
-                          </button>
-                          <button
-                            type="button"
-                            className="sgm-page__btn sgm-page__btn--danger"
-                            onClick={() => setDeletingGroup(group)}
-                          >
-                            刪除
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {groups.map((group) => {
+                    const isGroupPending = pendingGroupIds.has(group.id)
+                    return (
+                      <tr key={group.id}>
+                        <td className="sgm-table__name-cell">
+                          {group.name}
+                          {isGroupPending && (
+                            <span
+                              className="sgm-badge sgm-badge--pending"
+                              title="此列有待審核的變更，需先完成審核"
+                            >
+                              審核中
+                            </span>
+                          )}
+                        </td>
+                        <td className="sgm-table__spread-cell">
+                          {group.depositSpread}
+                        </td>
+                        <td className="sgm-table__spread-cell">
+                          {group.withdrawalSpread}
+                        </td>
+                        <td>
+                          <span className={memberBadgeClass(group.memberCount)}>
+                            {group.memberCount}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="sgm-table__actions">
+                            <button
+                              type="button"
+                              className="sgm-page__btn sgm-page__btn--secondary"
+                              disabled={isGroupPending}
+                              onClick={() => openMemberModal(group)}
+                            >
+                              管理成員
+                            </button>
+                            <button
+                              type="button"
+                              className="sgm-page__btn sgm-page__btn--secondary"
+                              disabled={isGroupPending}
+                              onClick={() => openEditGroupModal(group)}
+                            >
+                              編輯
+                            </button>
+                            <button
+                              type="button"
+                              className="sgm-page__btn sgm-page__btn--danger"
+                              disabled={isGroupPending}
+                              onClick={() => setDeletingGroup(group)}
+                            >
+                              刪除
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             )}
@@ -1079,34 +1093,51 @@ function SpreadGroupManagementPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {memberDetail.members.map((member) => (
-                        <tr key={member.currencyPairId}>
-                          <td className="sgm-table__code-cell">
-                            {member.baseCurrencyCode}/{member.quoteCurrencyCode}
-                          </td>
-                          <td
-                            className={
-                              member.active
-                                ? 'sgm-status--active'
-                                : 'sgm-status--inactive'
-                            }
-                          >
-                            {member.active ? '啟用' : '停用'}
-                          </td>
-                          <td>
-                            <button
-                              type="button"
-                              className="sgm-page__btn sgm-page__btn--danger"
-                              disabled={removingMemberId === member.currencyPairId}
-                              onClick={() =>
-                                handleRemoveMember(member.currencyPairId)
+                      {memberDetail.members.map((member) => {
+                        const isMemberPending = pendingMemberIds.has(
+                          member.currencyPairId,
+                        )
+                        return (
+                          <tr key={member.currencyPairId}>
+                            <td className="sgm-table__code-cell">
+                              {member.baseCurrencyCode}/
+                              {member.quoteCurrencyCode}
+                              {isMemberPending && (
+                                <span
+                                  className="sgm-badge sgm-badge--pending"
+                                  title="此列有待審核的變更，需先完成審核"
+                                >
+                                  審核中
+                                </span>
+                              )}
+                            </td>
+                            <td
+                              className={
+                                member.active
+                                  ? 'sgm-status--active'
+                                  : 'sgm-status--inactive'
                               }
                             >
-                              移除
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                              {member.active ? '啟用' : '停用'}
+                            </td>
+                            <td>
+                              <button
+                                type="button"
+                                className="sgm-page__btn sgm-page__btn--danger"
+                                disabled={
+                                  removingMemberId === member.currencyPairId ||
+                                  isMemberPending
+                                }
+                                onClick={() =>
+                                  handleRemoveMember(member.currencyPairId)
+                                }
+                              >
+                                移除
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 )}
