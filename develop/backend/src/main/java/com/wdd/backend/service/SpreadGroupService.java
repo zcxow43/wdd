@@ -105,11 +105,11 @@ public class SpreadGroupService {
         }
 
         String name = normalizeName(request.getName());
-        BigDecimal depositSpread = request.getDepositSpread() != null
-                ? SpreadValidator.validate(request.getDepositSpread(), "depositSpread")
+        BigDecimal depositSpreadPercent = request.getDepositSpreadPercent() != null
+                ? SpreadValidator.validate(request.getDepositSpreadPercent(), "depositSpreadPercent")
                 : BigDecimal.ZERO;
-        BigDecimal withdrawalSpread = request.getWithdrawalSpread() != null
-                ? SpreadValidator.validate(request.getWithdrawalSpread(), "withdrawalSpread")
+        BigDecimal withdrawalSpreadPercent = request.getWithdrawalSpreadPercent() != null
+                ? SpreadValidator.validate(request.getWithdrawalSpreadPercent(), "withdrawalSpreadPercent")
                 : BigDecimal.ZERO;
 
         if (spreadGroupMapper.findByBrandAndName(brandId, name) != null) {
@@ -119,11 +119,11 @@ public class SpreadGroupService {
         Map<String, Object> afterData = new LinkedHashMap<>();
         afterData.put("brandId", brandId);
         afterData.put("name", name);
-        afterData.put("depositSpread", depositSpread);
-        afterData.put("withdrawalSpread", withdrawalSpread);
+        afterData.put("depositSpreadPercent", depositSpreadPercent);
+        afterData.put("withdrawalSpreadPercent", withdrawalSpreadPercent);
 
-        String summary = String.format("%s 新增點差群組「%s」，入金 %s／出金 %s", brand.getCode(), name, depositSpread,
-                withdrawalSpread);
+        String summary = String.format("%s 新增點差群組「%s」，入金 %s／出金 %s", brand.getCode(), name, depositSpreadPercent,
+                withdrawalSpreadPercent);
 
         var submitted = auditService.submit(ENTITY_TYPE_GROUP, ACTION_CREATE, null, brandId, summary, null,
                 afterData, actor);
@@ -141,12 +141,12 @@ public class SpreadGroupService {
         }
 
         String name = request.getName() != null ? normalizeName(request.getName()) : existing.getName();
-        BigDecimal depositSpread = request.getDepositSpread() != null
-                ? SpreadValidator.validate(request.getDepositSpread(), "depositSpread")
-                : existing.getDepositSpread();
-        BigDecimal withdrawalSpread = request.getWithdrawalSpread() != null
-                ? SpreadValidator.validate(request.getWithdrawalSpread(), "withdrawalSpread")
-                : existing.getWithdrawalSpread();
+        BigDecimal depositSpreadPercent = request.getDepositSpreadPercent() != null
+                ? SpreadValidator.validate(request.getDepositSpreadPercent(), "depositSpreadPercent")
+                : existing.getDepositSpreadPercent();
+        BigDecimal withdrawalSpreadPercent = request.getWithdrawalSpreadPercent() != null
+                ? SpreadValidator.validate(request.getWithdrawalSpreadPercent(), "withdrawalSpreadPercent")
+                : existing.getWithdrawalSpreadPercent();
 
         if (!name.equals(existing.getName())) {
             SpreadGroup conflict = spreadGroupMapper.findByBrandAndName(existing.getBrandId(), name);
@@ -157,15 +157,15 @@ public class SpreadGroupService {
 
         Map<String, Object> beforeData = new LinkedHashMap<>();
         beforeData.put("name", existing.getName());
-        beforeData.put("depositSpread", existing.getDepositSpread());
-        beforeData.put("withdrawalSpread", existing.getWithdrawalSpread());
+        beforeData.put("depositSpreadPercent", existing.getDepositSpreadPercent());
+        beforeData.put("withdrawalSpreadPercent", existing.getWithdrawalSpreadPercent());
 
         Map<String, Object> afterData = new LinkedHashMap<>();
         afterData.put("name", name);
-        afterData.put("depositSpread", depositSpread);
-        afterData.put("withdrawalSpread", withdrawalSpread);
+        afterData.put("depositSpreadPercent", depositSpreadPercent);
+        afterData.put("withdrawalSpreadPercent", withdrawalSpreadPercent);
 
-        String summary = buildUpdateSummary(existing, name, depositSpread, withdrawalSpread);
+        String summary = buildUpdateSummary(existing, name, depositSpreadPercent, withdrawalSpreadPercent);
 
         var submitted = auditService.submit(ENTITY_TYPE_GROUP, ACTION_UPDATE, id, existing.getBrandId(), summary,
                 beforeData, afterData, actor);
@@ -180,8 +180,8 @@ public class SpreadGroupService {
 
         Map<String, Object> beforeData = new LinkedHashMap<>();
         beforeData.put("name", existing.getName());
-        beforeData.put("depositSpread", existing.getDepositSpread());
-        beforeData.put("withdrawalSpread", existing.getWithdrawalSpread());
+        beforeData.put("depositSpreadPercent", existing.getDepositSpreadPercent());
+        beforeData.put("withdrawalSpreadPercent", existing.getWithdrawalSpreadPercent());
 
         String summary = String.format("%s 刪除點差群組「%s」", existing.getBrandCode(), existing.getName());
 
@@ -289,21 +289,21 @@ public class SpreadGroupService {
         return trimmed;
     }
 
-    private static String buildUpdateSummary(SpreadGroup existing, String name, BigDecimal depositSpread,
-            BigDecimal withdrawalSpread) {
+    private static String buildUpdateSummary(SpreadGroup existing, String name, BigDecimal depositSpreadPercent,
+            BigDecimal withdrawalSpreadPercent) {
         StringBuilder changes = new StringBuilder();
         if (!name.equals(existing.getName())) {
             changes.append("更名為「").append(name).append("」");
         }
-        boolean depositChanged = existing.getDepositSpread() == null
-                || existing.getDepositSpread().compareTo(depositSpread) != 0;
-        boolean withdrawalChanged = existing.getWithdrawalSpread() == null
-                || existing.getWithdrawalSpread().compareTo(withdrawalSpread) != 0;
+        boolean depositChanged = existing.getDepositSpreadPercent() == null
+                || existing.getDepositSpreadPercent().compareTo(depositSpreadPercent) != 0;
+        boolean withdrawalChanged = existing.getWithdrawalSpreadPercent() == null
+                || existing.getWithdrawalSpreadPercent().compareTo(withdrawalSpreadPercent) != 0;
         if (depositChanged || withdrawalChanged) {
             if (changes.length() > 0) {
                 changes.append("，");
             }
-            changes.append("點差改為入金 ").append(depositSpread).append("／出金 ").append(withdrawalSpread);
+            changes.append("點差改為入金 ").append(depositSpreadPercent).append("／出金 ").append(withdrawalSpreadPercent);
         }
         if (changes.length() == 0) {
             changes.append("更新設定");
@@ -320,8 +320,8 @@ public class SpreadGroupService {
                 group.getBrandId(),
                 group.getBrandCode(),
                 group.getName(),
-                group.getDepositSpread(),
-                group.getWithdrawalSpread(),
+                group.getDepositSpreadPercent(),
+                group.getWithdrawalSpreadPercent(),
                 group.getMemberCount(),
                 group.getCreatedAt(),
                 group.getUpdatedAt(),
@@ -334,8 +334,8 @@ public class SpreadGroupService {
                 group.getBrandId(),
                 group.getBrandCode(),
                 group.getName(),
-                group.getDepositSpread(),
-                group.getWithdrawalSpread(),
+                group.getDepositSpreadPercent(),
+                group.getWithdrawalSpreadPercent(),
                 group.getMemberCount(),
                 group.getCreatedAt(),
                 group.getUpdatedAt());

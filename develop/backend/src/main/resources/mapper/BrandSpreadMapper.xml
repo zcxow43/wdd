@@ -6,14 +6,14 @@
         <id property="id" column="id" />
         <result property="brandId" column="brand_id" />
         <result property="brandCode" column="brand_code" />
-        <result property="depositSpread" column="deposit_spread" />
-        <result property="withdrawalSpread" column="withdrawal_spread" />
+        <result property="depositSpreadPercent" column="deposit_spread_percent" />
+        <result property="withdrawalSpreadPercent" column="withdrawal_spread_percent" />
         <result property="createdAt" column="created_at" />
         <result property="updatedAt" column="updated_at" />
     </resultMap>
 
     <sql id="selectColumns">
-        SELECT bs.id, bs.brand_id, b.code AS brand_code, bs.deposit_spread, bs.withdrawal_spread,
+        SELECT bs.id, bs.brand_id, b.code AS brand_code, bs.deposit_spread_percent, bs.withdrawal_spread_percent,
                bs.created_at, bs.updated_at
         FROM brand_spread bs
         JOIN brand b ON b.id = bs.brand_id
@@ -35,13 +35,13 @@
     </select>
 
     <insert id="insertZero">
-        INSERT INTO brand_spread (brand_id, deposit_spread, withdrawal_spread)
+        INSERT INTO brand_spread (brand_id, deposit_spread_percent, withdrawal_spread_percent)
         VALUES (#{brandId}, 0, 0)
     </insert>
 
     <update id="update">
         UPDATE brand_spread
-        SET deposit_spread = #{depositSpread}, withdrawal_spread = #{withdrawalSpread}
+        SET deposit_spread_percent = #{depositSpreadPercent}, withdrawal_spread_percent = #{withdrawalSpreadPercent}
         WHERE brand_id = #{brandId}
     </update>
 

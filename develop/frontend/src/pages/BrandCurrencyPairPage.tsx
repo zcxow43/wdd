@@ -24,6 +24,10 @@ interface RowEditState {
 
 type RowBusy = 'save' | 'toggle' | undefined
 
+function formatEnrichedRate(value: number | null): string {
+  return value === null || value === undefined ? '-' : String(value)
+}
+
 function toRowEditState(pair: CurrencyPair): RowEditState {
   const rateType = pair.rateType === 'MANUAL' ? 'MANUAL' : 'AUTO'
   return {
@@ -322,6 +326,8 @@ function BrandCurrencyPairPage() {
                   <th>幣種對</th>
                   <th>匯率類型</th>
                   <th>匯率</th>
+                  <th>入金加點完成</th>
+                  <th>出金加點完成</th>
                   <th>狀態</th>
                   <th>審核</th>
                   <th>操作</th>
@@ -383,6 +389,24 @@ function BrandCurrencyPairPage() {
                         {edit.error && (
                           <p className="bcp-form__error">{edit.error}</p>
                         )}
+                      </td>
+                      <td
+                        className={
+                          pair.depositRate === null
+                            ? 'bcp-rate-cell bcp-rate-cell--unavailable'
+                            : 'bcp-rate-cell'
+                        }
+                      >
+                        {formatEnrichedRate(pair.depositRate)}
+                      </td>
+                      <td
+                        className={
+                          pair.withdrawalRate === null
+                            ? 'bcp-rate-cell bcp-rate-cell--unavailable'
+                            : 'bcp-rate-cell'
+                        }
+                      >
+                        {formatEnrichedRate(pair.withdrawalRate)}
                       </td>
                       <td>
                         <ToggleSwitch

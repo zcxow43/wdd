@@ -105,6 +105,8 @@ function makePairs(definitionId: number, active: number, total: number): Currenc
       rateType: 'AUTO',
       rate: null,
       active: i < active,
+      depositRate: null,
+      withdrawalRate: null,
       createdAt: '2026-01-01T00:00:00',
       updatedAt: '2026-01-01T00:00:00',
     })

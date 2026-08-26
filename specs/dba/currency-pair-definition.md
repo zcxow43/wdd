@@ -1,7 +1,7 @@
 ---
 status: done
 title: "Currency Pair Definition Table"
-requirement: "新增幣種對功能：全系統共用的幣種對定義（基準幣/報價幣/精度），無開啟關閉，刪除前需所有品牌幣種對皆已關閉"
+requirement: "新增幣種對功能：全系統共用的幣種對定義（基準幣/報價幣/精度），無開啟關閉，刪除前需所有品牌幣種對皆已關閉；額外補上一批 USD 對常用幣種的種子資料"
 ---
 
 # Currency Pair Definition — DBA Spec
@@ -14,6 +14,7 @@ requirement: "新增幣種對功能：全系統共用的幣種對定義（基準
 - `base_currency_id` and `quote_currency_id` must reference two different currencies, and the `(base, quote)` combination must be unique.
 - No `active` column — this table has no enable/disable state at all.
 - `precision` is the decimal-place count every `currency_pair` row under this definition must respect for its `rate` (enforced at the application layer in [currency-pair.md](currency-pair.md), not here, since a single `DECIMAL` column can't have a different scale per row).
+- Seeded with 9 default definitions, all `USD` as base against every other seeded currency (`JPY`, `TWD`, `EUR`, `CNY`, `GBP`, `HKD`, `SGD`, `AUD`, `KRW` — see [currency.md](currency.md)) — see the seed migration below. Same as `currency`'s defaults: ordinary rows, fully editable (`precision`) and deletable through the API like any user-created definition.
 
 ## Implementation Details
 
@@ -50,12 +51,36 @@ CREATE TABLE currency_pair_definition (
 
 Note: `precision` is a reserved word in MySQL 8.0 and must be backtick-quoted in both the column definition and the CHECK constraint referencing it, or the statement fails with a syntax error.
 
+## Migration SQL — V011__seed_usd_currency_pair_definitions.sql (Delta: seed USD-base definitions)
+
+Comes after `V010__seed_more_currencies.sql` (`specs/dba/currency.md`) — resolves currency ids by `code` via a join, so every seeded currency (the original 5 plus the additional 5) must already exist. Uses `INSERT IGNORE` for the same idempotency reason as `V003`/`V010`: the unique constraint on `(base_currency_id, quote_currency_id)` makes re-running this safe. Resolves currency ids by code rather than hardcoding them, so it doesn't depend on actual auto-increment values.
+
+```sql
+INSERT IGNORE INTO currency_pair_definition (base_currency_id, quote_currency_id, `precision`)
+SELECT base.id, quote.id, pairs.pair_precision
+FROM (
+    SELECT 'JPY' AS quote_code, 3 AS pair_precision UNION ALL
+    SELECT 'TWD', 3 UNION ALL
+    SELECT 'EUR', 4 UNION ALL
+    SELECT 'CNY', 4 UNION ALL
+    SELECT 'GBP', 4 UNION ALL
+    SELECT 'HKD', 4 UNION ALL
+    SELECT 'SGD', 4 UNION ALL
+    SELECT 'AUD', 4 UNION ALL
+    SELECT 'KRW', 2
+) AS pairs
+JOIN currency base ON base.code = 'USD'
+JOIN currency quote ON quote.code = pairs.quote_code;
+```
+
 ## Acceptance Criteria
 - [x] `currency_pair_definition` table exists with columns exactly as defined above.
 - [x] Unique constraint on `(base_currency_id, quote_currency_id)`.
 - [x] CHECK constraint rejects `base_currency_id = quote_currency_id`.
 - [x] `precision` is constrained to the range 0–8.
 - [x] `base_currency_id`/`quote_currency_id` are foreign keys to `currency.id`.
+- [x] After `V011` runs, `currency_pair_definition` contains 9 rows, all `base_currency_id` resolving to `USD` and `quote_currency_id` resolving to one of `JPY`/`TWD`/`EUR`/`CNY`/`GBP`/`HKD`/`SGD`/`AUD`/`KRW`, each with the `precision` listed above.
+- [x] Re-running `V011` against a database that already has one or more of these `(base, quote)` combinations does not error and does not create duplicates.
 
 ---
 ## Execution Result
@@ -70,3 +95,12 @@ Note: `precision` is a reserved word in MySQL 8.0 and must be backtick-quoted in
 - Applied `V004__create_currency_pair_definition.sql` (verbatim SQL from the `## Migration SQL` section above, unchanged) by writing it to a UTF-8 scratch file and piping it in via `mysql --default-character-set=utf8mb4 wdd < file.sql` (no non-ASCII characters in this file, but used the safe path per instructions) — no errors.
 - Verification: `SHOW CREATE TABLE currency_pair_definition` confirmed all 6 columns, `PRIMARY KEY (id)`, `UNIQUE KEY uk_currency_pair_definition (base_currency_id, quote_currency_id)`, `CHECK ck_currency_pair_definition_diff`, `CHECK ck_currency_pair_definition_precision`, and FKs `fk_currency_pair_definition_base`/`fk_currency_pair_definition_quote` → `currency(id)` — exact match to spec. Re-ran the same functional constraint tests as Increment 1 inside a transaction (valid insert; same-currency reject; precision-9 reject; nonexistent-FK reject; duplicate-pair reject), all behaved as expected, then rolled back / deleted the leftover test row. Final state: `currency_pair_definition` exists with 0 rows (seeds no data by design).
 - Files changed: none (only this spec file's `## Execution Result` section was appended to; the live database schema is the artifact of this run).
+
+### Increment 3 — 2026-08-25
+- Trigger: Prerequisite `V010__seed_more_currencies.sql` (`specs/dba/currency.md`) had already been applied, bringing `currency` to 10 rows (`USD`, `JPY`, `TWD`, `EUR`, `CNY`, `GBP`, `HKD`, `SGD`, `AUD`, `KRW`). This run applies the previously-unchecked `V011__seed_usd_currency_pair_definitions.sql` delta.
+- Pre-flight: `env.md` validated (Engine MySQL 8.0.36, Host `127.0.0.1:3306`, Database `wdd`, User `app`). `mysql -h 127.0.0.1 -P 3306 -u app -p1234 -e "SELECT 1;"` succeeded. `SHOW DATABASES LIKE 'wdd';` confirmed the database already existed.
+- Pre-check: `SELECT code, id FROM currency ORDER BY id;` confirmed all 10 currencies present (ids 15–19 and 223–227). `SELECT COUNT(*) FROM currency_pair_definition;` returned 0 — table existed (from prior increments) but was still unseeded.
+- Applied `V011__seed_usd_currency_pair_definitions.sql` (verbatim SQL from the `## Migration SQL` section above) via `mysql --default-character-set=utf8mb4 wdd < file.sql` — no errors.
+- Verification: joined `currency_pair_definition` back to `currency` on both FK columns — got exactly 9 rows, all `base_code = USD`, one row per quote currency (`JPY`→3, `TWD`→3, `EUR`→4, `CNY`→4, `GBP`→4, `HKD`→4, `SGD`→4, `AUD`→4, `KRW`→2), matching the spec's precision table exactly.
+- Idempotency check: re-ran the identical `V011` SQL a second time against the now-populated table — no error, and `SELECT COUNT(*)` still returned 9 (no duplicates), confirming `INSERT IGNORE` + the `uk_currency_pair_definition` unique constraint behave as designed.
+- Files changed: `specs/dba/currency-pair-definition.md` (checked off the two remaining Acceptance Criteria, set frontmatter `status: done`, appended this Increment 3 section); live database schema/data in `wdd.currency_pair_definition` is the actual artifact of this run (no standalone `.sql` file was created).

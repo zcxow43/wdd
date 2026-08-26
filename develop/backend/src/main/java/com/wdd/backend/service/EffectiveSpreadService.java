@@ -52,7 +52,7 @@ public class EffectiveSpreadService {
                 spread.getSpreadGroupId(),
                 spread.getSpreadGroupName(),
                 spread.getSource(),
-                spread.getDepositSpread(),
-                spread.getWithdrawalSpread());
+                spread.getDepositSpreadPercent(),
+                spread.getWithdrawalSpreadPercent());
     }
 }

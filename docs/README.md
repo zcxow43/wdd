@@ -9,9 +9,10 @@ Generated documentation derived from `specs/`. Do not hand-edit content sections
 - [currency-pair](backend/currency-pair.md) — Currency Pair API (Brand-Scoped)：欄位定義、限制條件、跨主題規則、完整 API 清單，`/doc-backend` 產出
 - [spread](backend/spread.md) — Spread API (Brand Default + Spread Groups)：欄位定義、限制條件、跨主題規則、完整 API 清單，`/doc-backend` 產出
 - [audit](backend/audit.md) — Audit / Approval API (generic module)：欄位定義、限制條件、跨主題規則、完整 API 清單，`/doc-backend` 產出
+- [exchange-rate](backend/exchange-rate.md) — Exchange Rate Sync API：欄位定義、限制條件、跨主題規則、完整 API 清單，`/doc-backend` 產出
 
 ## Blueprints (integrated architecture specs)
-- [backend](blueprint/backend.md) — brand, currency, currency-pair-definition, currency-pair, spread, audit. Big-picture/diagram-led — see the linked `docs/backend/<slug>.md` files for field/constraint/API detail.
+- [backend](blueprint/backend.md) — brand, currency, currency-pair-definition, currency-pair, spread, audit, exchange-rate. Big-picture/diagram-led — see the linked `docs/backend/<slug>.md` files for field/constraint/API detail.
 
 ## ER Model (full schema)
-- [er-model](db/er-model.md) — panorama of the whole schema plus one detail diagram per major function (currency-pair / brand-spread / audit); `currency_pair` sits at the FK intersection of the first two, while `audit_request` is deliberately FK-isolated and therefore has no relationship lines at all
+- [er-model](db/er-model.md) — panorama of the whole schema plus one detail diagram per major function (currency-pair / brand-spread / exchange-rate / audit); `exchange_rate` is a brand-scoped historical snapshot bridging currency-pair and brand-spread via FKs to both, while `audit_request` is deliberately FK-isolated and therefore has no relationship lines at all

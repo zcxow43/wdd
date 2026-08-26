@@ -1,0 +1,164 @@
+.exchange-rate-page {
+  background: #f5f6f8;
+}
+
+.exchange-rate-page__breadcrumb {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.exchange-rate-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.exchange-rate-page__title {
+  margin: 0;
+  color: #111827;
+}
+
+.exchange-rate-page__controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.exchange-rate-page__search-input {
+  width: 220px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #1f2430;
+  background: #fff;
+}
+
+.exchange-rate-page__search-input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.exchange-rate-page__status {
+  color: #6b7280;
+}
+
+.exchange-rate-page__error {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+  color: #d92d20;
+}
+
+.exchange-rate-page__error button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid #d92d20;
+  background: #fff;
+  color: #d92d20;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.exchange-rate-page__btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.exchange-rate-page__btn:disabled {
+  cursor: not-allowed;
+}
+
+.exchange-rate-page__btn--primary {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+
+.exchange-rate-page__btn--primary:hover:not(:disabled) {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.exchange-rate-page__btn--primary:disabled {
+  background: #93c5fd;
+  color: #fff;
+  border-color: #93c5fd;
+}
+
+.exchange-rate-brand-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.exchange-rate-brand-selector__item {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.exchange-rate-brand-selector__item--selected {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.exchange-rate-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px #e2e5eb;
+}
+
+.exchange-rate-table th {
+  text-align: left;
+  padding: 16px 24px;
+  background: #f9fafb;
+  font-weight: 500;
+  font-size: 14px;
+  color: #6b7280;
+  border-bottom: 1px solid #e2e5eb;
+}
+
+.exchange-rate-table td {
+  padding: 16px 24px;
+  border-bottom: 1px solid #f1f2f5;
+  font-size: 15px;
+  color: #1f2430;
+}
+
+.exchange-rate-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.exchange-rate-table__code-cell {
+  font-family: 'SF Mono', Menlo, monospace;
+  color: #374151;
+}
+
+.exchange-rate-table__unsynced {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.exchange-rate-table__brand-rate {
+  color: #1f2430;
+  font-weight: 700;
+}

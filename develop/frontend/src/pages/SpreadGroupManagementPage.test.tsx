@@ -120,8 +120,8 @@ function makeDefaultSpread(brandId = 1): BrandSpread {
   return {
     brandId,
     brandCode: 'au',
-    depositSpread: 0.0005,
-    withdrawalSpread: 0.0008,
+    depositSpreadPercent: 0.0005,
+    withdrawalSpreadPercent: 0.0008,
     createdAt: '2026-01-01T00:00:00',
     updatedAt: '2026-01-01T00:00:00',
   }
@@ -133,8 +133,8 @@ function makeGroup(overrides: Partial<SpreadGroup> = {}): SpreadGroup {
     brandId: 1,
     brandCode: 'au',
     name: 'VIP',
-    depositSpread: 0.0002,
-    withdrawalSpread: 0.0003,
+    depositSpreadPercent: 0.0002,
+    withdrawalSpreadPercent: 0.0003,
     memberCount: 2,
     createdAt: '2026-01-01T00:00:00',
     updatedAt: '2026-01-01T00:00:00',
@@ -179,8 +179,8 @@ function makeEffective(): EffectiveSpread[] {
       spreadGroupId: 1,
       spreadGroupName: 'VIP',
       source: 'GROUP',
-      depositSpread: 0.0002,
-      withdrawalSpread: 0.0003,
+      depositSpreadPercent: 0.0002,
+      withdrawalSpreadPercent: 0.0003,
     },
     {
       currencyPairId: 12,
@@ -192,8 +192,8 @@ function makeEffective(): EffectiveSpread[] {
       spreadGroupId: null,
       spreadGroupName: null,
       source: 'DEFAULT',
-      depositSpread: 0.0005,
-      withdrawalSpread: 0.0008,
+      depositSpreadPercent: 0.0005,
+      withdrawalSpreadPercent: 0.0008,
     },
   ]
 }
@@ -212,6 +212,8 @@ function makePickerPairs(): CurrencyPair[] {
       active: true,
       spreadGroupId: 1,
       spreadGroupName: 'VIP',
+      depositRate: null,
+      withdrawalRate: null,
       createdAt: '2026-01-01T00:00:00',
       updatedAt: '2026-01-01T00:00:00',
     },
@@ -227,6 +229,8 @@ function makePickerPairs(): CurrencyPair[] {
       active: true,
       spreadGroupId: null,
       spreadGroupName: null,
+      depositRate: null,
+      withdrawalRate: null,
       createdAt: '2026-01-01T00:00:00',
       updatedAt: '2026-01-01T00:00:00',
     },
@@ -281,11 +285,11 @@ describe('SpreadGroupManagementPage', () => {
     expect(mockedFetchSpreadGroups).toHaveBeenCalledWith(1)
     expect(mockedFetchEffectiveSpreads).toHaveBeenCalledWith(1)
 
-    expect((screen.getByLabelText('入金點差') as HTMLInputElement).value).toBe(
+    expect((screen.getByLabelText('入金點差 (%)') as HTMLInputElement).value).toBe(
       '0.0005',
     )
     expect(
-      (screen.getByLabelText('出金點差') as HTMLInputElement).value,
+      (screen.getByLabelText('出金點差 (%)') as HTMLInputElement).value,
     ).toBe('0.0008')
 
     expect(within(getGroupsSection()).getByText('VIP')).toBeInTheDocument()
@@ -310,30 +314,30 @@ describe('SpreadGroupManagementPage', () => {
 
     await renderReady()
 
-    await userEvent.clear(screen.getByLabelText('入金點差'))
-    await userEvent.type(screen.getByLabelText('入金點差'), '0.001')
-    await userEvent.clear(screen.getByLabelText('出金點差'))
-    await userEvent.type(screen.getByLabelText('出金點差'), '0.002')
+    await userEvent.clear(screen.getByLabelText('入金點差 (%)'))
+    await userEvent.type(screen.getByLabelText('入金點差 (%)'), '0.001')
+    await userEvent.clear(screen.getByLabelText('出金點差 (%)'))
+    await userEvent.type(screen.getByLabelText('出金點差 (%)'), '0.002')
 
     await userEvent.click(screen.getByRole('button', { name: '儲存' }))
 
     expect(mockedUpdateBrandSpread).toHaveBeenCalledWith(1, {
-      depositSpread: 0.001,
-      withdrawalSpread: 0.002,
+      depositSpreadPercent: 0.001,
+      withdrawalSpreadPercent: 0.002,
     })
 
     await screen.findByText('已送出審核，核准後才會生效')
 
     // Reverted to the currently-effective (still-original) values.
-    expect((screen.getByLabelText('入金點差') as HTMLInputElement).value).toBe(
+    expect((screen.getByLabelText('入金點差 (%)') as HTMLInputElement).value).toBe(
       '0.0005',
     )
     expect(
-      (screen.getByLabelText('出金點差') as HTMLInputElement).value,
+      (screen.getByLabelText('出金點差 (%)') as HTMLInputElement).value,
     ).toBe('0.0008')
     expect(screen.getByText('審核中')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '儲存' })).toBeDisabled()
-    expect(screen.getByLabelText('入金點差')).toBeDisabled()
+    expect(screen.getByLabelText('入金點差 (%)')).toBeDisabled()
   })
 
   it('shows the already-pending error toast on a 409 default-spread conflict', async () => {
@@ -341,12 +345,12 @@ describe('SpreadGroupManagementPage', () => {
 
     await renderReady()
 
-    await userEvent.clear(screen.getByLabelText('入金點差'))
-    await userEvent.type(screen.getByLabelText('入金點差'), '0.001')
+    await userEvent.clear(screen.getByLabelText('入金點差 (%)'))
+    await userEvent.type(screen.getByLabelText('入金點差 (%)'), '0.001')
     await userEvent.click(screen.getByRole('button', { name: '儲存' }))
 
     await screen.findByText('此品牌的預設點差已有待審核的變更')
-    expect((screen.getByLabelText('入金點差') as HTMLInputElement).value).toBe(
+    expect((screen.getByLabelText('入金點差 (%)') as HTMLInputElement).value).toBe(
       '0.0005',
     )
   })
@@ -361,31 +365,60 @@ describe('SpreadGroupManagementPage', () => {
     await waitFor(() => {
       expect(screen.getByText('審核中')).toBeInTheDocument()
     })
-    expect(screen.getByLabelText('入金點差')).toBeDisabled()
+    expect(screen.getByLabelText('入金點差 (%)')).toBeDisabled()
     expect(screen.getByRole('button', { name: '儲存' })).toBeDisabled()
   })
 
   it('blocks the save request and shows an inline error for a negative or over-8-decimal value', async () => {
     await renderReady()
 
-    await userEvent.clear(screen.getByLabelText('入金點差'))
-    await userEvent.type(screen.getByLabelText('入金點差'), '-1')
+    await userEvent.clear(screen.getByLabelText('入金點差 (%)'))
+    await userEvent.type(screen.getByLabelText('入金點差 (%)'), '-1')
 
     await userEvent.click(screen.getByRole('button', { name: '儲存' }))
 
     expect(
-      await screen.findByText('請輸入 0 或以上的數值，小數點後最多 8 位'),
+      await screen.findByText('請輸入 0 至 100 之間的百分比數值，小數點後最多 8 位'),
     ).toBeInTheDocument()
     expect(mockedUpdateBrandSpread).not.toHaveBeenCalled()
 
-    await userEvent.clear(screen.getByLabelText('入金點差'))
-    await userEvent.type(screen.getByLabelText('入金點差'), '0.123456789')
+    await userEvent.clear(screen.getByLabelText('入金點差 (%)'))
+    await userEvent.type(screen.getByLabelText('入金點差 (%)'), '0.123456789')
     await userEvent.click(screen.getByRole('button', { name: '儲存' }))
 
     expect(
-      await screen.findByText('請輸入 0 或以上的數值，小數點後最多 8 位'),
+      await screen.findByText('請輸入 0 至 100 之間的百分比數值，小數點後最多 8 位'),
     ).toBeInTheDocument()
     expect(mockedUpdateBrandSpread).not.toHaveBeenCalled()
+  })
+
+  it('blocks the save request and shows an inline error for a value over 100, but accepts 100 itself', async () => {
+    mockedUpdateBrandSpread.mockResolvedValue(
+      makeAuditSubmission({ entityId: 1 }),
+    )
+
+    await renderReady()
+
+    await userEvent.clear(screen.getByLabelText('入金點差 (%)'))
+    await userEvent.type(screen.getByLabelText('入金點差 (%)'), '100.00000001')
+    await userEvent.click(screen.getByRole('button', { name: '儲存' }))
+
+    expect(
+      await screen.findByText('請輸入 0 至 100 之間的百分比數值，小數點後最多 8 位'),
+    ).toBeInTheDocument()
+    expect(mockedUpdateBrandSpread).not.toHaveBeenCalled()
+
+    await userEvent.clear(screen.getByLabelText('入金點差 (%)'))
+    await userEvent.type(screen.getByLabelText('入金點差 (%)'), '100')
+    await userEvent.clear(screen.getByLabelText('出金點差 (%)'))
+    await userEvent.type(screen.getByLabelText('出金點差 (%)'), '100')
+    await userEvent.click(screen.getByRole('button', { name: '儲存' }))
+
+    expect(mockedUpdateBrandSpread).toHaveBeenCalledWith(1, {
+      depositSpreadPercent: 100,
+      withdrawalSpreadPercent: 100,
+    })
+    await screen.findByText('已送出審核，核准後才會生效')
   })
 
   it('新增群組 submits via POST: on 202 no row is added, and a duplicate name shows an inline error without closing the modal', async () => {
@@ -413,8 +446,8 @@ describe('SpreadGroupManagementPage', () => {
     expect(mockedCreateSpreadGroup).toHaveBeenCalledWith({
       brandId: 1,
       name: 'STD',
-      depositSpread: 0,
-      withdrawalSpread: 0,
+      depositSpreadPercent: 0,
+      withdrawalSpreadPercent: 0,
     })
 
     await screen.findByText('已送出審核，核准後才會生效')
@@ -433,6 +466,55 @@ describe('SpreadGroupManagementPage', () => {
       await screen.findByText('此品牌已有相同名稱的群組'),
     ).toBeInTheDocument()
     expect(screen.getByText('新增點差群組')).toBeInTheDocument()
+  })
+
+  it('新增群組 blocks a spread value over 100 with the inline error, but accepts 100 itself', async () => {
+    mockedCreateSpreadGroup.mockResolvedValue(
+      makeAuditSubmission({
+        entityType: 'SPREAD_GROUP',
+        actionType: 'CREATE',
+        entityId: null,
+      }),
+    )
+
+    await renderReady()
+    await within(getGroupsSection()).findByText('VIP')
+
+    await userEvent.click(screen.getByRole('button', { name: '+ 新增群組' }))
+    const createModalCard = screen
+      .getByText('新增點差群組')
+      .closest('.sgm-modal__card') as HTMLElement
+    await userEvent.type(within(createModalCard).getByLabelText('群組名稱'), 'STD')
+    await userEvent.clear(within(createModalCard).getByLabelText('入金點差 (%)'))
+    await userEvent.type(
+      within(createModalCard).getByLabelText('入金點差 (%)'),
+      '100.5',
+    )
+    await userEvent.click(
+      within(createModalCard).getByRole('button', { name: '儲存' }),
+    )
+
+    expect(
+      await screen.findByText('請輸入 0 至 100 之間的百分比數值，小數點後最多 8 位'),
+    ).toBeInTheDocument()
+    expect(mockedCreateSpreadGroup).not.toHaveBeenCalled()
+
+    await userEvent.clear(within(createModalCard).getByLabelText('入金點差 (%)'))
+    await userEvent.type(
+      within(createModalCard).getByLabelText('入金點差 (%)'),
+      '100',
+    )
+    await userEvent.click(
+      within(createModalCard).getByRole('button', { name: '儲存' }),
+    )
+
+    expect(mockedCreateSpreadGroup).toHaveBeenCalledWith({
+      brandId: 1,
+      name: 'STD',
+      depositSpreadPercent: 100,
+      withdrawalSpreadPercent: 0,
+    })
+    await screen.findByText('已送出審核，核准後才會生效')
   })
 
   it('編輯 submits name/spreads via PUT: on 202 the row is left unchanged and marked 審核中', async () => {
@@ -458,8 +540,8 @@ describe('SpreadGroupManagementPage', () => {
 
     expect(mockedUpdateSpreadGroup).toHaveBeenCalledWith(1, {
       name: 'VIP+',
-      depositSpread: 0.0002,
-      withdrawalSpread: 0.0003,
+      depositSpreadPercent: 0.0002,
+      withdrawalSpreadPercent: 0.0003,
     })
     await screen.findByText('已送出審核，核准後才會生效')
     // Row values are left unchanged — still 'VIP', not 'VIP+'.

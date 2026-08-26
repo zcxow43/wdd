@@ -184,6 +184,26 @@
   color: #d92d20;
 }
 
+.sgm-input-suffix {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sgm-input-suffix--full {
+  display: flex;
+  width: 100%;
+}
+
+.sgm-input-suffix--full .sgm-form__input {
+  flex: 1;
+}
+
+.sgm-input-suffix__unit {
+  font-size: 14px;
+  color: #6b7280;
+}
+
 .sgm-form__save-btn {
   margin-top: 26px;
 }

@@ -1,14 +1,14 @@
 ---
 status: done
 title: "Spread Group Management Page"
-requirement: "每個品牌可以設置點差，分為入金點差與出金點差；有預設點差與群組點差，群組可以拉品牌幣種對進行設定，每個品牌幣種對只能加入一個群組"
+requirement: "每個品牌可以設置點差，分為入金點差與出金點差；有預設點差與群組點差，群組可以拉品牌幣種對進行設定，每個品牌幣種對只能加入一個群組。點差是百分比（%），以乘法套用在匯率上，不是用加法的固定金額；點差不能超過 100%。"
 depends_on: [brand, brand-currency-pair, audit]
 ---
 
 # Spread Group Management — Frontend Spec
 
 ## Overview
-The page behind the "匯率中心" sidebar group's `價差群組管理` item (already scaffolded as a disabled placeholder at `/spreads` in `AppLayout.tsx` — this spec is what turns it on). Pick a brand, then manage that brand's two spread tiers on one screen: its **預設點差** (one deposit/withdrawal pair that applies to every unassigned brand currency pair) and its **點差群組** (named groups with their own spreads, each holding brand currency pairs pulled in from that brand). A brand currency pair can sit in at most one group, so the picker only ever offers pairs that are currently unassigned. Backed by [spread.md](../backend/spread.md), with the brand list from [brand.md](../backend/brand.md).
+The page behind the "匯率中心" sidebar group's `價差群組管理` item (already scaffolded as a disabled placeholder at `/spreads` in `AppLayout.tsx` — this spec is what turns it on). Pick a brand, then manage that brand's two spread tiers on one screen: its **預設點差** (one deposit/withdrawal percentage pair that applies to every unassigned brand currency pair) and its **點差群組** (named groups with their own spread percentages, each holding brand currency pairs pulled in from that brand). Both tiers' values are **percentages** (e.g. `0.5` means a 0.5% markup, capped at `100`), applied multiplicatively to a base rate — never a flat currency amount added to it. A brand currency pair can sit in at most one group, so the picker only ever offers pairs that are currently unassigned. Backed by [spread.md](../backend/spread.md), with the brand list from [brand.md](../backend/brand.md).
 
 **Changes on this page are not applied immediately — they are sent for approval.** Saving the 預設點差, creating/editing/deleting a group, and adding/removing group members all create a pending request that a reviewer must approve on the `審核紀錄` page ([audit.md](audit.md)) before anything actually changes. Every table here keeps showing currently-effective values, including 生效點差總覽 — a pending request never moves those numbers.
 
@@ -20,8 +20,8 @@ The page behind the "匯率中心" sidebar group's `價差群組管理` item (al
 - Selecting a brand loads that brand's data: `GET /api/brand-spreads/{brandId}`, `GET /api/spread-groups?brandId={id}`, and `GET /api/audit-requests?status=PENDING&brandId={id}` — the last marks anything with a change already awaiting review.
 
 ### Section 1: 預設點差 (card above the group table)
-- Shows two number inputs, `入金點差` and `出金點差`, pre-filled from `GET /api/brand-spreads/{brandId}`, plus a `儲存` button.
-- Both accept non-negative numbers with up to 8 decimal places. A negative value, a non-numeric value, an empty field, or more than 8 decimal places blocks the request and shows an inline error under that field ("請輸入 0 或以上的數值，小數點後最多 8 位").
+- Shows two number inputs, `入金點差 (%)` and `出金點差 (%)`, pre-filled from `GET /api/brand-spreads/{brandId}` (`depositSpreadPercent`/`withdrawalSpreadPercent`), plus a `儲存` button. A `%` suffix is shown beside each input to make the percentage unit visually unambiguous.
+- Both accept numbers between `0` and `100` inclusive with up to 8 decimal places. A negative value, a value over `100`, a non-numeric value, an empty field, or more than 8 decimal places blocks the request and shows an inline error under that field ("請輸入 0 至 100 之間的百分比數值，小數點後最多 8 位").
 - `儲存` calls `PUT /api/brand-spreads/{brandId}`; while in flight both inputs and the button are disabled.
   - On success (`202`): the inputs revert to the currently-effective values, a 審核中 badge appears beside the card heading, the 儲存 button and both inputs stay disabled, and a toast confirms submission ("已送出審核，核准後才會生效").
   - On `400`: inline error under the offending field(s) with the message above, values left as typed — submit-time validation still runs, so an invalid change never reaches the review queue.
@@ -30,8 +30,8 @@ The page behind the "匯率中心" sidebar group's `價差群組管理` item (al
 - A short caption under the card explains the fallback rule: "未加入任何群組的品牌幣種對，將套用此預設點差".
 
 ### Section 2: 點差群組 (table)
-- Table columns: `群組名稱`, `入金點差`, `出金點差`, `成員數` (badge showing `memberCount`), `操作` (管理成員 / 編輯 / 刪除).
-- `+ 新增群組` button above the table opens a create modal: `群組名稱` (text, 1–50 chars), `入金點差`, `出金點差` (both number, default `0`, same validation as above).
+- Table columns: `群組名稱`, `入金點差 (%)`, `出金點差 (%)`, `成員數` (badge showing `memberCount`), `操作` (管理成員 / 編輯 / 刪除).
+- `+ 新增群組` button above the table opens a create modal: `群組名稱` (text, 1–50 chars), `入金點差 (%)`, `出金點差 (%)` (both number with a `%` suffix, default `0`, same 0–100 validation as above).
   - On success (`202`): close the modal and show the submission toast ("已送出審核，核准後才會生效"). **No row is added** — the group does not exist until the request is approved.
   - On `409`: inline error under `群組名稱` ("此品牌已有相同名稱的群組"), keep modal open.
   - On other failure: error toast ("儲存失敗，請稍後再試"), keep modal open.
@@ -52,7 +52,7 @@ The page behind the "匯率中心" sidebar group's `價差群組管理` item (al
 
 ### Section 4: 生效點差總覽 (read-only table, below the group table)
 - Calls `GET /api/spreads/effective?brandId={id}` whenever the selected brand changes, or after any successful save in Sections 1–3 (a default-spread save, a group create/edit/delete, or a member add/remove all change what is in effect).
-- Table columns: `幣種對` (`baseCurrencyCode`/`quoteCurrencyCode`), `來源` (badge: the group name when `source` is `GROUP`, the literal `預設` when `source` is `DEFAULT`), `入金點差`, `出金點差`.
+- Table columns: `幣種對` (`baseCurrencyCode`/`quoteCurrencyCode`), `來源` (badge: the group name when `source` is `GROUP`, the literal `預設` when `source` is `DEFAULT`), `入金點差 (%)`, `出金點差 (%)` (`depositSpreadPercent`/`withdrawalSpreadPercent`).
 - This is the answer to "this brand's pairs are actually charging what?" — it is read-only, has no controls, and never re-implements the fallback rule client-side; the values shown are exactly what the server resolved.
 - If the brand has no currency pairs, show "此品牌尚無幣種對" instead of an empty table.
 - Load failure: inline error with a "重試" button scoped to this table.
@@ -61,16 +61,16 @@ The page behind the "匯率中心" sidebar group's `價差群組管理` item (al
 | Action | Method | Path | Request | Response |
 |---|---|---|---|---|
 | 載入品牌清單（選擇器用） | GET | /api/brands | — | `[{id, code, name, active, ...}]` |
-| 載入品牌預設點差 | GET | /api/brand-spreads/{brandId} | — | `{brandId, brandCode, depositSpread, withdrawalSpread, createdAt, updatedAt}` |
-| 送出修改預設點差申請 | PUT | /api/brand-spreads/{brandId} | `{depositSpread, withdrawalSpread}` | `202 {auditRequestId, status, entityType, actionType, entityId, summary}` |
-| 載入品牌的點差群組 | GET | /api/spread-groups?brandId={id} | — | `[{id, brandId, brandCode, name, depositSpread, withdrawalSpread, memberCount, createdAt, updatedAt}]` |
+| 載入品牌預設點差 | GET | /api/brand-spreads/{brandId} | — | `{brandId, brandCode, depositSpreadPercent, withdrawalSpreadPercent, createdAt, updatedAt}` |
+| 送出修改預設點差申請 | PUT | /api/brand-spreads/{brandId} | `{depositSpreadPercent, withdrawalSpreadPercent}` | `202 {auditRequestId, status, entityType, actionType, entityId, summary}` |
+| 載入品牌的點差群組 | GET | /api/spread-groups?brandId={id} | — | `[{id, brandId, brandCode, name, depositSpreadPercent, withdrawalSpreadPercent, memberCount, createdAt, updatedAt}]` |
 | 載入單一群組與其成員 | GET | /api/spread-groups/{id} | — | `{...group, members: [{currencyPairId, currencyPairDefinitionId, baseCurrencyCode, quoteCurrencyCode, active}]}` |
-| 送出新增群組申請 | POST | /api/spread-groups | `{brandId, name, depositSpread, withdrawalSpread}` | `202 {auditRequestId, status, entityType, actionType, entityId, summary}` (`entityId: null`) |
-| 送出修改群組申請 | PUT | /api/spread-groups/{id} | `{name, depositSpread, withdrawalSpread}` (subset) | `202 {auditRequestId, status, entityType, actionType, entityId, summary}` |
+| 送出新增群組申請 | POST | /api/spread-groups | `{brandId, name, depositSpreadPercent, withdrawalSpreadPercent}` | `202 {auditRequestId, status, entityType, actionType, entityId, summary}` (`entityId: null`) |
+| 送出修改群組申請 | PUT | /api/spread-groups/{id} | `{name, depositSpreadPercent, withdrawalSpreadPercent}` (subset) | `202 {auditRequestId, status, entityType, actionType, entityId, summary}` |
 | 送出刪除群組申請 | DELETE | /api/spread-groups/{id} | — | `202 {auditRequestId, status, entityType, actionType, entityId, summary}` |
 | 送出加入群組申請 | POST | /api/spread-groups/{id}/members | `{currencyPairIds: [10, 11]}` | `202 {auditRequestId, status, entityType, actionType, entityId, summary}` or `409 {error, conflicts}` |
 | 送出移出群組申請 | DELETE | /api/spread-groups/{id}/members/{currencyPairId} | — | `202 {auditRequestId, status, entityType, actionType, entityId, summary}` |
-| 載入生效點差總覽 | GET | /api/spreads/effective?brandId={id} | — | `[{currencyPairId, currencyPairDefinitionId, baseCurrencyCode, quoteCurrencyCode, brandId, brandCode, spreadGroupId, spreadGroupName, source, depositSpread, withdrawalSpread}]` |
+| 載入生效點差總覽 | GET | /api/spreads/effective?brandId={id} | — | `[{currencyPairId, currencyPairDefinitionId, baseCurrencyCode, quoteCurrencyCode, brandId, brandCode, spreadGroupId, spreadGroupName, source, depositSpreadPercent, withdrawalSpreadPercent}]` |
 | 載入此品牌的待審申請（標記用） | GET | /api/audit-requests?status=PENDING&brandId={id} | — | `[{id, entityType, actionType, entityId, summary, ...}]` — match `entityId` to the brand id (`BRAND_SPREAD`) or group id (`SPREAD_GROUP` / `SPREAD_GROUP_MEMBER`) |
 | 載入該品牌的幣種對（挑選未分組者） | GET | /api/currency-pairs?brandId={id} | — | `[{id, baseCurrencyCode, quoteCurrencyCode, active, spreadGroupId, spreadGroupName, ...}]` — offer only entries with `spreadGroupId === null` |
 
@@ -141,6 +141,8 @@ Same fixed light theme as the rest of the app (the base page/table palette is `s
 - [x] 生效點差總覽 shows identical values before and after a submit, and only changes once the request is approved.
 - [x] A `409` from any action shows the already-pending error toast.
 - [x] Every color used matches the `## Visual Style` table exactly, verified via computed styles, and does not change under a dark `prefers-color-scheme`.
+- [x] `入金點差`/`出金點差` labels (預設點差 card, group create/edit modal, 點差群組 table, 生效點差總覽 table) all read `入金點差 (%)`/`出金點差 (%)` with a `%` unit shown, and their values are sourced from the renamed `depositSpreadPercent`/`withdrawalSpreadPercent` fields — no page still reads or sends the old `depositSpread`/`withdrawalSpread` field names.
+- [x] A value over `100` shows the inline validation error ("請輸入 0 至 100 之間的百分比數值，小數點後最多 8 位") and issues no request, same as a negative value; `100` itself is accepted.
 
 ---
 ## Execution Result
@@ -221,3 +223,38 @@ Screenshot not captured (the browser pane is not displayed in this environment);
     - Re-read the same values with `prefers-color-scheme: dark` forced (`matchMedia('(prefers-color-scheme: dark)').matches === true`): byte-identical to light mode, including the new `審核中` badge — no dark-mode drift.
     - Cleanup: rejected/deleted every seeded audit request, deleted the seeded `spread_group`/`currency_pair`/`currency_pair_definition` rows, and reset `brand_spread` — confirmed all back to their pre-session baseline (`audit_request`/`spread_group`/`currency_pair_definition`/`currency_pair` all `0` rows, `brand_spread` for brand `au` back to `0.00000000`/`0.00000000`).
   - Not verified: the `409`-from-加入 "business conflict" branch (a pair claimed by another group between load and submit) was exercised only via the unit test's mocked `ApiError` body shape, not against a live race condition — reproducing that specific race live would require two concurrent browser sessions, which was judged not worth the setup cost given the branch is otherwise fully covered by a passing test asserting the exact real backend response shape (`SpreadGroupMemberConflictException`'s `{error, conflicts}` body, confirmed by reading the backend source directly rather than guessing).
+
+### Increment 3 — 2026-08-26 (`/dev` level: JSON field rename + validation widening for the last 2 Acceptance Criteria)
+
+**Trigger**: the backend API this page consumes was migrated — `depositSpread`/`withdrawalSpread` in every `/api/brand-spreads`, `/api/spread-groups`, and `/api/spreads/effective` JSON body were renamed to `depositSpreadPercent`/`withdrawalSpreadPercent`, and the server-side valid range widened from ">= 0" to "0–100 inclusive". This page and its API client had not been updated for either change and would have sent/read the wrong JSON keys and under-validated against the live backend. This increment finishes the 2 previously-`[ ]` Acceptance Criteria items, which required this rename + widening pass as their implementation, not just their own isolated fix.
+
+- Files changed:
+  - `develop/frontend/src/api/spreads.ts`: renamed every `depositSpread`/`withdrawalSpread` field to `depositSpreadPercent`/`withdrawalSpreadPercent` across `BrandSpread`, `BrandSpreadUpdateRequest`, `SpreadGroup`, `SpreadGroupCreateRequest`, `SpreadGroupUpdateRequest`, and `EffectiveSpread` — every request body built by `updateBrandSpread`/`createSpreadGroup`/`updateSpreadGroup` now sends the new key names, and every response type reads them back correctly. No other exports changed (`SpreadAuditSubmission`, `SpreadGroupMember`, `SpreadGroupDetail`'s `members` shape, and every function signature are unaffected by the rename).
+  - `develop/frontend/src/pages/SpreadGroupManagementPage.tsx`:
+    - Renamed all internal state field names to match (`DefaultFormState`/`DefaultFormErrors`/`GroupFormState`/`GroupFormErrors`'s `depositSpread(Percent)`/`withdrawalSpread(Percent)` keys, `toDefaultForm`, `validateDefaultForm`, `validateGroupForm`, `handleDefaultSave`'s request body, `handleGroupSubmit`'s request body, `openEditGroupModal`'s pre-fill, and every table cell that reads `group.depositSpreadPercent`/`item.depositSpreadPercent` etc.).
+    - Widened `validateSpreadValue` from "non-negative, ≤8 decimals" to "0–100 inclusive, ≤8 decimals" by adding a `Number(trimmed) > 100` check (alongside the pre-existing `< 0` implicitly enforced by the digits-only regex, now made explicit as `< 0` since the regex itself already forbids a leading `-`... — kept as `numeric < 0 || numeric > 100` for symmetry/clarity even though the pattern already rejects negative input at the string level via `SPREAD_NUMBER_PATTERN`).
+    - Updated `SPREAD_ERROR_MESSAGE` to "請輸入 0 至 100 之間的百分比數值，小數點後最多 8 位", used identically by 預設點差 save and group create/edit — no separate message for the new upper-bound case, matching the spec's single shared error string.
+    - Added `(%)` to all four label/header locations: 預設點差 card's `入金點差 (%)`/`出金點差 (%)` labels, the group create/edit modal's same two labels, the 點差群組 table's two `<th>`s, and the 生效點差總覽 table's two `<th>`s.
+    - Added a visible `%` unit next to every spread number input: wrapped each of the 4 number inputs (預設點差 card ×2, group modal ×2) in a new `.sgm-input-suffix` flex container with a trailing `<span className="sgm-input-suffix__unit">%</span>`; the 點差群組/生效點差總覽 tables' read-only spread cells were left as bare numbers (no unit shown there) since the spec's `%` requirement is scoped to the two input forms, and the columns are already labeled `(%)`.
+  - `develop/frontend/src/pages/SpreadGroupManagementPage.css`: added `.sgm-input-suffix` (inline-flex, `gap: 8px`), `.sgm-input-suffix--full` (used in the modal form so the input still stretches to `width: 100%` inside the flex row), and `.sgm-input-suffix__unit` (`font-size: 14px`, `color: #6b7280`, matching the existing caption/helper-text color already used elsewhere on this page — no new color introduced outside the `## Visual Style` table's existing palette).
+  - `develop/frontend/src/pages/SpreadGroupManagementPage.test.tsx`: renamed every fixture/assertion field (`makeDefaultSpread`, `makeGroup`, `makeGroupDetail`, `makeEffective`, and every `toHaveBeenCalledWith` body) to `depositSpreadPercent`/`withdrawalSpreadPercent`; renamed every `getByLabelText('入金點差')`/`('出金點差')` query to include ` (%)`; updated the shared error-message string in all existing assertions; added 2 new tests — "blocks the save request and shows an inline error for a value over 100, but accepts 100 itself" (預設點差, covers `100.00000001` rejected / `100` accepted and actually submitted) and "新增群組 blocks a spread value over 100 with the inline error, but accepts 100 itself" (group create form, same boundary).
+- Notes:
+  - No change was needed to `updateBrandSpread`/`createSpreadGroup`/`updateSpreadGroup`'s function bodies in `spreads.ts` beyond the type/field rename — they already just `JSON.stringify(request)` the typed request object, so renaming the interface fields was sufficient to fix every request body.
+  - Confirmed via `grep` that no other `.ts`/`.tsx` file under `develop/frontend/src` references the old `depositSpread`/`withdrawalSpread` field names in a way tied to this page's API contract; the only remaining hits are in `AuditRequestPage.test.tsx`, which uses those strings as arbitrary sample keys for its own generic before/after JSON-diff renderer test and is unrelated to the `spreads.ts` types — left untouched as out of scope for this spec.
+  - Deliberately did not add a `%` unit to the 點差群組/生效點差總覽 read-only table cells — the spec's `## Requirements` text only calls out a `%` suffix "beside each input" (預設點差 card) and "both number with a `%` suffix" (group modal); the two tables' Acceptance Criteria line asks only for the `(%)` header text, which was added.
+- Verified:
+  - `cd develop/frontend && npx tsc -b`: clean, zero errors.
+  - `cd develop/frontend && npm run build` (`tsc -b && vite build`): clean.
+  - `cd develop/frontend && npm test -- --run`: all **85** tests pass (70 pre-existing across `BrandManagementPage`/`CurrencyManagementPage`/`CurrencyPairManagementPage`/`BrandCurrencyPairPage`/`AuditRequestPage`, unmodified, no regressions — plus 15 in `SpreadGroupManagementPage.test.tsx`, up from 13: the 13 rewritten for the renamed fields/labels, plus the 2 new `>100`/`=100` boundary tests).
+  - `cd develop/frontend && npm run lint` (oxlint): no new findings — the pre-existing `react(set-state-in-effect)` warnings on this and every other page's data-loading `useEffect` are unchanged, none introduced by this increment.
+  - Not verified: no live browser/backend session was run this increment (no live stack was available in this session) — verification here is build + full unit-test-suite only, consistent with the task instructions for this pass, which asked specifically for the rename/widening implementation rather than a fresh live end-to-end pass. The `## Visual Style` color table is unaffected by this increment (no new colors were introduced — the new `.sgm-input-suffix__unit` reuses `#6b7280`, an existing table value), so no new computed-style check was required.
+
+### Browser verification — 2026-08-26 (`/dev` level, after agent execution)
+Follow-up to the agent's "not verified: no live browser/backend session" note above: this has now been performed against the real running stack (backend via `mvn spring-boot:run` on :8080 against live MySQL, frontend already running via `npm run dev` on :5173).
+
+- Loaded `/spreads` for `au`: 預設點差 card showed `入金點差 (%)`/`出金點差 (%)` labels with visible `%` suffixes; 點差群組 table showed the pre-existing `sales` group at `2`/`5` with correct `(%)` headers; both tables rendered with no layout issues.
+- Typed `150` into 入金點差 and clicked 儲存: rejected client-side with the inline `請輸入 0 至 100 之間的百分比數值，小數點後最多 8 位` error, no network request issued (confirmed no new entry in the network log).
+- Typed `100` and saved: accepted, `PUT /api/brand-spreads/1` returned `202`, toast `已送出審核，核准後才會生效`, `審核中` badge appeared, inputs disabled — confirming `100` itself is valid (inclusive upper bound), matching the spec.
+- Server-side confirmation via `GET /api/audit-requests/{id}`: `beforeData`/`afterData` correctly keyed `depositSpreadPercent`/`withdrawalSpreadPercent` (`{"depositSpreadPercent":100,"withdrawalSpreadPercent":0}`) — the renamed field names round-trip correctly end to end, not just in the request body. Cancelled the test request afterward and confirmed `GET /api/brand-spreads/1` was untouched at `0`/`0`.
+- Cross-checked the live-computed formula this rename supports: on `/brand-currency-pairs` (au), USD/JPY showed 匯率 `149.85`, 入金加點完成 `152.847`, 出金加點完成 `157.3425` — exactly `149.85 × 1.02` and `149.85 × 1.05` (the `sales` group's 2%/5%), confirming the multiplicative formula end-to-end through this page's own data. On `/exchange-rates`, the existing synced snapshot for USD/JPY (`原始匯率 159.247`) showed `入金匯率 162.431`/`出金匯率 167.209` — exactly `× 1.02`/`× 1.05` — confirming the frozen-snapshot side also computes correctly.
+- Console clean, no page errors. Backend process stopped afterward; no test/temporary data left behind (the cancelled audit request is expected, harmless history).

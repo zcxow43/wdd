@@ -138,9 +138,9 @@ class SpreadControllerTest {
         return auditRequestId;
     }
 
-    private Long createApprovedGroup(Long brandId, String name, String depositSpread, String withdrawalSpread) {
-        String body = String.format("{\"brandId\": %d, \"name\": \"%s\", \"depositSpread\": %s, "
-                + "\"withdrawalSpread\": %s}", brandId, name, depositSpread, withdrawalSpread);
+    private Long createApprovedGroup(Long brandId, String name, String depositSpreadPercent, String withdrawalSpreadPercent) {
+        String body = String.format("{\"brandId\": %d, \"name\": \"%s\", \"depositSpreadPercent\": %s, "
+                + "\"withdrawalSpreadPercent\": %s}", brandId, name, depositSpreadPercent, withdrawalSpreadPercent);
         ResponseEntity<Map> response = restTemplate.postForEntity(groupsUrl(), jsonEntity(body), Map.class);
         submitAndApprove(response);
         Long groupId = jdbcTemplate.queryForObject(
@@ -157,10 +157,10 @@ class SpreadControllerTest {
         submitAndApprove(response);
     }
 
-    private void updateBrandSpreadApproved(Long brandId, String depositSpread, String withdrawalSpread) {
+    private void updateBrandSpreadApproved(Long brandId, String depositSpreadPercent, String withdrawalSpreadPercent) {
         ResponseEntity<Map> response = restTemplate.exchange(brandSpreadsUrl() + "/" + brandId, HttpMethod.PUT,
-                jsonEntity(String.format("{\"depositSpread\": %s, \"withdrawalSpread\": %s}", depositSpread,
-                        withdrawalSpread)),
+                jsonEntity(String.format("{\"depositSpreadPercent\": %s, \"withdrawalSpreadPercent\": %s}", depositSpreadPercent,
+                        withdrawalSpreadPercent)),
                 Map.class);
         submitAndApprove(response);
     }
@@ -187,9 +187,9 @@ class SpreadControllerTest {
         // Snapshot and set a known brand default so DEFAULT-source values are deterministic.
         ResponseEntity<Map> originalBrandSpread = restTemplate.getForEntity(brandSpreadsUrl() + "/" + brandId,
                 Map.class);
-        BigDecimal originalDeposit = new BigDecimal(originalBrandSpread.getBody().get("depositSpread").toString());
+        BigDecimal originalDeposit = new BigDecimal(originalBrandSpread.getBody().get("depositSpreadPercent").toString());
         BigDecimal originalWithdrawal = new BigDecimal(
-                originalBrandSpread.getBody().get("withdrawalSpread").toString());
+                originalBrandSpread.getBody().get("withdrawalSpreadPercent").toString());
         try {
             updateBrandSpreadApproved(brandId, "0.0005", "0.0008");
 
@@ -213,17 +213,17 @@ class SpreadControllerTest {
             Map<?, ?> groupedEntry = findByCurrencyPairId(response.getBody(), groupedPairId);
             assertThat(groupedEntry.get("source")).isEqualTo("GROUP");
             assertThat(((Number) groupedEntry.get("spreadGroupId")).longValue()).isEqualTo(groupId);
-            assertThat(new BigDecimal(groupedEntry.get("depositSpread").toString()))
+            assertThat(new BigDecimal(groupedEntry.get("depositSpreadPercent").toString()))
                     .isEqualByComparingTo("0.0002");
-            assertThat(new BigDecimal(groupedEntry.get("withdrawalSpread").toString()))
+            assertThat(new BigDecimal(groupedEntry.get("withdrawalSpreadPercent").toString()))
                     .isEqualByComparingTo("0.0003");
 
             Map<?, ?> defaultEntry = findByCurrencyPairId(response.getBody(), defaultPairId);
             assertThat(defaultEntry.get("source")).isEqualTo("DEFAULT");
             assertThat(defaultEntry.get("spreadGroupId")).isNull();
-            assertThat(new BigDecimal(defaultEntry.get("depositSpread").toString()))
+            assertThat(new BigDecimal(defaultEntry.get("depositSpreadPercent").toString()))
                     .isEqualByComparingTo("0.0005");
-            assertThat(new BigDecimal(defaultEntry.get("withdrawalSpread").toString()))
+            assertThat(new BigDecimal(defaultEntry.get("withdrawalSpreadPercent").toString()))
                     .isEqualByComparingTo("0.0008");
         } finally {
             updateBrandSpreadApproved(brandId, originalDeposit.toPlainString(), originalWithdrawal.toPlainString());
@@ -236,9 +236,9 @@ class SpreadControllerTest {
 
         ResponseEntity<Map> originalBrandSpread = restTemplate.getForEntity(brandSpreadsUrl() + "/" + brandId,
                 Map.class);
-        BigDecimal originalDeposit = new BigDecimal(originalBrandSpread.getBody().get("depositSpread").toString());
+        BigDecimal originalDeposit = new BigDecimal(originalBrandSpread.getBody().get("depositSpreadPercent").toString());
         BigDecimal originalWithdrawal = new BigDecimal(
-                originalBrandSpread.getBody().get("withdrawalSpread").toString());
+                originalBrandSpread.getBody().get("withdrawalSpreadPercent").toString());
         try {
             Long baseId = createCurrency("EFG");
             Long quoteId = createCurrency("EFH");
@@ -248,13 +248,13 @@ class SpreadControllerTest {
             ResponseEntity<Map[]> before = restTemplate.getForEntity(effectiveUrl() + "?brandId=" + brandId,
                     Map[].class);
             Map<?, ?> beforeEntry = findByCurrencyPairId(before.getBody(), pairId);
-            BigDecimal beforeDeposit = new BigDecimal(beforeEntry.get("depositSpread").toString());
-            BigDecimal beforeWithdrawal = new BigDecimal(beforeEntry.get("withdrawalSpread").toString());
+            BigDecimal beforeDeposit = new BigDecimal(beforeEntry.get("depositSpreadPercent").toString());
+            BigDecimal beforeWithdrawal = new BigDecimal(beforeEntry.get("withdrawalSpreadPercent").toString());
             assertThat(beforeEntry.get("source")).isEqualTo("DEFAULT");
 
             // Submit a brand-spread change but do not approve yet.
             ResponseEntity<Map> submitResponse = restTemplate.exchange(brandSpreadsUrl() + "/" + brandId,
-                    HttpMethod.PUT, jsonEntity("{\"depositSpread\": 0.0099, \"withdrawalSpread\": 0.0088}"),
+                    HttpMethod.PUT, jsonEntity("{\"depositSpreadPercent\": 0.0099, \"withdrawalSpreadPercent\": 0.0088}"),
                     Map.class);
             assertThat(submitResponse.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
             Long auditRequestId = ((Number) submitResponse.getBody().get("auditRequestId")).longValue();
@@ -264,9 +264,9 @@ class SpreadControllerTest {
             ResponseEntity<Map[]> afterSubmit = restTemplate.getForEntity(effectiveUrl() + "?brandId=" + brandId,
                     Map[].class);
             Map<?, ?> afterSubmitEntry = findByCurrencyPairId(afterSubmit.getBody(), pairId);
-            assertThat(new BigDecimal(afterSubmitEntry.get("depositSpread").toString()))
+            assertThat(new BigDecimal(afterSubmitEntry.get("depositSpreadPercent").toString()))
                     .isEqualByComparingTo(beforeDeposit);
-            assertThat(new BigDecimal(afterSubmitEntry.get("withdrawalSpread").toString()))
+            assertThat(new BigDecimal(afterSubmitEntry.get("withdrawalSpreadPercent").toString()))
                     .isEqualByComparingTo(beforeWithdrawal);
             assertThat(afterSubmitEntry.get("source")).isEqualTo("DEFAULT");
 
@@ -277,9 +277,9 @@ class SpreadControllerTest {
             ResponseEntity<Map[]> afterApprove = restTemplate.getForEntity(effectiveUrl() + "?brandId=" + brandId,
                     Map[].class);
             Map<?, ?> afterApproveEntry = findByCurrencyPairId(afterApprove.getBody(), pairId);
-            assertThat(new BigDecimal(afterApproveEntry.get("depositSpread").toString()))
+            assertThat(new BigDecimal(afterApproveEntry.get("depositSpreadPercent").toString()))
                     .isEqualByComparingTo("0.0099");
-            assertThat(new BigDecimal(afterApproveEntry.get("withdrawalSpread").toString()))
+            assertThat(new BigDecimal(afterApproveEntry.get("withdrawalSpreadPercent").toString()))
                     .isEqualByComparingTo("0.0088");
         } finally {
             updateBrandSpreadApproved(brandId, originalDeposit.toPlainString(), originalWithdrawal.toPlainString());

@@ -56,11 +56,11 @@ class BrandSpreadControllerTest {
     void captureOriginalState() {
         brandId = jdbcTemplate.queryForObject("SELECT id FROM brand ORDER BY id LIMIT 1", Long.class);
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                "SELECT deposit_spread, withdrawal_spread FROM brand_spread WHERE brand_id = ?", brandId);
+                "SELECT deposit_spread_percent, withdrawal_spread_percent FROM brand_spread WHERE brand_id = ?", brandId);
         rowExisted = !rows.isEmpty();
         if (rowExisted) {
-            originalDeposit = (BigDecimal) rows.get(0).get("deposit_spread");
-            originalWithdrawal = (BigDecimal) rows.get(0).get("withdrawal_spread");
+            originalDeposit = (BigDecimal) rows.get(0).get("deposit_spread_percent");
+            originalWithdrawal = (BigDecimal) rows.get(0).get("withdrawal_spread_percent");
         }
     }
 
@@ -69,7 +69,7 @@ class BrandSpreadControllerTest {
         jdbcTemplate.update("DELETE FROM audit_request WHERE entity_type = 'BRAND_SPREAD' AND entity_id = ?",
                 brandId);
         if (rowExisted) {
-            jdbcTemplate.update("UPDATE brand_spread SET deposit_spread = ?, withdrawal_spread = ? WHERE brand_id = ?",
+            jdbcTemplate.update("UPDATE brand_spread SET deposit_spread_percent = ?, withdrawal_spread_percent = ? WHERE brand_id = ?",
                     originalDeposit, originalWithdrawal, brandId);
         } else {
             jdbcTemplate.update("DELETE FROM brand_spread WHERE brand_id = ?", brandId);
@@ -120,9 +120,9 @@ class BrandSpreadControllerTest {
         ResponseEntity<Map> response = restTemplate.getForEntity(brandSpreadsUrl() + "/" + brandId, Map.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(new BigDecimal(response.getBody().get("depositSpread").toString()))
+        assertThat(new BigDecimal(response.getBody().get("depositSpreadPercent").toString()))
                 .isEqualByComparingTo("0");
-        assertThat(new BigDecimal(response.getBody().get("withdrawalSpread").toString()))
+        assertThat(new BigDecimal(response.getBody().get("withdrawalSpreadPercent").toString()))
                 .isEqualByComparingTo("0");
 
         Long count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM brand_spread WHERE brand_id = ?", Long.class,
@@ -133,7 +133,7 @@ class BrandSpreadControllerTest {
     @Test
     void updateReturns202AndAppliesBothSpreadsOnlyAfterApproval() {
         ResponseEntity<Map> response = putBrandSpread(brandId,
-                "{\"depositSpread\": 0.0005, \"withdrawalSpread\": 0.0008}");
+                "{\"depositSpreadPercent\": 0.0005, \"withdrawalSpreadPercent\": 0.0008}");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
         assertThat(response.getBody().get("status")).isEqualTo("PENDING");
@@ -145,7 +145,7 @@ class BrandSpreadControllerTest {
         // Row must be unchanged until approved.
         ResponseEntity<Map> beforeApprove = restTemplate.getForEntity(brandSpreadsUrl() + "/" + brandId, Map.class);
         if (rowExisted) {
-            assertThat(new BigDecimal(beforeApprove.getBody().get("depositSpread").toString()))
+            assertThat(new BigDecimal(beforeApprove.getBody().get("depositSpreadPercent").toString()))
                     .isEqualByComparingTo(originalDeposit);
         }
 
@@ -154,16 +154,16 @@ class BrandSpreadControllerTest {
         assertThat(approveResponse.getBody().get("status")).isEqualTo("APPROVED");
 
         ResponseEntity<Map> afterApprove = restTemplate.getForEntity(brandSpreadsUrl() + "/" + brandId, Map.class);
-        assertThat(new BigDecimal(afterApprove.getBody().get("depositSpread").toString()))
+        assertThat(new BigDecimal(afterApprove.getBody().get("depositSpreadPercent").toString()))
                 .isEqualByComparingTo("0.0005");
-        assertThat(new BigDecimal(afterApprove.getBody().get("withdrawalSpread").toString()))
+        assertThat(new BigDecimal(afterApprove.getBody().get("withdrawalSpreadPercent").toString()))
                 .isEqualByComparingTo("0.0008");
     }
 
     @Test
     void updateRejectsNegativeValue() {
         ResponseEntity<String> response = restTemplate.exchange(brandSpreadsUrl() + "/" + brandId, HttpMethod.PUT,
-                jsonEntity("{\"depositSpread\": -0.0001, \"withdrawalSpread\": 0.0008}"), String.class);
+                jsonEntity("{\"depositSpreadPercent\": -0.0001, \"withdrawalSpreadPercent\": 0.0008}"), String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
@@ -171,15 +171,41 @@ class BrandSpreadControllerTest {
     @Test
     void updateRejectsMoreThanEightDecimalPlaces() {
         ResponseEntity<String> response = restTemplate.exchange(brandSpreadsUrl() + "/" + brandId, HttpMethod.PUT,
-                jsonEntity("{\"depositSpread\": 0.000000001, \"withdrawalSpread\": 0.0008}"), String.class);
+                jsonEntity("{\"depositSpreadPercent\": 0.000000001, \"withdrawalSpreadPercent\": 0.0008}"), String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test
+    void updateRejectsValueOver100() {
+        ResponseEntity<String> response = restTemplate.exchange(brandSpreadsUrl() + "/" + brandId, HttpMethod.PUT,
+                jsonEntity("{\"depositSpreadPercent\": 100.00000001, \"withdrawalSpreadPercent\": 0.0008}"), String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void updateAccepts100AsInclusiveUpperBound() {
+        ResponseEntity<Map> response = putBrandSpread(brandId,
+                "{\"depositSpreadPercent\": 100, \"withdrawalSpreadPercent\": 100}");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        Long auditRequestId = ((Number) response.getBody().get("auditRequestId")).longValue();
+
+        ResponseEntity<Map> approveResponse = approve(auditRequestId);
+        assertThat(approveResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        ResponseEntity<Map> afterApprove = restTemplate.getForEntity(brandSpreadsUrl() + "/" + brandId, Map.class);
+        assertThat(new BigDecimal(afterApprove.getBody().get("depositSpreadPercent").toString()))
+                .isEqualByComparingTo("100");
+        assertThat(new BigDecimal(afterApprove.getBody().get("withdrawalSpreadPercent").toString()))
+                .isEqualByComparingTo("100");
+    }
+
+    @Test
     void updateReturnsNotFoundForUnknownBrand() {
         ResponseEntity<String> response = restTemplate.exchange(brandSpreadsUrl() + "/999999", HttpMethod.PUT,
-                jsonEntity("{\"depositSpread\": 0.0001, \"withdrawalSpread\": 0.0002}"), String.class);
+                jsonEntity("{\"depositSpreadPercent\": 0.0001, \"withdrawalSpreadPercent\": 0.0002}"), String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
@@ -187,11 +213,11 @@ class BrandSpreadControllerTest {
     @Test
     void secondUpdateWhilePendingReturns409() {
         ResponseEntity<Map> first = putBrandSpread(brandId,
-                "{\"depositSpread\": 0.0001, \"withdrawalSpread\": 0.0002}");
+                "{\"depositSpreadPercent\": 0.0001, \"withdrawalSpreadPercent\": 0.0002}");
         assertThat(first.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
         ResponseEntity<String> second = restTemplate.exchange(brandSpreadsUrl() + "/" + brandId, HttpMethod.PUT,
-                jsonEntity("{\"depositSpread\": 0.0003, \"withdrawalSpread\": 0.0004}"), String.class);
+                jsonEntity("{\"depositSpreadPercent\": 0.0003, \"withdrawalSpreadPercent\": 0.0004}"), String.class);
 
         assertThat(second.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     }

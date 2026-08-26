@@ -7,15 +7,15 @@
         <result property="brandId" column="brand_id" />
         <result property="brandCode" column="brand_code" />
         <result property="name" column="name" />
-        <result property="depositSpread" column="deposit_spread" />
-        <result property="withdrawalSpread" column="withdrawal_spread" />
+        <result property="depositSpreadPercent" column="deposit_spread_percent" />
+        <result property="withdrawalSpreadPercent" column="withdrawal_spread_percent" />
         <result property="memberCount" column="member_count" />
         <result property="createdAt" column="created_at" />
         <result property="updatedAt" column="updated_at" />
     </resultMap>
 
     <sql id="selectColumns">
-        SELECT sg.id, sg.brand_id, b.code AS brand_code, sg.name, sg.deposit_spread, sg.withdrawal_spread,
+        SELECT sg.id, sg.brand_id, b.code AS brand_code, sg.name, sg.deposit_spread_percent, sg.withdrawal_spread_percent,
                COALESCE(mc.member_count, 0) AS member_count, sg.created_at, sg.updated_at
         FROM spread_group sg
         JOIN brand b ON b.id = sg.brand_id
@@ -48,13 +48,13 @@
     </select>
 
     <insert id="insert" parameterType="com.wdd.backend.dto.SpreadGroup" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO spread_group (brand_id, name, deposit_spread, withdrawal_spread)
-        VALUES (#{brandId}, #{name}, #{depositSpread}, #{withdrawalSpread})
+        INSERT INTO spread_group (brand_id, name, deposit_spread_percent, withdrawal_spread_percent)
+        VALUES (#{brandId}, #{name}, #{depositSpreadPercent}, #{withdrawalSpreadPercent})
     </insert>
 
     <update id="update" parameterType="com.wdd.backend.dto.SpreadGroup">
         UPDATE spread_group
-        SET name = #{name}, deposit_spread = #{depositSpread}, withdrawal_spread = #{withdrawalSpread}
+        SET name = #{name}, deposit_spread_percent = #{depositSpreadPercent}, withdrawal_spread_percent = #{withdrawalSpreadPercent}
         WHERE id = #{id}
     </update>
 

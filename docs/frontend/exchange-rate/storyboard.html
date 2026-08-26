@@ -1,0 +1,39 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+  body { margin: 0; padding: 32px; background: #f4f5f7; font-family: -apple-system, "PingFang TC", "Noto Sans TC", sans-serif; }
+  .board { position: relative; display: flex; flex-direction: column; gap: 56px; width: max-content; }
+  .row { display: flex; align-items: flex-start; gap: 40px; }
+  figure { margin: 0; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 8px; }
+  figure img { display: block; max-height: 480px; border-radius: 4px; }
+  figcaption { margin-top: 8px; max-width: 360px; font-size: 14px; color: #333; text-align: center; }
+  .arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; }
+</style></head>
+<body><div class="board"><div class="row">
+  <figure id="frame-0">
+    <img src="step-1.png" />
+    <figcaption>初始畫面：選定「au」品牌，部分幣種對已有同步紀錄（顯示原始匯率／入金匯率／出金匯率），其餘尚未同步</figcaption>
+  </figure>
+  <figure id="frame-1">
+    <img src="step-2.png" />
+    <figcaption>點擊「moneta」品牌分頁：切換為 moneta 的匯率快照，原始匯率不變，但入金／出金匯率依 moneta 當時生效的點差重新計算，數值與 au 不同</figcaption>
+  </figure>
+  <figure id="frame-2">
+    <img src="step-3.png" />
+    <figcaption>在搜尋框輸入「JPY」：僅列出基準幣或報價幣符合的幣種對</figcaption>
+  </figure></div><div class="row">
+  <figure id="frame-4">
+    <img src="step-5.png" />
+    <figcaption>同步完成：目前選定品牌（moneta）的所有幣種對顯示最新快照，Toast 顯示全部品牌加總的同步筆數，按鈕進入冷卻倒數</figcaption>
+  </figure>
+  <figure id="frame-3">
+    <img src="step-4.png" />
+    <figcaption>清空搜尋後點擊「同步最新匯率」：按鈕顯示「同步中...」並停用</figcaption>
+  </figure></div>
+  <svg class="arrows" width="2438" height="1188">
+    <defs>
+      <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#888" />
+      </marker>
+    </defs>
+    <line x1="230.91666666666666" y1="75.66666666666666" x2="1007.8833333333333" y2="75.66666666666666" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="1110.2" y1="129" x2="1797.5333333333333" y2="103.93333333333332" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="2377.266666666667" y1="57" x2="1559.3541666666667" y2="657.6666666666666" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="835" y1="871" x2="777" y2="871" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" />
+  </svg></div></body></html>

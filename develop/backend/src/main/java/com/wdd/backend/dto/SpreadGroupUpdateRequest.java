@@ -11,16 +11,16 @@ import java.math.BigDecimal;
 public class SpreadGroupUpdateRequest {
 
     private String name;
-    private BigDecimal depositSpread;
-    private BigDecimal withdrawalSpread;
+    private BigDecimal depositSpreadPercent;
+    private BigDecimal withdrawalSpreadPercent;
 
     public SpreadGroupUpdateRequest() {
     }
 
-    public SpreadGroupUpdateRequest(String name, BigDecimal depositSpread, BigDecimal withdrawalSpread) {
+    public SpreadGroupUpdateRequest(String name, BigDecimal depositSpreadPercent, BigDecimal withdrawalSpreadPercent) {
         this.name = name;
-        this.depositSpread = depositSpread;
-        this.withdrawalSpread = withdrawalSpread;
+        this.depositSpreadPercent = depositSpreadPercent;
+        this.withdrawalSpreadPercent = withdrawalSpreadPercent;
     }
 
     public String getName() {
@@ -31,19 +31,19 @@ public class SpreadGroupUpdateRequest {
         this.name = name;
     }
 
-    public BigDecimal getDepositSpread() {
-        return depositSpread;
+    public BigDecimal getDepositSpreadPercent() {
+        return depositSpreadPercent;
     }
 
-    public void setDepositSpread(BigDecimal depositSpread) {
-        this.depositSpread = depositSpread;
+    public void setDepositSpreadPercent(BigDecimal depositSpreadPercent) {
+        this.depositSpreadPercent = depositSpreadPercent;
     }
 
-    public BigDecimal getWithdrawalSpread() {
-        return withdrawalSpread;
+    public BigDecimal getWithdrawalSpreadPercent() {
+        return withdrawalSpreadPercent;
     }
 
-    public void setWithdrawalSpread(BigDecimal withdrawalSpread) {
-        this.withdrawalSpread = withdrawalSpread;
+    public void setWithdrawalSpreadPercent(BigDecimal withdrawalSpreadPercent) {
+        this.withdrawalSpreadPercent = withdrawalSpreadPercent;
     }
 }

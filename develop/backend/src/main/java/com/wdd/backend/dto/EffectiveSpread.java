@@ -19,8 +19,8 @@ public class EffectiveSpread {
     private Long spreadGroupId;
     private String spreadGroupName;
     private String source;
-    private BigDecimal depositSpread;
-    private BigDecimal withdrawalSpread;
+    private BigDecimal depositSpreadPercent;
+    private BigDecimal withdrawalSpreadPercent;
 
     public Long getCurrencyPairId() {
         return currencyPairId;
@@ -94,19 +94,19 @@ public class EffectiveSpread {
         this.source = source;
     }
 
-    public BigDecimal getDepositSpread() {
-        return depositSpread;
+    public BigDecimal getDepositSpreadPercent() {
+        return depositSpreadPercent;
     }
 
-    public void setDepositSpread(BigDecimal depositSpread) {
-        this.depositSpread = depositSpread;
+    public void setDepositSpreadPercent(BigDecimal depositSpreadPercent) {
+        this.depositSpreadPercent = depositSpreadPercent;
     }
 
-    public BigDecimal getWithdrawalSpread() {
-        return withdrawalSpread;
+    public BigDecimal getWithdrawalSpreadPercent() {
+        return withdrawalSpreadPercent;
     }
 
-    public void setWithdrawalSpread(BigDecimal withdrawalSpread) {
-        this.withdrawalSpread = withdrawalSpread;
+    public void setWithdrawalSpreadPercent(BigDecimal withdrawalSpreadPercent) {
+        this.withdrawalSpreadPercent = withdrawalSpreadPercent;
     }
 }

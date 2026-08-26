@@ -24,7 +24,7 @@ wdd/
 This project is built and rebuilt from `specs/` rather than by hand:
 
 - `/spec <requirement>` — turn a requirement into frontend/backend/dba spec files
-- `/dev` — execute every pending spec, dispatching to the matching agent (dba → backend → frontend)
+- `/dev` — execute every pending spec, dispatching to the matching agent (dba → backend → frontend); use `/dev db`, `/dev be`, or `/dev fe` to run only one domain, optionally followed by a spec slug
 - `/infra` — inspect/edit `env.md` and the matching `docker-compose.yml` service
 - `/init` — bootstrap `develop/`, `docker/` from `env.md` on an empty checkout
 - `/start` — start containers (docker compose) then backend/frontend dev servers, in that order

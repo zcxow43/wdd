@@ -16,8 +16,8 @@ public class SpreadGroup {
     private Long brandId;
     private String brandCode;
     private String name;
-    private BigDecimal depositSpread;
-    private BigDecimal withdrawalSpread;
+    private BigDecimal depositSpreadPercent;
+    private BigDecimal withdrawalSpreadPercent;
     private Integer memberCount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -54,20 +54,20 @@ public class SpreadGroup {
         this.name = name;
     }
 
-    public BigDecimal getDepositSpread() {
-        return depositSpread;
+    public BigDecimal getDepositSpreadPercent() {
+        return depositSpreadPercent;
     }
 
-    public void setDepositSpread(BigDecimal depositSpread) {
-        this.depositSpread = depositSpread;
+    public void setDepositSpreadPercent(BigDecimal depositSpreadPercent) {
+        this.depositSpreadPercent = depositSpreadPercent;
     }
 
-    public BigDecimal getWithdrawalSpread() {
-        return withdrawalSpread;
+    public BigDecimal getWithdrawalSpreadPercent() {
+        return withdrawalSpreadPercent;
     }
 
-    public void setWithdrawalSpread(BigDecimal withdrawalSpread) {
-        this.withdrawalSpread = withdrawalSpread;
+    public void setWithdrawalSpreadPercent(BigDecimal withdrawalSpreadPercent) {
+        this.withdrawalSpreadPercent = withdrawalSpreadPercent;
     }
 
     public Integer getMemberCount() {

@@ -94,6 +94,8 @@ function makePairs(): CurrencyPair[] {
       rateType: 'AUTO',
       rate: null,
       active: true,
+      depositRate: null,
+      withdrawalRate: null,
       createdAt: '2026-01-01T00:00:00',
       updatedAt: '2026-01-01T00:00:00',
     },
@@ -107,6 +109,8 @@ function makePairs(): CurrencyPair[] {
       rateType: 'MANUAL',
       rate: 1.2345,
       active: false,
+      depositRate: 1.2445,
+      withdrawalRate: 1.2545,
       createdAt: '2026-01-01T00:00:00',
       updatedAt: '2026-01-01T00:00:00',
     },
@@ -179,6 +183,57 @@ describe('BrandCurrencyPairPage', () => {
       (within(usdEurRow).getByLabelText('USD/EUR 匯率') as HTMLInputElement)
         .value,
     ).toBe('1.2345')
+  })
+
+  it('shows 入金加點完成/出金加點完成 as "-" when null and formatted when present, as pure display cells', async () => {
+    mockedFetchBrands.mockResolvedValue(makeBrands())
+    mockedFetchPairsByBrand.mockResolvedValue(makePairs())
+
+    render(<BrandCurrencyPairPage />)
+    await screen.findByRole('table')
+
+    // AUTO pair whose definition has never been synced: both null -> "-".
+    const usdJpyRow = findRowByCodes('USD', 'JPY')
+    const usdJpyCells = within(usdJpyRow).getAllByRole('cell')
+    expect(usdJpyCells[3].textContent).toBe('-')
+    expect(usdJpyCells[4].textContent).toBe('-')
+    expect(usdJpyCells[3].querySelector('input, button')).toBeNull()
+    expect(usdJpyCells[4].querySelector('input, button')).toBeNull()
+
+    // MANUAL pair with computed values -> formatted values, not "-".
+    const usdEurRow = findRowByCodes('USD', 'EUR')
+    const usdEurCells = within(usdEurRow).getAllByRole('cell')
+    expect(usdEurCells[3].textContent).toBe('1.2445')
+    expect(usdEurCells[4].textContent).toBe('1.2545')
+  })
+
+  it('does not preview the local 匯率類型/匯率 draft in 入金加點完成/出金加點完成 before 儲存', async () => {
+    mockedFetchBrands.mockResolvedValue(makeBrands())
+    mockedFetchPairsByBrand.mockResolvedValue(makePairs())
+
+    render(<BrandCurrencyPairPage />)
+    await screen.findByRole('table')
+
+    const usdEurRow = findRowByCodes('USD', 'EUR')
+    const rateInput = within(usdEurRow).getByLabelText(
+      'USD/EUR 匯率',
+    ) as HTMLInputElement
+
+    await userEvent.clear(rateInput)
+    await userEvent.type(rateInput, '9.9999')
+
+    const cellsAfterEdit = within(usdEurRow).getAllByRole('cell')
+    // Still the last-loaded committed values, unaffected by the unsaved draft.
+    expect(cellsAfterEdit[3].textContent).toBe('1.2445')
+    expect(cellsAfterEdit[4].textContent).toBe('1.2545')
+
+    await userEvent.click(within(usdEurRow).getByRole('radio', { name: '自動' }))
+
+    const cellsAfterTypeSwitch = within(
+      findRowByCodes('USD', 'EUR'),
+    ).getAllByRole('cell')
+    expect(cellsAfterTypeSwitch[3].textContent).toBe('1.2445')
+    expect(cellsAfterTypeSwitch[4].textContent).toBe('1.2545')
   })
 
   it('switching brands loads that brand pairs', async () => {

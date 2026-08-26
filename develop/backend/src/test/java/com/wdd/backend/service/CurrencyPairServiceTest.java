@@ -124,6 +124,49 @@ class CurrencyPairServiceTest {
     }
 
     @Test
+    void findByIdComputesDepositAndWithdrawalRateForManualPairFromOwnRate() {
+        CurrencyPair pair = sampleCurrencyPair(1L, 10L, 1L, "MANUAL", new BigDecimal("150.00"), true);
+        pair.setEffectiveDepositSpreadPercent(new BigDecimal("0.10"));
+        pair.setEffectiveWithdrawalSpreadPercent(new BigDecimal("0.20"));
+        when(currencyPairMapper.findById(1L)).thenReturn(pair);
+
+        var response = service.findById(1L);
+
+        // baseRate * (1 + spreadPercent / 100) — a percentage markup, not a flat addition.
+        assertThat(response.getDepositRate()).isEqualByComparingTo(new BigDecimal("150.15"));
+        assertThat(response.getWithdrawalRate()).isEqualByComparingTo(new BigDecimal("150.30"));
+    }
+
+    @Test
+    void findByIdComputesDepositAndWithdrawalRateForAutoPairFromLatestExchangeRate() {
+        CurrencyPair pair = sampleCurrencyPair(1L, 10L, 1L, "AUTO", null, true);
+        pair.setAutoRate(new BigDecimal("149.80"));
+        pair.setEffectiveDepositSpreadPercent(new BigDecimal("0.10"));
+        pair.setEffectiveWithdrawalSpreadPercent(new BigDecimal("0.30"));
+        when(currencyPairMapper.findById(1L)).thenReturn(pair);
+
+        var response = service.findById(1L);
+
+        // baseRate * (1 + spreadPercent / 100) — a percentage markup, not a flat addition.
+        assertThat(response.getDepositRate()).isEqualByComparingTo(new BigDecimal("149.9498"));
+        assertThat(response.getWithdrawalRate()).isEqualByComparingTo(new BigDecimal("150.2494"));
+    }
+
+    @Test
+    void findByIdReturnsNullDepositAndWithdrawalRateForAutoPairNeverSynced() {
+        CurrencyPair pair = sampleCurrencyPair(1L, 10L, 1L, "AUTO", null, true);
+        pair.setAutoRate(null);
+        pair.setEffectiveDepositSpreadPercent(new BigDecimal("0.10"));
+        pair.setEffectiveWithdrawalSpreadPercent(new BigDecimal("0.30"));
+        when(currencyPairMapper.findById(1L)).thenReturn(pair);
+
+        var response = service.findById(1L);
+
+        assertThat(response.getDepositRate()).isNull();
+        assertThat(response.getWithdrawalRate()).isNull();
+    }
+
+    @Test
     void createRejectsMissingDefinitionId() {
         CurrencyPairCreateRequest request = new CurrencyPairCreateRequest(null, 1L, "AUTO", null, false);
 
@@ -260,6 +303,7 @@ class CurrencyPairServiceTest {
         Map<String, Object> after = (Map<String, Object>) afterCaptor.getValue();
         assertThat(after.get("rateType")).isEqualTo("MANUAL");
         assertThat((BigDecimal) after.get("rate")).isEqualByComparingTo(new BigDecimal("150.25"));
+        assertThat(after).doesNotContainKeys("depositRate", "withdrawalRate");
         verify(currencyPairMapper, never()).insert(any());
     }
 
@@ -314,6 +358,8 @@ class CurrencyPairServiceTest {
         assertThat(after.get("active")).isEqualTo(true);
         assertThat(after.get("rateType")).isEqualTo("MANUAL");
         assertThat((BigDecimal) after.get("rate")).isEqualByComparingTo(new BigDecimal("150.25"));
+        assertThat(before).doesNotContainKeys("depositRate", "withdrawalRate");
+        assertThat(after).doesNotContainKeys("depositRate", "withdrawalRate");
         verify(currencyPairMapper, never()).update(any());
     }
 
@@ -370,6 +416,7 @@ class CurrencyPairServiceTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> before = (Map<String, Object>) beforeCaptor.getValue();
         assertThat(before.get("active")).isEqualTo(true);
+        assertThat(before).doesNotContainKeys("depositRate", "withdrawalRate");
         verify(currencyPairMapper, never()).deleteById(anyLong());
     }
 }

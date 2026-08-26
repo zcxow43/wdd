@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wdd.backend.mapper.ExchangeRateMapper">
+
+    <resultMap id="ExchangeRateLatestResultMap" type="com.wdd.backend.dto.ExchangeRateLatest">
+        <result property="currencyPairDefinitionId" column="currency_pair_definition_id" />
+        <result property="baseCurrencyCode" column="base_currency_code" />
+        <result property="quoteCurrencyCode" column="quote_currency_code" />
+        <result property="precision" column="precision" />
+        <result property="brandId" column="brand_id" />
+        <result property="brandCode" column="brand_code" />
+        <result property="rate" column="rate" />
+        <result property="depositRate" column="deposit_rate" />
+        <result property="withdrawalRate" column="withdrawal_rate" />
+        <result property="rateMinute" column="rate_minute" />
+        <result property="source" column="source" />
+    </resultMap>
+
+    <select id="findLatestPerDefinitionAndBrand" resultMap="ExchangeRateLatestResultMap">
+        SELECT d.id AS currency_pair_definition_id,
+               bc.code AS base_currency_code,
+               qc.code AS quote_currency_code,
+               d.`precision` AS `precision`,
+               b.id AS brand_id,
+               b.code AS brand_code,
+               er.rate, er.deposit_rate, er.withdrawal_rate, er.rate_minute, er.source
+        FROM currency_pair_definition d
+        CROSS JOIN brand b
+        JOIN currency bc ON bc.id = d.base_currency_id
+        JOIN currency qc ON qc.id = d.quote_currency_id
+        LEFT JOIN (
+            SELECT e.currency_pair_definition_id, e.brand_id, e.rate, e.deposit_rate, e.withdrawal_rate,
+                   e.rate_minute, e.source,
+                   ROW_NUMBER() OVER (PARTITION BY e.currency_pair_definition_id, e.brand_id
+                                       ORDER BY e.rate_minute DESC) AS rn
+            FROM exchange_rate e
+        ) er ON er.currency_pair_definition_id = d.id AND er.brand_id = b.id AND er.rn = 1
+        <where>
+            <if test="brandId != null">
+                AND b.id = #{brandId}
+            </if>
+        </where>
+        ORDER BY d.id, b.id
+    </select>
+
+    <select id="findSecondsSinceLastUpdate" resultType="java.lang.Long">
+        SELECT TIMESTAMPDIFF(SECOND, MAX(updated_at), CURRENT_TIMESTAMP) FROM exchange_rate
+    </select>
+
+    <resultMap id="EffectiveSpreadResultMap" type="com.wdd.backend.dto.ExchangeRateEffectiveSpread">
+        <result property="currencyPairDefinitionId" column="currency_pair_definition_id" />
+        <result property="brandId" column="brand_id" />
+        <result property="brandCode" column="brand_code" />
+        <result property="depositSpreadPercent" column="deposit_spread_percent" />
+        <result property="withdrawalSpreadPercent" column="withdrawal_spread_percent" />
+    </resultMap>
+
+    <select id="findEffectiveSpreadsForAllBrands" resultMap="EffectiveSpreadResultMap">
+        SELECT d.id AS currency_pair_definition_id,
+               b.id AS brand_id,
+               b.code AS brand_code,
+               CASE WHEN cp.spread_group_id IS NOT NULL THEN sg.deposit_spread_percent ELSE bs.deposit_spread_percent END AS deposit_spread_percent,
+               CASE WHEN cp.spread_group_id IS NOT NULL THEN sg.withdrawal_spread_percent ELSE bs.withdrawal_spread_percent END AS withdrawal_spread_percent
+        FROM currency_pair_definition d
+        CROSS JOIN brand b
+        LEFT JOIN currency_pair cp ON cp.currency_pair_definition_id = d.id AND cp.brand_id = b.id
+        LEFT JOIN spread_group sg ON sg.id = cp.spread_group_id
+        LEFT JOIN brand_spread bs ON bs.brand_id = b.id
+        ORDER BY d.id, b.id
+    </select>
+
+    <insert id="upsert" parameterType="com.wdd.backend.dto.ExchangeRate">
+        INSERT INTO exchange_rate (currency_pair_definition_id, brand_id, rate, deposit_rate, withdrawal_rate, rate_minute, source)
+        VALUES (#{currencyPairDefinitionId}, #{brandId}, #{rate}, #{depositRate}, #{withdrawalRate}, #{rateMinute}, #{source})
+        ON DUPLICATE KEY UPDATE
+            rate = VALUES(rate),
+            deposit_rate = VALUES(deposit_rate),
+            withdrawal_rate = VALUES(withdrawal_rate),
+            source = VALUES(source)
+    </insert>
+
+</mapper>

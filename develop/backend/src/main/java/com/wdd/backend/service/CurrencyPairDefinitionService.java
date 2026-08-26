@@ -110,7 +110,7 @@ public class CurrencyPairDefinitionService {
 
         CurrencyPairDefinition created = currencyPairDefinitionMapper.findById(definition.getId());
         List<CurrencyPairResponse> currencyPairs = currencyPairMapper.findByDefinitionId(definition.getId()).stream()
-                .map(CurrencyPairDefinitionService::toCurrencyPairResponse)
+                .map(CurrencyPairService::toResponse)
                 .toList();
 
         return new CurrencyPairDefinitionCreateResponse(
@@ -172,22 +172,5 @@ public class CurrencyPairDefinitionService {
                 definition.getPrecision(),
                 definition.getCreatedAt(),
                 definition.getUpdatedAt());
-    }
-
-    private static CurrencyPairResponse toCurrencyPairResponse(CurrencyPair currencyPair) {
-        return new CurrencyPairResponse(
-                currencyPair.getId(),
-                currencyPair.getCurrencyPairDefinitionId(),
-                currencyPair.getBaseCurrencyCode(),
-                currencyPair.getQuoteCurrencyCode(),
-                currencyPair.getBrandId(),
-                currencyPair.getBrandCode(),
-                currencyPair.getRateType(),
-                currencyPair.getRate(),
-                currencyPair.getActive(),
-                currencyPair.getSpreadGroupId(),
-                currencyPair.getSpreadGroupName(),
-                currencyPair.getCreatedAt(),
-                currencyPair.getUpdatedAt());
     }
 }

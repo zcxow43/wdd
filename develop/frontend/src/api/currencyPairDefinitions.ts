@@ -23,6 +23,8 @@ export interface CurrencyPair {
   active: boolean
   spreadGroupId?: number | null
   spreadGroupName?: string | null
+  depositRate: number | null
+  withdrawalRate: number | null
   createdAt: string
   updatedAt: string
 }

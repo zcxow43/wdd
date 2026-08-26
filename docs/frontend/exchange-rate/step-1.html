@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>匯率同步</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    width: 1440px;
+    height: 900px;
+    font-family: -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    background: #f5f6f8;
+    color: #1f2430;
+    display: flex;
+  }
+  .sidebar {
+    width: 220px;
+    background: #1f2937;
+    color: #cbd5e1;
+    padding: 24px 0;
+    flex-shrink: 0;
+  }
+  .sidebar .logo {
+    color: #fff;
+    font-size: 18px;
+    font-weight: 700;
+    padding: 0 24px 24px;
+    border-bottom: 1px solid #334155;
+    margin-bottom: 12px;
+  }
+  .sidebar .group-title {
+    padding: 10px 24px 4px;
+    font-size: 12px;
+    color: #94a3b8;
+    letter-spacing: 1px;
+  }
+  .sidebar .nav-item {
+    padding: 10px 24px;
+    font-size: 14px;
+  }
+  .sidebar .nav-item.active {
+    background: #334155;
+    color: #fff;
+    border-left: 3px solid #3b82f6;
+    font-weight: 600;
+  }
+  .main {
+    flex: 1;
+    padding: 26px 36px;
+    overflow: hidden;
+    position: relative;
+  }
+  .breadcrumb {
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 6px;
+  }
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .page-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #111827;
+  }
+  .brand-selector { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+  .brand-tab { padding:8px 20px; border-radius:8px; border:1px solid #e2e5eb; background:#fff; color:#374151; font-size:14px; font-weight:600; }
+  .brand-tab.selected { background:#eff6ff; border-color:#2563eb; color:#2563eb; }
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .search-input {
+    width: 260px;
+    padding: 9px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #1f2430;
+  }
+  .search-input::placeholder { color: #9ca3af; }
+  .btn {
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 9px 18px;
+    border: 1px solid transparent;
+  }
+  .btn-primary { background: #2563eb; color: #fff; }
+  .btn-primary:disabled { background: #93c5fd; color: #fff; }
+  .card {
+    background: #fff;
+    border: 1px solid #e2e5eb;
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    overflow: hidden;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    text-align: left;
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 600;
+    background: #f9fafb;
+    padding: 11px 16px;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  tbody td {
+    padding: 11px 16px;
+    font-size: 13px;
+    color: #1f2430;
+    border-bottom: 1px solid #f1f2f5;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  .code-cell { font-family: "SF Mono", Menlo, monospace; color: #374151; }
+  .unsynced { color: #9ca3af; font-style: italic; }
+  .rate-cell { color: #1f2430; }
+  .rate-cell.strong { font-weight: 700; }
+  .toast {
+    position: absolute;
+    right: 32px;
+    bottom: 28px;
+    background: #16a34a;
+    color: #fff;
+    padding: 12px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: 0 6px 20px rgba(0,0,0,.2);
+  }
+</style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">匯率中心 WDD</div>
+    <div class="group-title">匯率中心</div>
+    <div class="nav-item">幣別管理</div>
+    <div class="nav-item">幣別對管理</div>
+    <div class="nav-item">品牌幣種對</div>
+    <div class="nav-item">價差群組管理</div>
+    <div class="nav-item">品牌管理</div>
+    <div class="nav-item">審核紀錄</div>
+    <div class="nav-item active">匯率同步</div>
+  </div>
+  <div class="main">
+    <div class="breadcrumb">匯率中心 &gt; 匯率同步</div>
+    <div class="page-header">
+      <div class="page-title">匯率同步</div>
+      <button class="btn btn-primary">同步最新匯率</button>
+    </div>
+    <div class="brand-selector">
+      <div class="brand-tab selected">au</div>
+      <div class="brand-tab" data-trigger>moneta</div>
+      <div class="brand-tab">pug</div>
+      <div class="brand-tab">star</div>
+      <div class="brand-tab">um</div>
+      <div class="brand-tab">vjp</div>
+      <div class="brand-tab">vt</div>
+    </div>
+    <div class="toolbar">
+      <input class="search-input" type="text" placeholder="搜尋基準幣或報價幣" value="" />
+    </div>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:9%">基準幣</th>
+            <th style="width:9%">報價幣</th>
+            <th style="width:14%">原始匯率</th>
+            <th style="width:14%">入金匯率</th>
+            <th style="width:14%">出金匯率</th>
+            <th style="width:20%">匯率時間</th>
+            <th style="width:20%">資料來源</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="code-cell">USD</td><td class="code-cell">JPY</td><td class="rate-cell">159.12500000</td><td class="rate-cell strong">159.17500000</td><td class="rate-cell strong">159.20500000</td><td>2026-08-26 09:10</td><td>open.er-api.com</td></tr>
+          <tr><td class="code-cell">USD</td><td class="code-cell">TWD</td><td class="rate-cell">31.81100000</td><td class="rate-cell strong">31.86100000</td><td class="rate-cell strong">31.89100000</td><td>2026-08-26 09:10</td><td>open.er-api.com</td></tr>
+          <tr><td class="code-cell">USD</td><td class="code-cell">EUR</td><td class="rate-cell">0.85720000</td><td class="rate-cell strong">0.90720000</td><td class="rate-cell strong">0.93720000</td><td>2026-08-26 09:10</td><td>open.er-api.com</td></tr>
+          <tr><td class="code-cell">USD</td><td class="code-cell">CNY</td><td class="unsynced">尚未同步</td><td class="unsynced">-</td><td class="unsynced">-</td><td class="unsynced">-</td><td class="unsynced">-</td></tr>
+          <tr><td class="code-cell">USD</td><td class="code-cell">GBP</td><td class="unsynced">尚未同步</td><td class="unsynced">-</td><td class="unsynced">-</td><td class="unsynced">-</td><td class="unsynced">-</td></tr>
+          <tr><td class="code-cell">USD</td><td class="code-cell">HKD</td><td class="unsynced">尚未同步</td><td class="unsynced">-</td><td class="unsynced">-</td><td class="unsynced">-</td><td class="unsynced">-</td></tr>
+          <tr><td class="code-cell">USD</td><td class="code-cell">SGD</td><td class="unsynced">尚未同步</td><td class="unsynced">-</td><td class="unsynced">-</td><td class="unsynced">-</td><td class="unsynced">-</td></tr>
+          <tr><td class="code-cell">USD</td><td class="code-cell">AUD</td><td class="unsynced">尚未同步</td><td class="unsynced">-</td><td class="unsynced">-</td><td class="unsynced">-</td><td class="unsynced">-</td></tr>
+          <tr><td class="code-cell">USD</td><td class="code-cell">KRW</td><td class="unsynced">尚未同步</td><td class="unsynced">-</td><td class="unsynced">-</td><td class="unsynced">-</td><td class="unsynced">-</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>

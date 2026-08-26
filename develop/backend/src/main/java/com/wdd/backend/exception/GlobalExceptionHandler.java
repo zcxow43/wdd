@@ -128,4 +128,18 @@ public class GlobalExceptionHandler {
         body.put("auditRequestId", ex.getAuditRequestId());
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(body);
     }
+
+    @ExceptionHandler(ExchangeRateSyncCooldownException.class)
+    public ResponseEntity<Map<String, Object>> handleTooManyRequests(ExchangeRateSyncCooldownException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", ex.getMessage());
+        body.put("retryAfterSeconds", ex.getRetryAfterSeconds());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(body);
+    }
+
+    @ExceptionHandler(ExchangeRateProviderUnavailableException.class)
+    public ResponseEntity<Map<String, String>> handleBadGateway(ExchangeRateProviderUnavailableException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(Map.of("error", ex.getMessage()));
+    }
 }

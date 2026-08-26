@@ -1,14 +1,14 @@
 ---
 status: done
 title: "Spread API (Brand Default + Spread Groups)"
-requirement: "每個品牌可以設置點差，分為入金點差與出金點差；有預設點差與群組點差兩種，群組可以拉品牌幣種對進行設定，每個品牌幣種對只能加入一個群組"
+requirement: "每個品牌可以設置點差，分為入金點差與出金點差；有預設點差與群組點差兩種，群組可以拉品牌幣種對進行設定，每個品牌幣種對只能加入一個群組。點差是百分比（%），以乘法套用在基礎匯率上，不是用加法的固定金額；點差不能超過 100%。"
 depends_on: [brand, currency-pair, audit]
 ---
 
 # Spread — Backend Spec
 
 ## Overview
-Two-tier spread configuration per brand. Every brand has exactly one **default spread** (預設點差 — see [brand-spread.md](../dba/brand-spread.md)), and may have any number of named **spread groups** (群組點差 — see [spread-group.md](../dba/spread-group.md)), each with its own spreads. A brand currency pair is assigned to at most one group via `currency_pair.spread_group_id` (see [currency-pair.md](../dba/currency-pair.md)); the pair's effective spread is its group's if it has one, otherwise its brand's default. Both tiers carry the same two values: a deposit spread (入金點差) and a withdrawal spread (出金點差).
+Two-tier spread configuration per brand. Every brand has exactly one **default spread** (預設點差 — see [brand-spread.md](../dba/brand-spread.md)), and may have any number of named **spread groups** (群組點差 — see [spread-group.md](../dba/spread-group.md)), each with its own spread percentages. A brand currency pair is assigned to at most one group via `currency_pair.spread_group_id` (see [currency-pair.md](../dba/currency-pair.md)); the pair's effective spread percentage is its group's if it has one, otherwise its brand's default. Both tiers carry the same two values: a deposit spread percentage (入金點差, `depositSpreadPercent`) and a withdrawal spread percentage (出金點差, `withdrawalSpreadPercent`) — both are **percentages** (e.g. `0.5` means a 0.5% markup) applied **multiplicatively** to a base rate (`baseRate * (1 + spreadPercent / 100)`) by [currency-pair.md](currency-pair.md)'s live `depositRate`/`withdrawalRate` and [exchange-rate.md](exchange-rate.md)'s frozen sync-time snapshot — never added as a flat currency amount. This API itself only stores and serves the raw percentage values; it does not compute a final rate.
 
 This API owns all three concerns: reading/updating a brand's default spread, CRUD on its groups, and moving brand currency pairs in and out of groups.
 
@@ -21,8 +21,8 @@ This API owns all three concerns: reading/updating a brand's default spread, CRU
 |---|---|---|
 | brandId | Long | Identifies the row; one row per brand; never created or deleted through this API |
 | brandCode | String | Read-only enrichment (joined from `brand.code`) |
-| depositSpread | BigDecimal | Required on update; `>= 0`; at most 8 decimal places |
-| withdrawalSpread | BigDecimal | Required on update; `>= 0`; at most 8 decimal places |
+| depositSpreadPercent | BigDecimal | Required on update; between `0` and `100` inclusive; at most 8 decimal places; a percentage (e.g. `0.5` = 0.5%) applied multiplicatively to a base rate, not a flat amount added to it |
+| withdrawalSpreadPercent | BigDecimal | Required on update; between `0` and `100` inclusive; at most 8 decimal places; same percentage semantics |
 | createdAt / updatedAt | Timestamp | System maintained |
 
 ### Entity: SpreadGroup (群組點差)
@@ -32,8 +32,8 @@ This API owns all three concerns: reading/updating a brand's default spread, CRU
 | brandId | Long | Required on create; must reference an existing brand; immutable after creation |
 | brandCode | String | Read-only enrichment (joined from `brand.code`) |
 | name | String | Required; 1–50 characters after trimming; unique within the brand |
-| depositSpread | BigDecimal | `>= 0`; at most 8 decimal places; defaults to `0` if omitted on create |
-| withdrawalSpread | BigDecimal | `>= 0`; at most 8 decimal places; defaults to `0` if omitted on create |
+| depositSpreadPercent | BigDecimal | Between `0` and `100` inclusive; at most 8 decimal places; defaults to `0` if omitted on create; same percentage semantics as `BrandSpread.depositSpreadPercent` |
+| withdrawalSpreadPercent | BigDecimal | Between `0` and `100` inclusive; at most 8 decimal places; defaults to `0` if omitted on create; same percentage semantics |
 | memberCount | Integer | Read-only; number of `currency_pair` rows whose `spread_group_id` is this group |
 | createdAt / updatedAt | Timestamp | System maintained |
 
@@ -49,33 +49,33 @@ This API owns all three concerns: reading/updating a brand's default spread, CRU
 
 **GET /api/brand-spreads**
 - Query param (optional): `brandId` — filter to one brand when present.
-- Response `200`: `[ { "brandId": 1, "brandCode": "au", "depositSpread": 0.00050000, "withdrawalSpread": 0.00080000, "createdAt": "...", "updatedAt": "..." }, ... ]` — one entry per brand.
+- Response `200`: `[ { "brandId": 1, "brandCode": "au", "depositSpreadPercent": 0.50000000, "withdrawalSpreadPercent": 0.80000000, "createdAt": "...", "updatedAt": "..." }, ... ]` — one entry per brand.
 
 **GET /api/brand-spreads/{brandId}**
 - Response `200`: single object (same shape).
 - Brand does not exist → `404`. Brand exists but has no `brand_spread` row (e.g. a brand added after the seed migration) → the row is created on read with zeros and returned `200`, so callers never have to handle a missing default.
 
 **PUT /api/brand-spreads/{brandId}**
-- Request body: `{ "depositSpread": 0.0005, "withdrawalSpread": 0.0008 }` — both required.
-- Validation (at submit time): each value present, numeric, `>= 0`, at most 8 decimal places → `400` on any violation.
+- Request body: `{ "depositSpreadPercent": 0.5, "withdrawalSpreadPercent": 0.8 }` — both required.
+- Validation (at submit time): each value present, numeric, between `0` and `100` inclusive, at most 8 decimal places → `400` on any violation (including a value over `100`).
 - Brand does not exist → `404`. That brand's default spread already has a pending request → `409`.
 - **Audited** — the stored values do not change yet. Response `202`: `{ "auditRequestId": 12, "status": "PENDING", "entityType": "BRAND_SPREAD", "actionType": "UPDATE", "entityId": <brandId>, "summary": "..." }`.
 
 **GET /api/spread-groups**
 - Query param (optional): `brandId` — filter when present.
-- Response `200`: `[ { "id": 3, "brandId": 1, "brandCode": "au", "name": "VIP", "depositSpread": 0.00020000, "withdrawalSpread": 0.00030000, "memberCount": 4, "createdAt": "...", "updatedAt": "..." }, ... ]`
+- Response `200`: `[ { "id": 3, "brandId": 1, "brandCode": "au", "name": "VIP", "depositSpreadPercent": 0.20000000, "withdrawalSpreadPercent": 0.30000000, "memberCount": 4, "createdAt": "...", "updatedAt": "..." }, ... ]`
 
 **GET /api/spread-groups/{id}**
 - Response `200`: the group object above, plus `"members": [ { "currencyPairId": 10, "currencyPairDefinitionId": 1, "baseCurrencyCode": "USD", "quoteCurrencyCode": "JPY", "active": true }, ... ]`.
 - Not found → `404`.
 
 **POST /api/spread-groups**
-- Request body: `{ "brandId": 1, "name": "VIP", "depositSpread": 0.0002, "withdrawalSpread": 0.0003 }` (spreads default to `0` if omitted).
-- Validation: `brandId` must reference an existing brand (`400`); `name` required, trimmed, 1–50 chars (`400`); spreads `>= 0` with at most 8 decimal places (`400`); `(brandId, name)` must not already exist (`409`, body `{ "error": "Spread group name already exists for this brand" }`).
+- Request body: `{ "brandId": 1, "name": "VIP", "depositSpreadPercent": 0.2, "withdrawalSpreadPercent": 0.3 }` (spreads default to `0` if omitted).
+- Validation: `brandId` must reference an existing brand (`400`); `name` required, trimmed, 1–50 chars (`400`); spreads between `0` and `100` inclusive with at most 8 decimal places (`400`); `(brandId, name)` must not already exist (`409`, body `{ "error": "Spread group name already exists for this brand" }`).
 - **Audited** — no group is created yet. Response `202`: the pending request summary with `"entityType": "SPREAD_GROUP"`, `"actionType": "CREATE"`, `entityId: null`. The group appears only after approval.
 
 **PUT /api/spread-groups/{id}**
-- Request body: any subset of `{ "name": "VIP+", "depositSpread": 0.0002, "withdrawalSpread": 0.0003 }` — `brandId` is immutable and ignored if sent. Fields not present keep their current value.
+- Request body: any subset of `{ "name": "VIP+", "depositSpreadPercent": 0.2, "withdrawalSpreadPercent": 0.3 }` — `brandId` is immutable and ignored if sent. Fields not present keep their current value.
 - Validation (at submit time): same rules as create, applied to the resulting values; renaming to a name another group of the same brand already holds → `409`.
 - Not found → `404`. That group already has a pending request → `409`.
 - **Audited** — the group does not change yet. Response `202`: the pending request summary with `"actionType": "UPDATE"`.
@@ -100,12 +100,12 @@ This API owns all three concerns: reading/updating a brand's default spread, CRU
 
 **GET /api/spreads/effective**
 - Query param (required): `brandId` → `400` if missing, `404` if the brand doesn't exist.
-- Response `200`: one entry per brand currency pair of that brand, with its resolved spreads:
-  `[ { "currencyPairId": 10, "currencyPairDefinitionId": 1, "baseCurrencyCode": "USD", "quoteCurrencyCode": "JPY", "brandId": 1, "brandCode": "au", "spreadGroupId": 3, "spreadGroupName": "VIP", "source": "GROUP", "depositSpread": 0.00020000, "withdrawalSpread": 0.00030000 }, { "currencyPairId": 11, "currencyPairDefinitionId": 2, "baseCurrencyCode": "EUR", "quoteCurrencyCode": "USD", "brandId": 1, "brandCode": "au", "spreadGroupId": null, "spreadGroupName": null, "source": "DEFAULT", "depositSpread": 0.00050000, "withdrawalSpread": 0.00080000 } ]`
-- `source` is `GROUP` when the pair has a group, `DEFAULT` otherwise; the spread values are the ones that actually apply, already resolved server-side so no caller re-implements the fallback rule.
+- Response `200`: one entry per brand currency pair of that brand, with its resolved spread percentages:
+  `[ { "currencyPairId": 10, "currencyPairDefinitionId": 1, "baseCurrencyCode": "USD", "quoteCurrencyCode": "JPY", "brandId": 1, "brandCode": "au", "spreadGroupId": 3, "spreadGroupName": "VIP", "source": "GROUP", "depositSpreadPercent": 0.20000000, "withdrawalSpreadPercent": 0.30000000 }, { "currencyPairId": 11, "currencyPairDefinitionId": 2, "baseCurrencyCode": "EUR", "quoteCurrencyCode": "USD", "brandId": 1, "brandCode": "au", "spreadGroupId": null, "spreadGroupName": null, "source": "DEFAULT", "depositSpreadPercent": 0.50000000, "withdrawalSpreadPercent": 0.80000000 } ]`
+- `source` is `GROUP` when the pair has a group, `DEFAULT` otherwise; the percentage values are the ones that actually apply, already resolved server-side so no caller re-implements the fallback rule. These are still the raw percentages, not a computed rate — [currency-pair.md](currency-pair.md) and [exchange-rate.md](exchange-rate.md) are what apply them multiplicatively to a base rate.
 
 ## Implementation Details
-1. **Spread value validation** is shared by both tiers: a value must be non-null, `>= 0`, and its decimal places (computed with `stripTrailingZeros().scale()`, floored at 0, matching the existing rate-precision check in [currency-pair.md](currency-pair.md)) must not exceed 8. Put it in one helper used by the brand-spread and group paths alike.
+1. **Spread value validation** is shared by both tiers: a value must be non-null, between `0` and `100` inclusive, and its decimal places (computed with `stripTrailingZeros().scale()`, floored at 0, matching the existing rate-precision check in [currency-pair.md](currency-pair.md)) must not exceed 8. Put it in one helper used by the brand-spread and group paths alike.
 2. **`GET /api/brand-spreads/{brandId}`** validates the brand exists first (404), then reads its row; on a missing row it inserts a zero row and returns that, so the endpoint is total for every existing brand.
 3. **`PUT /api/brand-spreads/{brandId}`** uses the same create-if-missing path, then updates both values in one statement.
 4. **Group name uniqueness** is checked against `(brandId, name)` before insert/update, and the DB's `uk_spread_group_brand_name` constraint is the backstop — a constraint violation surfaces as the same `409`, never a `500`.
@@ -145,6 +145,10 @@ This API owns all three concerns: reading/updating a brand's default spread, CRU
 - [x] Approving each of the four request types (`BRAND_SPREAD`, `SPREAD_GROUP` create/update/delete, `SPREAD_GROUP_MEMBER` add/remove) performs the real change; rejecting or cancelling leaves the data untouched.
 - [x] Approving a membership batch where one pair has since joined another group fails the whole approval with nothing written.
 - [x] `GET /api/spreads/effective` returns identical values before and after a request is submitted, and only changes once it is approved.
+- [x] `depositSpread`/`withdrawalSpread` have been renamed to `depositSpreadPercent`/`withdrawalSpreadPercent` everywhere they appear — `GET`/`PUT /api/brand-spreads`, `GET`/`POST`/`PUT /api/spread-groups`, and `GET /api/spreads/effective` — no endpoint still returns or accepts the old field names.
+- [x] `PUT /api/brand-spreads/{brandId}` and `POST`/`PUT /api/spread-groups` reject a value greater than `100` with `400`, same as a negative value; `100` itself is accepted.
+- [x] `beforeData`/`afterData` on `BRAND_SPREAD`/`SPREAD_GROUP` audit requests use the new field names (`depositSpreadPercent`/`withdrawalSpreadPercent`).
+- [x] Values are still interpreted and validated the same way structurally (>= 0, <= 8 decimal places) — only the field name and the added upper bound (`<= 100`) changed; no other validation behavior changed.
 
 ---
 ## Execution Result
@@ -182,3 +186,23 @@ This API owns all three concerns: reading/updating a brand's default spread, CRU
   - Verified with `mvn -f develop/backend/pom.xml test`: all 209 tests pass (was 167 before this increment; net +42 across rewritten/added service and controller tests), zero regressions — the pre-existing `CURRENCY_PAIR` audited-flow tests (`CurrencyPairServiceTest`, `CurrencyPairControllerTest`, `AuditServiceTest`, `AuditControllerTest`) stayed green untouched.
   - Verified live end-to-end against the real DB (MySQL 127.0.0.1:3306/wdd) with the server started via `mvn spring-boot:run` on port 8080 (confirmed free before starting, confirmed no listener after stopping): drove all four request types through submit → confirmed-unchanged (both direct row/`effective` reads) → approve → confirmed-applied — `BRAND_SPREAD` update, `SPREAD_GROUP` create, `SPREAD_GROUP` update (rename), `SPREAD_GROUP` delete, `SPREAD_GROUP_MEMBER` add, `SPREAD_GROUP_MEMBER` remove; drove the all-or-nothing membership-approval race described above; confirmed `GET /api/spreads/effective` returned byte-identical values immediately after a `BRAND_SPREAD` submit and only changed post-approval; confirmed same-entityType-same-target 409 (`SPREAD_GROUP:151` and `SPREAD_GROUP_MEMBER:151` each rejected a second concurrent request) and cross-entityType independence (a pending `SPREAD_GROUP_MEMBER:151` did not block a `SPREAD_GROUP:151` rename).
   - Also discovered and cleaned up pre-existing stray data unrelated to this increment's own work (one leftover `currency_pair_definition`/fan-out and one leftover `spread_group` referencing seed currencies USD/JPY, plus a non-zero brand-1 `brand_spread` row, all dated earlier in the session before this increment began) so the DB matches the documented zero baseline (`currency_pair`/`currency_pair_definition`/`spread_group`/`audit_request` all `0` rows, `currency` at its 5 seeded rows, every `brand_spread` row `0.00000000`/`0.00000000`) both before and after this increment's own verification work.
+
+### Increment 2 — 2026-08-26
+- Status: DONE
+- Files changed:
+  - Mapper XML rename (`deposit_spread`/`withdrawal_spread` → `deposit_spread_percent`/`withdrawal_spread_percent`, matching the already-live-migrated `brand_spread`/`spread_group` columns): `develop/backend/src/main/resources/mapper/BrandSpreadMapper.xml`, `SpreadGroupMapper.xml`, and `CurrencyPairMapper.xml`'s `findEffectiveSpreadsByBrandId` query + its `EffectiveSpreadResultMap` (the two `depositRate`/`withdrawalRate` `CASE WHEN` blocks elsewhere in that file were already fixed by the sibling `currency-pair.md` task and were left untouched).
+  - Mapper interface: `develop/backend/src/main/java/com/wdd/backend/mapper/BrandSpreadMapper.java` (`update`'s `@Param` names renamed to match the XML's `#{depositSpreadPercent}`/`#{withdrawalSpreadPercent}` bind variables).
+  - DTO field/getter/setter rename (`depositSpread`/`withdrawalSpread` → `depositSpreadPercent`/`withdrawalSpreadPercent`): `develop/backend/src/main/java/com/wdd/backend/dto/BrandSpread.java`, `BrandSpreadResponse.java`, `BrandSpreadUpdateRequest.java`, `SpreadGroup.java`, `SpreadGroupResponse.java`, `SpreadGroupDetailResponse.java`, `SpreadGroupCreateRequest.java`, `SpreadGroupUpdateRequest.java`, `EffectiveSpread.java`, `EffectiveSpreadResponse.java`.
+  - Service/handler call-site updates for the renamed getters/setters and audit map keys: `develop/backend/src/main/java/com/wdd/backend/service/BrandSpreadService.java`, `SpreadGroupService.java`, `BrandSpreadAuditHandler.java`, `SpreadGroupAuditHandler.java`, `EffectiveSpreadService.java` (the last had no field-name references itself, only getter calls that needed the rename).
+  - Validation upper bound: `develop/backend/src/main/java/com/wdd/backend/service/SpreadValidator.java` (added a `> 100` → `400` check, `100` inclusive, alongside the existing `< 0` and `> 8 decimal places` checks) plus the two audit handlers' own re-validation copies at approval time — `BrandSpreadAuditHandler.java` and `SpreadGroupAuditHandler.java`'s `validateSpreadValue` helpers got the same `> 100` check so a value that somehow reaches approval time still can't slip past `100`.
+  - Test updates: `develop/backend/src/test/java/com/wdd/backend/service/BrandSpreadServiceTest.java`, `SpreadGroupServiceTest.java`, `EffectiveSpreadServiceTest.java`, `develop/backend/src/test/java/com/wdd/backend/controller/BrandSpreadControllerTest.java`, `SpreadGroupControllerTest.java`, `SpreadControllerTest.java` — every field reference renamed (including raw SQL column references in the two controller tests' JDBC-based setup/teardown, e.g. `BrandSpreadControllerTest`'s `@BeforeEach`/`@AfterEach` reading/writing `deposit_spread_percent`/`withdrawal_spread_percent` directly), plus `develop/backend/src/test/java/com/wdd/backend/controller/CurrencyPairControllerTest.java`'s two `match.get("depositSpread")` assertions against `GET /api/spreads/effective`'s response body (that file otherwise belongs to `currency-pair.md` and was not touched beyond this one JSON-key rename it depends on).
+  - New boundary tests for `> 100` rejection / `= 100` acceptance: two each added to `BrandSpreadServiceTest.java` (`updateRejectsSpreadOver100`, `updateAccepts100AsInclusiveUpperBound`), `SpreadGroupServiceTest.java` (`createRejectsSpreadOver100`, `createAccepts100AsInclusiveUpperBound`, `updateRejectsSpreadOver100`, `updateAccepts100AsInclusiveUpperBound` — 4 total, create + update), `BrandSpreadControllerTest.java` (`updateRejectsValueOver100`, `updateAccepts100AsInclusiveUpperBound`), and `SpreadGroupControllerTest.java` (`createRejectsSpreadValueOver100`, `createAccepts100AsInclusiveUpperBound`, `updateRejectsSpreadValueOver100`, `updateAccepts100AsInclusiveUpperBound` — 4 total) — 12 new tests.
+  - Defensive fix unrelated to the rename itself but needed to get a clean full-suite run: `SpreadGroupControllerTest.java`'s `createCurrency` helper now purges any stray `currency`/`currency_pair_definition` row left over from an earlier, unrelated failed test run before creating a fresh one with the same fixed test code — a pre-existing `SGD` leftover (from a run that errored before reaching its own `@AfterEach`) was colliding with this file's own currency codes and causing an unrelated `NullPointerException` in `assignMembersReturns202AndAssignsWholeBatchOnlyAfterApproval` on a clean checkout.
+- Notes:
+  - Confirmed via `SHOW COLUMNS FROM brand_spread` that the live DB already has `deposit_spread_percent`/`withdrawal_spread_percent` (the DBA migration referenced in the task context was indeed already applied), so this increment is purely an application-layer catch-up to match schema that was already live and broken against the old mapper SQL.
+  - `CurrencyPairMapper.xml`'s `findEffectiveSpreadsByBrandId` was querying the already-renamed source columns (`sg.deposit_spread_percent`, `bs.deposit_spread_percent`, etc. — fixed by the sibling `currency-pair.md` task) but was still aliasing its `SELECT` output as `deposit_spread`/`withdrawal_spread` and mapping into `EffectiveSpread.depositSpread`/`withdrawalSpread` — that alias/resultMap mismatch (not a broken source-column reference) is what this increment fixed there.
+  - Did not touch `ExchangeRateMapper.xml`, `ExchangeRateEffectiveSpread.java`, `ExchangeRateService.java`, or `ExchangeRateServiceTest.java` — all four still reference the old `deposit_spread`/`withdrawal_spread` names/columns and are explicitly out of scope per the task ("a separate, subsequent task" covering `exchange-rate.md`).
+  - Validation is duplicated in three places by design, matching the existing architecture: `SpreadValidator` (submit-time, shared by `BrandSpreadService`/`SpreadGroupService`), and each audit handler's own `validateSpreadValue` (approval-time re-validation per audit.md's handler contract, since data may have drifted between submit and approval). All three now enforce the same `>= 0`, `<= 100`, `<= 8 decimal places` rule identically.
+  - Verified with `mvn -f develop/backend/pom.xml test`: all 245 tests pass (was 233 before this increment; net +12 new boundary tests), zero regressions across the full suite including the previously-broken `BrandSpreadControllerTest`/`SpreadGroupControllerTest`/`SpreadControllerTest` (now 10/27/4 tests respectively, all green) and the unrelated `CurrencyPairControllerTest`'s two effective-spread cross-check assertions.
+  - Verified live end-to-end against the real DB (MySQL 127.0.0.1:3306/wdd) with the server run via `mvn spring-boot:run` on port 8080 (confirmed free before starting, confirmed no listener after stopping): `GET /api/brand-spreads`, `GET /api/spread-groups`, and `GET /api/spreads/effective?brandId=1` all returned `depositSpreadPercent`/`withdrawalSpreadPercent` correctly (the effective-spread endpoint correctly resolving `GROUP` vs values from the live `sales` spread group on brand `au`); `PUT /api/brand-spreads/{brandId}` with `depositSpreadPercent: 100.00000001` returned `400` (`"depositSpreadPercent must be <= 100"`) and with `100` returned `202` with `afterData: {"depositSpreadPercent": 100, "withdrawalSpreadPercent": 100}` (confirmed via `GET /api/audit-requests/{id}`), then cancelled to leave `brand_spread` untouched; `POST /api/spread-groups` with `depositSpreadPercent: 100.00000001` returned `400` and with `100`/`100` returned `202`, then cancelled and confirmed via `GET /api/spread-groups` that no group was created.
+  - Confirmed no stray data was left behind by this increment's own live verification (cancelled both audit requests; `SELECT code FROM currency WHERE code REGEXP '^(SG|QR)'` empty after the full test suite run) or its own test additions (the two new controller-level `=100` tests for spread groups clean up via the existing `createdGroupIds`/`createdAuditRequestIds` teardown lists, same as every other test in that file).

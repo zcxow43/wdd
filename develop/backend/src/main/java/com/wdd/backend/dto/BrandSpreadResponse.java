@@ -12,20 +12,20 @@ public class BrandSpreadResponse {
 
     private Long brandId;
     private String brandCode;
-    private BigDecimal depositSpread;
-    private BigDecimal withdrawalSpread;
+    private BigDecimal depositSpreadPercent;
+    private BigDecimal withdrawalSpreadPercent;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     public BrandSpreadResponse() {
     }
 
-    public BrandSpreadResponse(Long brandId, String brandCode, BigDecimal depositSpread,
-            BigDecimal withdrawalSpread, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public BrandSpreadResponse(Long brandId, String brandCode, BigDecimal depositSpreadPercent,
+            BigDecimal withdrawalSpreadPercent, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.brandId = brandId;
         this.brandCode = brandCode;
-        this.depositSpread = depositSpread;
-        this.withdrawalSpread = withdrawalSpread;
+        this.depositSpreadPercent = depositSpreadPercent;
+        this.withdrawalSpreadPercent = withdrawalSpreadPercent;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -46,20 +46,20 @@ public class BrandSpreadResponse {
         this.brandCode = brandCode;
     }
 
-    public BigDecimal getDepositSpread() {
-        return depositSpread;
+    public BigDecimal getDepositSpreadPercent() {
+        return depositSpreadPercent;
     }
 
-    public void setDepositSpread(BigDecimal depositSpread) {
-        this.depositSpread = depositSpread;
+    public void setDepositSpreadPercent(BigDecimal depositSpreadPercent) {
+        this.depositSpreadPercent = depositSpreadPercent;
     }
 
-    public BigDecimal getWithdrawalSpread() {
-        return withdrawalSpread;
+    public BigDecimal getWithdrawalSpreadPercent() {
+        return withdrawalSpreadPercent;
     }
 
-    public void setWithdrawalSpread(BigDecimal withdrawalSpread) {
-        this.withdrawalSpread = withdrawalSpread;
+    public void setWithdrawalSpreadPercent(BigDecimal withdrawalSpreadPercent) {
+        this.withdrawalSpreadPercent = withdrawalSpreadPercent;
     }
 
     public LocalDateTime getCreatedAt() {

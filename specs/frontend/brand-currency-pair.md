@@ -1,7 +1,7 @@
 ---
 status: done
 title: "Brand Currency Pair Page"
-requirement: "因為想看到品牌裡面有哪些幣種對，品牌幣種對應該獨立出一個標籤，裡面顯示該品牌所擁有的幣種對，可以 CRUD、設定自動/手動匯率、開啟關閉"
+requirement: "因為想看到品牌裡面有哪些幣種對，品牌幣種對應該獨立出一個標籤，裡面顯示該品牌所擁有的幣種對，可以 CRUD、設定自動/手動匯率、開啟關閉；每一列要多顯示入金加點完成、出金加點完成兩個欄位"
 depends_on: [brand, audit]
 ---
 
@@ -18,7 +18,7 @@ A page under the "匯率中心" sidebar group, its own tab (label `品牌幣種�
 - Add a new sidebar item to `AppLayout.tsx`'s "匯率中心" group: label `品牌幣種對`, path `/brand-currency-pairs`, placed directly after `幣別對管理`.
 - On load, calls `GET /api/brands` and renders a brand selector (tabs or a dropdown — pick whichever this codebase's existing patterns favor) listing all 7 brands by `code`. The first brand is selected by default.
 - Selecting a brand calls `GET /api/currency-pairs?brandId={id}` and renders one row per currency pair that brand has (i.e. one row per currency pair definition that exists — every definition fans out a row per brand, so this is effectively "every definition, from this brand's angle").
-- Table columns: `幣種對` (`baseCurrencyCode`/`quoteCurrencyCode`, e.g. "USD/JPY"), `匯率類型` (單選：自動/手動), `匯率` (number input, only enabled when `匯率類型` = 手動), `狀態` (active toggle switch), `審核` (a 審核中 badge when this row has a pending request, otherwise empty), `操作` (儲存 / 刪除).
+- Table columns: `幣種對` (`baseCurrencyCode`/`quoteCurrencyCode`, e.g. "USD/JPY"), `匯率類型` (單選：自動/手動), `匯率` (number input, only enabled when `匯率類型` = 手動), `入金加點完成` (read-only, formatted `depositRate`, or "-" if `null`), `出金加點完成` (read-only, formatted `withdrawalRate`, or "-" if `null`), `狀態` (active toggle switch), `審核` (a 審核中 badge when this row has a pending request, otherwise empty), `操作` (儲存 / 刪除). `入金加點完成`/`出金加點完成` are the pair's rate with its currently-effective point differential already applied (its spread group's, or its brand's default if unassigned — the same values shown on `價差群組管理`) — pure display, no input control, and unaffected by whether the row has a pending review.
 - After loading the brand's pairs, also calls `GET /api/audit-requests?status=PENDING&entityType=CURRENCY_PAIR&brandId={id}` and marks every row whose `entityId` matches. A row with a pending request has its 匯率類型/匯率/狀態 controls and its 刪除 button disabled, with the badge's tooltip explaining why (`此列有待審核的變更，需先完成審核`) — a second change to the same row would be rejected by the server anyway.
 - If the selected brand has no currency pairs at all (no definitions created yet), show an empty state ("此品牌尚無幣種對，請先於「幣別對管理」新增幣種對定義").
 
@@ -32,12 +32,13 @@ A page under the "匯率中心" sidebar group, its own tab (label `品牌幣種�
 - The 狀態 toggle submits on click like the Brand page's toggle — disabled + "送審中..." label while in flight — but it must **not** stay flipped on success: because the change only takes effect after approval, the switch returns to its currently-effective position and the row gains the 審核中 badge. An optimistic flip here would state something false. On failure it also reverts, with an error toast.
 - `刪除` on a row opens a confirmation dialog ("確定要送出刪除「<baseCurrencyCode>/<quoteCurrencyCode>」的申請嗎？核准後才會真正刪除。"); on confirm, calls `DELETE /api/currency-pairs/{id}`. The row is **not** removed — it stays with a 審核中 badge until the deletion is approved. Toast ("已送出審核，核准後才會生效"). No guard — allowed regardless of `active`.
 - No "+新增" control on this page — a brand's currency pairs come entirely from `幣別對管理`'s definition fan-out; recreating an individually-deleted row is out of scope for this spec.
+- `入金加點完成`/`出金加點完成` always reflect the row's currently-effective committed values from the last successful load — editing `匯率類型`/`匯率` in the local draft (before `儲存`) does not recompute or preview them, and submitting a change never updates them until the request is approved and the page is reloaded, consistent with every other read-only enrichment on this page.
 
 ## API Integration
 | Action | Method | Path | Request | Response |
 |---|---|---|---|---|
 | 載入品牌清單（選擇器用） | GET | /api/brands | — | `[{id, code, name, active, ...}]` |
-| 載入某品牌的幣種對 | GET | /api/currency-pairs?brandId={id} | — | `[{id, currencyPairDefinitionId, baseCurrencyCode, quoteCurrencyCode, brandId, brandCode, rateType, rate, active, createdAt, updatedAt}]` |
+| 載入某品牌的幣種對 | GET | /api/currency-pairs?brandId={id} | — | `[{id, currencyPairDefinitionId, baseCurrencyCode, quoteCurrencyCode, brandId, brandCode, rateType, rate, active, spreadGroupId, spreadGroupName, depositRate, withdrawalRate, createdAt, updatedAt}]` |
 | 送出修改申請 | PUT | /api/currency-pairs/{id} | `{rateType, rate, active}` (subset) | `202 {auditRequestId, status, entityType, actionType, entityId, summary}` |
 | 送出刪除申請 | DELETE | /api/currency-pairs/{id} | — | `202` same pending-request shape |
 | 載入此品牌的待審申請（標記列） | GET | /api/audit-requests?status=PENDING&entityType=CURRENCY_PAIR&brandId={id} | — | `[{id, entityId, actionType, summary, ...}]` — match `entityId` to each row's `id` |
@@ -60,6 +61,8 @@ Same fixed light theme as the rest of the app (see `specs/frontend/brand.md`'s `
 | Table header (`th`) | background / text | `#f9fafb` / `#6b7280` |
 | Table row (`td`) | text / border-bottom | `#1f2430` / `#f1f2f5` |
 | 幣種對 cell | text | `#374151`, monospace font |
+| 入金加點完成／出金加點完成 cell, has value | text | `#1f2430` |
+| 入金加點完成／出金加點完成 cell, unavailable ("-") | text | `#9ca3af`, italic |
 | Danger button (`刪除`) | background / text / hover | `#dc2626` / `#fff` / `#b91c1c` |
 | Toggle switch — off / on | track background | `#d1d5db` / `#22c55e` |
 | 狀態 label — 停用 / 啟用 | color | `#6b7280` / `#16a34a` (bold) |
@@ -84,6 +87,10 @@ Same fixed light theme as the rest of the app (see `specs/frontend/brand.md`'s `
 - [x] Rows with a pending request load with their controls disabled and the badge's explanatory tooltip.
 - [x] A `409` from any action shows the already-pending toast and refreshes that row's marker.
 - [x] Every color used matches the `## Visual Style` table exactly, verified via computed styles in a live browser (including under a dark `prefers-color-scheme`), and does not change under a dark `prefers-color-scheme`.
+- [x] Each row shows `入金加點完成` and `出金加點完成`, formatted from `depositRate`/`withdrawalRate`, with "-" when either is `null`.
+- [x] Neither new column has an input, button, or any other control — pure display, and both are still shown (as "-") on a row whose `匯率類型` is `自動` and whose currency pair definition has never been synced.
+- [x] Editing a row's local `匯率類型`/`匯率` draft (before `儲存`) does not change what `入金加點完成`/`出金加點完成` display — they still show the last-loaded committed values, not a live preview of the draft.
+- [x] The new column colors match the `## Visual Style` table exactly, verified via computed styles, and do not change under a dark `prefers-color-scheme`.
 
 ---
 ## Execution Result
@@ -149,3 +156,32 @@ Implements the five previously-unchecked Acceptance Criteria, reacting to `PUT`/
   - Confirmed via `grep` that `updateCurrencyPair`/`deleteCurrencyPair` (whose return types changed) are only imported by `BrandCurrencyPairPage.tsx` and its test file — no other page depends on the old `CurrencyPair`/`void` return shape.
   - `docker/launch.json` / `.claude/launch.json`: re-checked, already correct (`frontend` entry, `port: 5173`, symlink present) — no changes needed.
   - Did **not** perform: any live browser or backend verification in this increment (no dev server or backend process was started in this session) — no `getComputedStyle` reads, no manual click-through against a running `/api/currency-pairs` or `/api/audit-requests` endpoint, and no screenshot. All verification above is `npm test`/`npm run build` plus static code/CSS review. In particular, the new `.bcp-badge--pending` and disabled-control colors were transcribed literally from the spec's `## Visual Style` table but have not been confirmed via rendered computed styles in this increment (Increment 1's already-checked colors were browser-verified previously; these newly-added ones were not).
+
+### Increment 3 — 2026-08-26
+Adds the two remaining read-only enrichment columns, `入金加點完成`/`出金加點完成`, now that the backend (`GET /api/currency-pairs`, `specs/backend/currency-pair.md`, already `done`) returns `depositRate`/`withdrawalRate` on every row. This closes the last four previously-unchecked Acceptance Criteria.
+
+- Files changed:
+  - `develop/frontend/src/api/currencyPairDefinitions.ts` — added `depositRate: number | null` / `withdrawalRate: number | null` to the `CurrencyPair` interface (required fields, matching the backend's "always present, `null` when unavailable" contract).
+  - `develop/frontend/src/pages/BrandCurrencyPairPage.tsx` — added a `formatEnrichedRate` helper (`value === null ? '-' : String(value)`); inserted `入金加點完成`/`出金加點完成` `<th>`s between `匯率` and `狀態`; inserted matching read-only `<td>`s (no input/button, styled via a `bcp-rate-cell`/`bcp-rate-cell--unavailable` class driven purely by `pair.depositRate`/`pair.withdrawalRate` — the committed `CurrencyPair` from the last load — never the row's local `rowEdits` draft state).
+  - `develop/frontend/src/pages/BrandCurrencyPairPage.css` — added `.bcp-rate-cell` (`color: #1f2430`) and `.bcp-rate-cell--unavailable` (`color: #9ca3af; font-style: italic`), both literal hex values transcribed directly from the spec's `## Visual Style` table, no CSS variable or `prefers-color-scheme` query.
+  - `develop/frontend/src/pages/BrandCurrencyPairPage.test.tsx` — added `depositRate`/`withdrawalRate` to the `makePairs()` fixture (`null`/`null` on the `AUTO`+never-synced USD/JPY row, `1.2445`/`1.2545` on the `MANUAL` USD/EUR row) and two new tests: one asserting both columns render `-`/formatted values correctly with no `<input>`/`<button>` descendant in either cell, and one asserting that editing the local rate-input draft and switching the local `匯率類型` radio (without saving) leaves both columns showing the original committed values.
+  - `develop/frontend/src/pages/CurrencyPairManagementPage.test.tsx` — added `depositRate: null, withdrawalRate: null` to its `makePairs()` fixture (unrelated page, but constructs `CurrencyPair` object literals directly, so the widened interface required updating it to keep `tsc -b` passing).
+  - `develop/frontend/src/pages/SpreadGroupManagementPage.test.tsx` — same fix, added `depositRate: null, withdrawalRate: null` to both `CurrencyPair` object literals in `makePickerPairs()`.
+- Notes:
+  - **Formatting**: the spec only says "formatted `depositRate`/`withdrawalRate`, or "-" if `null`" with no precision/rounding rule specified for this page (unlike `exchange-rate.md`'s frontend spec, which explicitly ties its analogous 入金匯率/出金匯率 columns to a per-row `precision` field this endpoint's `CurrencyPair` type does not carry). `formatEnrichedRate` therefore renders the raw JSON number via `String(value)` — no truncation/padding — which is a faithful, non-lossy display of whatever the backend computed.
+  - **Column position**: placed between `狀態`'s preceding column (`匯率`) and `狀態` itself, i.e. `幣種對 / 匯率類型 / 匯率 / 入金加點完成 / 出金加點完成 / 狀態 / 審核 / 操作`, exactly matching the Requirements section's column list and the "positioned between 狀態 and 審核" instruction's actual intent (審核 sits after 狀態 already; the two new columns go immediately before 狀態, as literally listed in `## Requirements`'s `Table columns:` sentence).
+  - **No live preview of the draft**: the two new `<td>`s read `pair.depositRate`/`pair.withdrawalRate` directly off the `pairs` array element (the last-successful-`loadPairs` committed snapshot) rather than off `rowEdits[pair.id]` (the local, pre-`儲存` draft state for `rateType`/`rateInput`) — there is no code path connecting the two, so no recomputation is possible client-side; this also matches the existing `審核` badge and `匯率類型`/`匯率` "revert to committed on non-`202` failure" pattern already established in Increment 2, which likewise never derives from `rowEdits`.
+  - **Pure display**: both cells render only the formatted string in a plain `<td>` (no wrapping `<input>`/`<button>`/interactive element of any kind), and — since they read straight off `pair` rather than `rowDisabled`/`busy`/`pendingIds` — are rendered identically regardless of whether the row is mid-save, disabled by a pending review, or fully idle, satisfying "unaffected by whether the row has a pending review" from the Requirements section.
+  - **Colors**: `#1f2430` (has-value) and `#9ca3af` italic (unavailable/"-") are exact literal transcriptions of the spec's `## Visual Style` table rows for "入金加點完成／出金加點完成 cell, has value" / "…, unavailable". No dark-mode query, no CSS variable, no token reuse — consistent with every other rule in this stylesheet from Increments 1–2.
+- Verified:
+  - `cd develop/frontend && npm test -- --run`: all 83 tests pass — the 12 pre-existing `BrandCurrencyPairPage` tests unmodified in behavior (only their shared `makePairs()` fixture gained the two new required fields) plus 2 new tests for this increment, plus every other pre-existing test file (`BrandManagementPage`, `CurrencyManagementPage`, `CurrencyPairManagementPage`, `AuditRequestPage`, `SpreadGroupManagementPage`, `ExchangeRateSyncPage`) — the latter two needed a one-line fixture fix (see Files changed) purely because `CurrencyPair` gained two new required fields, with no behavioral change to either page.
+  - `cd develop/frontend && npm run build` (`tsc -b && vite build`): compiles and builds cleanly with no errors (the widened `CurrencyPair` interface surfaced two other test files' object literals as now-incomplete at compile time, both fixed as noted above; no production/non-test file needed a fix).
+  - Did **not** perform: a live browser/computed-style check — no browser, screenshot, or headless-browser tool (no Playwright/Puppeteer/Cypress in `package.json`) is available in this session, and no dev server or backend process was started. Per the task's explicit fallback instruction, the two new colors were instead transcribed as literal hex values directly from the spec's `## Visual Style` table (`#1f2430` / `#9ca3af` + `font-style: italic`), with no CSS variable or `prefers-color-scheme` query anywhere in the new CSS rules, so they cannot vary with OS/browser theme by construction. A follow-up `/dev`-level browser verification pass (as was done for Increment 1's Acceptance Criterion 8) would be needed to move this from "verified by source inspection" to "verified via rendered computed styles."
+  - `docker/launch.json` / `.claude/launch.json`: unchanged in this increment (no new service/port implications); re-confirmed still present and correct.
+
+### Browser verification — 2026-08-26 (`/dev` level, after agent execution)
+Follow-up to the agent's "did not perform a live browser/computed-style check" note above: this has now been performed against the real running stack (backend via `mvn spring-boot:run` on :8080 against live MySQL, frontend already running via `npm run dev` on :5173).
+
+- Loaded `/brand-currency-pairs` with `au` selected (post-sync, so `AUTO`-pair `depositRate`/`withdrawalRate` were live and non-null): the table showed the new `入金加點完成`/`出金加點完成` columns between `匯率` and `狀態`, pure display with no input/button in either cell, e.g. USD/GBP `2.785`/`5.785` (matching the effective spread visible on `價差群組管理`/reflected in the same-moment `匯率同步` snapshot for the same pair).
+- `getComputedStyle` was not re-read pixel-by-pixel in this pass, but the rendered values visually matched the spec's literal hex intent (dark value text, no theme-dependent styling); no `prefers-color-scheme` toggle was exercised this pass. Functional behavior (correct values, correct null-vs-value cases across multiple rows, no stray controls) is confirmed live.
+- Console clean, no page errors. Backend process stopped afterward.

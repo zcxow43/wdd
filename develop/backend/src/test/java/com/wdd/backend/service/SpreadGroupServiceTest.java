@@ -86,8 +86,8 @@ class SpreadGroupServiceTest {
         group.setBrandId(brandId);
         group.setBrandCode("au");
         group.setName(name);
-        group.setDepositSpread(deposit);
-        group.setWithdrawalSpread(withdrawal);
+        group.setDepositSpreadPercent(deposit);
+        group.setWithdrawalSpreadPercent(withdrawal);
         group.setMemberCount(memberCount);
         group.setCreatedAt(LocalDateTime.now());
         group.setUpdatedAt(LocalDateTime.now());
@@ -168,8 +168,8 @@ class SpreadGroupServiceTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> after = (Map<String, Object>) afterCaptor.getValue();
         assertThat(after.get("name")).isEqualTo("VIP");
-        assertThat((BigDecimal) after.get("depositSpread")).isEqualByComparingTo("0");
-        assertThat((BigDecimal) after.get("withdrawalSpread")).isEqualByComparingTo("0");
+        assertThat((BigDecimal) after.get("depositSpreadPercent")).isEqualByComparingTo("0");
+        assertThat((BigDecimal) after.get("withdrawalSpreadPercent")).isEqualByComparingTo("0");
         verify(spreadGroupMapper, never()).insert(any());
     }
 
@@ -197,6 +197,30 @@ class SpreadGroupServiceTest {
         SpreadGroupCreateRequest overPrecision = new SpreadGroupCreateRequest(1L, "VIP", null,
                 new BigDecimal("0.000000001"));
         assertThatThrownBy(() -> service.create(overPrecision, null)).isInstanceOf(InvalidRequestException.class);
+    }
+
+    @Test
+    void createRejectsSpreadOver100() {
+        when(brandMapper.findById(1L)).thenReturn(sampleBrand(1L, "au"));
+        when(spreadGroupMapper.findByBrandAndName(1L, "VIP")).thenReturn(null);
+
+        SpreadGroupCreateRequest over = new SpreadGroupCreateRequest(1L, "VIP", new BigDecimal("100.00000001"),
+                null);
+        assertThatThrownBy(() -> service.create(over, null)).isInstanceOf(InvalidRequestException.class);
+    }
+
+    @Test
+    void createAccepts100AsInclusiveUpperBound() {
+        when(brandMapper.findById(1L)).thenReturn(sampleBrand(1L, "au"));
+        when(spreadGroupMapper.findByBrandAndName(1L, "VIP")).thenReturn(null);
+
+        SpreadGroupCreateRequest request = new SpreadGroupCreateRequest(1L, "VIP", new BigDecimal("100"),
+                new BigDecimal("100"));
+        AuditPendingResponse response = service.create(request, null);
+
+        assertThat(response.getActionType()).isEqualTo("CREATE");
+        verify(auditService).submit(eq("SPREAD_GROUP"), eq("CREATE"), isNull(), eq(1L), anyString(), isNull(),
+                any(), isNull());
     }
 
     // --- update ---
@@ -229,9 +253,34 @@ class SpreadGroupServiceTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> after = (Map<String, Object>) afterCaptor.getValue();
         assertThat(after.get("name")).isEqualTo("VIP+");
-        assertThat((BigDecimal) after.get("depositSpread")).isEqualByComparingTo("0.0002");
-        assertThat((BigDecimal) after.get("withdrawalSpread")).isEqualByComparingTo("0.0003");
+        assertThat((BigDecimal) after.get("depositSpreadPercent")).isEqualByComparingTo("0.0002");
+        assertThat((BigDecimal) after.get("withdrawalSpreadPercent")).isEqualByComparingTo("0.0003");
         verify(spreadGroupMapper, never()).update(any());
+    }
+
+    @Test
+    void updateRejectsSpreadOver100() {
+        SpreadGroup existing = sampleGroup(10L, 1L, "VIP", BigDecimal.ZERO, BigDecimal.ZERO, 0);
+        when(spreadGroupMapper.findById(10L)).thenReturn(existing);
+        SpreadGroupUpdateRequest request = new SpreadGroupUpdateRequest(null, new BigDecimal("100.00000001"), null);
+
+        assertThatThrownBy(() -> service.update(10L, request, null))
+                .isInstanceOf(InvalidRequestException.class);
+        verify(auditService, never()).submit(any(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void updateAccepts100AsInclusiveUpperBound() {
+        SpreadGroup existing = sampleGroup(10L, 1L, "VIP", BigDecimal.ZERO, BigDecimal.ZERO, 0);
+        when(spreadGroupMapper.findById(10L)).thenReturn(existing);
+        SpreadGroupUpdateRequest request = new SpreadGroupUpdateRequest(null, new BigDecimal("100"),
+                new BigDecimal("100"));
+
+        AuditPendingResponse response = service.update(10L, request, null);
+
+        assertThat(response.getActionType()).isEqualTo("UPDATE");
+        verify(auditService).submit(eq("SPREAD_GROUP"), eq("UPDATE"), eq(10L), eq(1L), anyString(), any(), any(),
+                isNull());
     }
 
     @Test

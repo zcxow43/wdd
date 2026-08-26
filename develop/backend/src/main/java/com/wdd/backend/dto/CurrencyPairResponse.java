@@ -11,7 +11,11 @@ import java.time.LocalDateTime;
  * {@code spreadGroupId}/{@code spreadGroupName} are read-only enrichment
  * fields populated via the parent currency pair definition and (via a
  * {@code LEFT JOIN}) {@code spread_group} respectively; never writable
- * through this API.
+ * through this API. {@code depositRate}/{@code withdrawalRate} (入金/出金加點完成)
+ * are likewise read-only, computed fresh on every read from this pair's base
+ * rate plus its currently-effective spread; {@code null} when the base rate
+ * is unavailable (an {@code AUTO} pair whose definition has never been
+ * synced).
  */
 public class CurrencyPairResponse {
 
@@ -26,6 +30,8 @@ public class CurrencyPairResponse {
     private Boolean active;
     private Long spreadGroupId;
     private String spreadGroupName;
+    private BigDecimal depositRate;
+    private BigDecimal withdrawalRate;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -34,8 +40,8 @@ public class CurrencyPairResponse {
 
     public CurrencyPairResponse(Long id, Long currencyPairDefinitionId, String baseCurrencyCode,
             String quoteCurrencyCode, Long brandId, String brandCode, String rateType, BigDecimal rate,
-            Boolean active, Long spreadGroupId, String spreadGroupName, LocalDateTime createdAt,
-            LocalDateTime updatedAt) {
+            Boolean active, Long spreadGroupId, String spreadGroupName, BigDecimal depositRate,
+            BigDecimal withdrawalRate, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.currencyPairDefinitionId = currencyPairDefinitionId;
         this.baseCurrencyCode = baseCurrencyCode;
@@ -47,6 +53,8 @@ public class CurrencyPairResponse {
         this.active = active;
         this.spreadGroupId = spreadGroupId;
         this.spreadGroupName = spreadGroupName;
+        this.depositRate = depositRate;
+        this.withdrawalRate = withdrawalRate;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -137,6 +145,22 @@ public class CurrencyPairResponse {
 
     public void setSpreadGroupName(String spreadGroupName) {
         this.spreadGroupName = spreadGroupName;
+    }
+
+    public BigDecimal getDepositRate() {
+        return depositRate;
+    }
+
+    public void setDepositRate(BigDecimal depositRate) {
+        this.depositRate = depositRate;
+    }
+
+    public BigDecimal getWithdrawalRate() {
+        return withdrawalRate;
+    }
+
+    public void setWithdrawalRate(BigDecimal withdrawalRate) {
+        this.withdrawalRate = withdrawalRate;
     }
 
     public LocalDateTime getCreatedAt() {

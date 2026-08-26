@@ -44,8 +44,8 @@ class EffectiveSpreadServiceTest {
         spread.setSpreadGroupId(groupId);
         spread.setSpreadGroupName(groupName);
         spread.setSource(source);
-        spread.setDepositSpread(deposit);
-        spread.setWithdrawalSpread(withdrawal);
+        spread.setDepositSpreadPercent(deposit);
+        spread.setWithdrawalSpreadPercent(withdrawal);
         return spread;
     }
 
@@ -75,9 +75,9 @@ class EffectiveSpreadServiceTest {
         assertThat(result).hasSize(2);
         assertThat(result.get(0).getSource()).isEqualTo("GROUP");
         assertThat(result.get(0).getSpreadGroupId()).isEqualTo(3L);
-        assertThat(result.get(0).getDepositSpread()).isEqualByComparingTo("0.0002");
+        assertThat(result.get(0).getDepositSpreadPercent()).isEqualByComparingTo("0.0002");
         assertThat(result.get(1).getSource()).isEqualTo("DEFAULT");
         assertThat(result.get(1).getSpreadGroupId()).isNull();
-        assertThat(result.get(1).getDepositSpread()).isEqualByComparingTo("0.0005");
+        assertThat(result.get(1).getDepositSpreadPercent()).isEqualByComparingTo("0.0005");
     }
 }

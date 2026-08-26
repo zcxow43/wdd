@@ -24,6 +24,7 @@ public class BrandSpreadAuditHandler implements AuditHandler {
     private static final String ENTITY_TYPE = "BRAND_SPREAD";
     private static final String ACTION_UPDATE = "UPDATE";
     private static final int MAX_SCALE = 8;
+    private static final BigDecimal MAX_VALUE = BigDecimal.valueOf(100);
 
     private final BrandSpreadMapper brandSpreadMapper;
     private final BrandMapper brandMapper;
@@ -49,21 +50,21 @@ public class BrandSpreadAuditHandler implements AuditHandler {
         }
 
         Map<String, Object> after = asMap(request.getAfterData());
-        validateSpreadValue(after.get("depositSpread"), "depositSpread");
-        validateSpreadValue(after.get("withdrawalSpread"), "withdrawalSpread");
+        validateSpreadValue(after.get("depositSpreadPercent"), "depositSpreadPercent");
+        validateSpreadValue(after.get("withdrawalSpreadPercent"), "withdrawalSpreadPercent");
     }
 
     @Override
     public void apply(AuditRequest request) {
         Long brandId = request.getEntityId();
         Map<String, Object> after = asMap(request.getAfterData());
-        BigDecimal depositSpread = toBigDecimal(after.get("depositSpread"));
-        BigDecimal withdrawalSpread = toBigDecimal(after.get("withdrawalSpread"));
+        BigDecimal depositSpreadPercent = toBigDecimal(after.get("depositSpreadPercent"));
+        BigDecimal withdrawalSpreadPercent = toBigDecimal(after.get("withdrawalSpreadPercent"));
 
         if (brandSpreadMapper.findByBrandId(brandId) == null) {
             brandSpreadMapper.insertZero(brandId);
         }
-        brandSpreadMapper.update(brandId, depositSpread, withdrawalSpread);
+        brandSpreadMapper.update(brandId, depositSpreadPercent, withdrawalSpreadPercent);
     }
 
     private static BigDecimal validateSpreadValue(Object raw, String fieldName) {
@@ -73,6 +74,9 @@ public class BrandSpreadAuditHandler implements AuditHandler {
         }
         if (value.compareTo(BigDecimal.ZERO) < 0) {
             throw new AuditHandlerException(fieldName + " must be >= 0");
+        }
+        if (value.compareTo(MAX_VALUE) > 0) {
+            throw new AuditHandlerException(fieldName + " must be <= 100");
         }
         int scale = Math.max(value.stripTrailingZeros().scale(), 0);
         if (scale > MAX_SCALE) {

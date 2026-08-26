@@ -91,6 +91,21 @@ class SpreadGroupControllerTest {
     }
 
     private Long createCurrency(String code) {
+        // Defensive: a leftover row with this fixed test code from an earlier,
+        // unrelated failed run (which never reached its own @AfterEach cleanup)
+        // would otherwise collide on the unique code constraint. Purge any such
+        // stray row (and its cascaded fan-out) before creating a fresh one.
+        List<Long> strayIds = jdbcTemplate.queryForList("SELECT id FROM currency WHERE code = ?", Long.class, code);
+        for (Long strayId : strayIds) {
+            List<Long> strayDefinitionIds = jdbcTemplate.queryForList(
+                    "SELECT id FROM currency_pair_definition WHERE base_currency_id = ? OR quote_currency_id = ?",
+                    Long.class, strayId, strayId);
+            for (Long strayDefinitionId : strayDefinitionIds) {
+                jdbcTemplate.update("DELETE FROM currency_pair_definition WHERE id = ?", strayDefinitionId);
+            }
+            jdbcTemplate.update("DELETE FROM currency WHERE id = ?", strayId);
+        }
+
         String body = String.format(
                 "{\"code\": \"%s\", \"name\": \"%s\", \"symbol\": \"%s\", \"decimalPlaces\": 2}",
                 code, code, code);
@@ -191,14 +206,14 @@ class SpreadGroupControllerTest {
         return createApprovedGroup(brandId, name, null, null);
     }
 
-    private Long createApprovedGroup(Long brandId, String name, String depositSpread, String withdrawalSpread) {
+    private Long createApprovedGroup(Long brandId, String name, String depositSpreadPercent, String withdrawalSpreadPercent) {
         StringBuilder body = new StringBuilder("{\"brandId\": ").append(brandId).append(", \"name\": \"")
                 .append(name).append("\"");
-        if (depositSpread != null) {
-            body.append(", \"depositSpread\": ").append(depositSpread);
+        if (depositSpreadPercent != null) {
+            body.append(", \"depositSpreadPercent\": ").append(depositSpreadPercent);
         }
-        if (withdrawalSpread != null) {
-            body.append(", \"withdrawalSpread\": ").append(withdrawalSpread);
+        if (withdrawalSpreadPercent != null) {
+            body.append(", \"withdrawalSpreadPercent\": ").append(withdrawalSpreadPercent);
         }
         body.append("}");
         ResponseEntity<Map> created = postGroup(body.toString());
@@ -243,7 +258,7 @@ class SpreadGroupControllerTest {
 
         ResponseEntity<Map> group = restTemplate.getForEntity(groupsUrl() + "/" + groupId, Map.class);
         assertThat(((Number) group.getBody().get("memberCount")).intValue()).isEqualTo(0);
-        assertThat(group.getBody().get("depositSpread").toString()).startsWith("0");
+        assertThat(group.getBody().get("depositSpreadPercent").toString()).startsWith("0");
     }
 
     @Test
@@ -286,6 +301,43 @@ class SpreadGroupControllerTest {
         createdGroupIds.add(groupBId);
     }
 
+    @Test
+    void createRejectsSpreadValueOver100() {
+        Long brandId = firstBrandId();
+        ResponseEntity<String> response = restTemplate.postForEntity(groupsUrl(),
+                jsonEntity(String.format(
+                        "{\"brandId\": %d, \"name\": \"OVER-%d\", \"depositSpreadPercent\": 100.00000001}",
+                        brandId, System.nanoTime())),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void createAccepts100AsInclusiveUpperBound() {
+        Long brandId = firstBrandId();
+        String name = "MAX-" + System.nanoTime();
+
+        ResponseEntity<Map> response = postGroup(String.format(
+                "{\"brandId\": %d, \"name\": \"%s\", \"depositSpreadPercent\": 100, \"withdrawalSpreadPercent\": 100}",
+                brandId, name));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        Long auditRequestId = ((Number) response.getBody().get("auditRequestId")).longValue();
+        ResponseEntity<Map> approved = approve(auditRequestId);
+        assertThat(approved.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        Long groupId = jdbcTemplate.queryForObject(
+                "SELECT id FROM spread_group WHERE brand_id = ? AND name = ?", Long.class, brandId, name);
+        createdGroupIds.add(groupId);
+
+        ResponseEntity<Map> group = restTemplate.getForEntity(groupsUrl() + "/" + groupId, Map.class);
+        assertThat(new java.math.BigDecimal(group.getBody().get("depositSpreadPercent").toString()))
+                .isEqualByComparingTo("100");
+        assertThat(new java.math.BigDecimal(group.getBody().get("withdrawalSpreadPercent").toString()))
+                .isEqualByComparingTo("100");
+    }
+
     // --- update ---
 
     @Test
@@ -295,7 +347,7 @@ class SpreadGroupControllerTest {
         String newName = "UPD2-" + System.nanoTime();
 
         ResponseEntity<Map> response = putGroup(groupId,
-                String.format("{\"name\": \"%s\", \"depositSpread\": 0.0002, \"withdrawalSpread\": 0.0003, "
+                String.format("{\"name\": \"%s\", \"depositSpreadPercent\": 0.0002, \"withdrawalSpreadPercent\": 0.0003, "
                         + "\"brandId\": 999999}", newName));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
@@ -323,6 +375,37 @@ class SpreadGroupControllerTest {
                 jsonEntity("{\"name\": \"" + nameA + "\"}"), String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
+    void updateRejectsSpreadValueOver100() {
+        Long brandId = firstBrandId();
+        Long groupId = createApprovedGroup(brandId, "UPDOVER-" + System.nanoTime());
+
+        ResponseEntity<String> response = restTemplate.exchange(groupsUrl() + "/" + groupId, HttpMethod.PUT,
+                jsonEntity("{\"withdrawalSpreadPercent\": 100.00000001}"), String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void updateAccepts100AsInclusiveUpperBound() {
+        Long brandId = firstBrandId();
+        Long groupId = createApprovedGroup(brandId, "UPDMAX-" + System.nanoTime());
+
+        ResponseEntity<Map> response = putGroup(groupId,
+                "{\"depositSpreadPercent\": 100, \"withdrawalSpreadPercent\": 100}");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        Long auditRequestId = ((Number) response.getBody().get("auditRequestId")).longValue();
+        ResponseEntity<Map> approveResponse = approve(auditRequestId);
+        assertThat(approveResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        ResponseEntity<Map> afterApprove = restTemplate.getForEntity(groupsUrl() + "/" + groupId, Map.class);
+        assertThat(new java.math.BigDecimal(afterApprove.getBody().get("depositSpreadPercent").toString()))
+                .isEqualByComparingTo("100");
+        assertThat(new java.math.BigDecimal(afterApprove.getBody().get("withdrawalSpreadPercent").toString()))
+                .isEqualByComparingTo("100");
     }
 
     @Test

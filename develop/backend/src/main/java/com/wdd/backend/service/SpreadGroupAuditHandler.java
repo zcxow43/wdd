@@ -34,6 +34,7 @@ public class SpreadGroupAuditHandler implements AuditHandler {
     private static final String ACTION_DELETE = "DELETE";
     private static final int MAX_NAME_LENGTH = 50;
     private static final int MAX_SCALE = 8;
+    private static final BigDecimal MAX_VALUE = BigDecimal.valueOf(100);
 
     private final SpreadGroupMapper spreadGroupMapper;
     private final BrandMapper brandMapper;
@@ -83,8 +84,8 @@ public class SpreadGroupAuditHandler implements AuditHandler {
             throw new AuditHandlerException("brandId no longer references an existing brand");
         }
         String name = validateName(after.get("name"));
-        validateSpreadValue(after.get("depositSpread"), "depositSpread");
-        validateSpreadValue(after.get("withdrawalSpread"), "withdrawalSpread");
+        validateSpreadValue(after.get("depositSpreadPercent"), "depositSpreadPercent");
+        validateSpreadValue(after.get("withdrawalSpreadPercent"), "withdrawalSpreadPercent");
         if (spreadGroupMapper.findByBrandAndName(brandId, name) != null) {
             throw new AuditHandlerException("Spread group name already exists for this brand");
         }
@@ -95,8 +96,8 @@ public class SpreadGroupAuditHandler implements AuditHandler {
         SpreadGroup group = new SpreadGroup();
         group.setBrandId(toLong(after.get("brandId")));
         group.setName((String) after.get("name"));
-        group.setDepositSpread(toBigDecimal(after.get("depositSpread")));
-        group.setWithdrawalSpread(toBigDecimal(after.get("withdrawalSpread")));
+        group.setDepositSpreadPercent(toBigDecimal(after.get("depositSpreadPercent")));
+        group.setWithdrawalSpreadPercent(toBigDecimal(after.get("withdrawalSpreadPercent")));
         try {
             spreadGroupMapper.insert(group);
         } catch (DuplicateKeyException e) {
@@ -111,8 +112,8 @@ public class SpreadGroupAuditHandler implements AuditHandler {
         }
         Map<String, Object> after = asMap(request.getAfterData());
         String name = validateName(after.get("name"));
-        validateSpreadValue(after.get("depositSpread"), "depositSpread");
-        validateSpreadValue(after.get("withdrawalSpread"), "withdrawalSpread");
+        validateSpreadValue(after.get("depositSpreadPercent"), "depositSpreadPercent");
+        validateSpreadValue(after.get("withdrawalSpreadPercent"), "withdrawalSpreadPercent");
         if (!name.equals(existing.getName())) {
             SpreadGroup conflict = spreadGroupMapper.findByBrandAndName(existing.getBrandId(), name);
             if (conflict != null && !conflict.getId().equals(existing.getId())) {
@@ -126,8 +127,8 @@ public class SpreadGroupAuditHandler implements AuditHandler {
         SpreadGroup toUpdate = new SpreadGroup();
         toUpdate.setId(request.getEntityId());
         toUpdate.setName((String) after.get("name"));
-        toUpdate.setDepositSpread(toBigDecimal(after.get("depositSpread")));
-        toUpdate.setWithdrawalSpread(toBigDecimal(after.get("withdrawalSpread")));
+        toUpdate.setDepositSpreadPercent(toBigDecimal(after.get("depositSpreadPercent")));
+        toUpdate.setWithdrawalSpreadPercent(toBigDecimal(after.get("withdrawalSpreadPercent")));
         try {
             spreadGroupMapper.update(toUpdate);
         } catch (DuplicateKeyException e) {
@@ -160,6 +161,9 @@ public class SpreadGroupAuditHandler implements AuditHandler {
         }
         if (value.compareTo(BigDecimal.ZERO) < 0) {
             throw new AuditHandlerException(fieldName + " must be >= 0");
+        }
+        if (value.compareTo(MAX_VALUE) > 0) {
+            throw new AuditHandlerException(fieldName + " must be <= 100");
         }
         int scale = Math.max(value.stripTrailingZeros().scale(), 0);
         if (scale > MAX_SCALE) {

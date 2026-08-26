@@ -253,7 +253,17 @@ public class CurrencyPairService {
         return existing.getBrandCode() + " " + pairLabel + " 刪除幣種對";
     }
 
-    private static CurrencyPairResponse toResponse(CurrencyPair currencyPair) {
+    /**
+     * Maps a {@link CurrencyPair} row (already enriched by the shared read
+     * query with {@code spreadGroupId}/{@code spreadGroupName}, the
+     * {@code AUTO} base rate, and the resolved effective spreads) to its API
+     * response shape, including the computed {@code depositRate}/
+     * {@code withdrawalRate} ({@link CurrencyPair#getDepositRate()}/
+     * {@link CurrencyPair#getWithdrawalRate()}). Package-private so {@link
+     * CurrencyPairDefinitionService}'s fan-out response can reuse the exact
+     * same mapping instead of duplicating it.
+     */
+    static CurrencyPairResponse toResponse(CurrencyPair currencyPair) {
         return new CurrencyPairResponse(
                 currencyPair.getId(),
                 currencyPair.getCurrencyPairDefinitionId(),
@@ -266,6 +276,8 @@ public class CurrencyPairService {
                 currencyPair.getActive(),
                 currencyPair.getSpreadGroupId(),
                 currencyPair.getSpreadGroupName(),
+                currencyPair.getDepositRate(),
+                currencyPair.getWithdrawalRate(),
                 currencyPair.getCreatedAt(),
                 currencyPair.getUpdatedAt());
     }

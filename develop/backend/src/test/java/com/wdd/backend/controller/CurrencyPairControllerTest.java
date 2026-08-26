@@ -567,4 +567,189 @@ class CurrencyPairControllerTest {
                 "SELECT COUNT(*) FROM audit_request WHERE entity_type = 'CURRENCY_PAIR'", Integer.class);
         assertThat(auditCountAfterDelete).isEqualTo(auditCountBefore);
     }
+
+    // --- depositRate/withdrawalRate (入金/出金加點完成) ---
+
+    private java.math.BigDecimal[] currentBrandSpread(Long brandId) {
+        return jdbcTemplate.queryForObject(
+                "SELECT deposit_spread_percent, withdrawal_spread_percent FROM brand_spread WHERE brand_id = ?",
+                (rs, rowNum) -> new java.math.BigDecimal[] {
+                        rs.getBigDecimal("deposit_spread_percent"), rs.getBigDecimal("withdrawal_spread_percent") },
+                brandId);
+    }
+
+    /**
+     * baseRate * (1 + spreadPercent / 100) — the same multiplicative markup
+     * {@link com.wdd.backend.dto.CurrencyPair#getDepositRate()}/
+     * {@code getWithdrawalRate()} apply.
+     */
+    private static java.math.BigDecimal applyPercent(String baseRate, java.math.BigDecimal spreadPercent) {
+        return new java.math.BigDecimal(baseRate)
+                .multiply(java.math.BigDecimal.ONE.add(spreadPercent.divide(java.math.BigDecimal.valueOf(100))));
+    }
+
+    @Test
+    void depositRateAndWithdrawalRateNullForAutoPairNeverSynced() {
+        Long baseId = createCurrency("QRE");
+        Long quoteId = createCurrency("QRF");
+        Long definitionId = createDefinition(baseId, quoteId, 4);
+        Long brandId = firstBrandId();
+        Long id = findPairId(definitionId, brandId);
+        createdCurrencyPairIds.add(id);
+
+        // No exchange_rate row exists yet for this fresh definition.
+        ResponseEntity<Map> response = restTemplate.getForEntity(currencyPairsUrl() + "/" + id, Map.class);
+        assertThat(response.getBody().get("rateType")).isEqualTo("AUTO");
+        assertThat(response.getBody().get("depositRate")).isNull();
+        assertThat(response.getBody().get("withdrawalRate")).isNull();
+    }
+
+    @Test
+    void depositRateAndWithdrawalRateComputedForManualPairUsingBrandDefaultSpread() {
+        Long baseId = createCurrency("QRG");
+        Long quoteId = createCurrency("QRH");
+        Long definitionId = createDefinition(baseId, quoteId, 4);
+        deleteFannedOutPairs(definitionId);
+        Long brandId = firstBrandId();
+        ResponseEntity<Map> created = postCurrencyPair(definitionId, brandId, "MANUAL", "150.25", true);
+        approve(((Number) created.getBody().get("auditRequestId")).longValue());
+        Long id = findPairId(definitionId, brandId);
+        createdCurrencyPairIds.add(id);
+
+        java.math.BigDecimal[] brandSpread = currentBrandSpread(brandId);
+        java.math.BigDecimal expectedDeposit = applyPercent("150.25", brandSpread[0]);
+        java.math.BigDecimal expectedWithdrawal = applyPercent("150.25", brandSpread[1]);
+
+        ResponseEntity<Map> pair = restTemplate.getForEntity(currencyPairsUrl() + "/" + id, Map.class);
+        assertThat(new java.math.BigDecimal(pair.getBody().get("depositRate").toString()))
+                .isEqualByComparingTo(expectedDeposit);
+        assertThat(new java.math.BigDecimal(pair.getBody().get("withdrawalRate").toString()))
+                .isEqualByComparingTo(expectedWithdrawal);
+
+        // Cross-check against GET /api/spreads/effective's DEFAULT-source resolution for the same pair.
+        ResponseEntity<Map[]> effective = restTemplate.getForEntity(
+                "http://localhost:" + port + "/api/spreads/effective?brandId=" + brandId, Map[].class);
+        Map<?, ?> match = java.util.Arrays.stream(effective.getBody())
+                .filter(m -> id.intValue() == ((Number) m.get("currencyPairId")).intValue())
+                .findFirst().orElseThrow();
+        assertThat(match.get("source")).isEqualTo("DEFAULT");
+        assertThat(new java.math.BigDecimal(match.get("depositSpreadPercent").toString())).isEqualByComparingTo(brandSpread[0]);
+    }
+
+    @Test
+    void depositRateAndWithdrawalRateComputedForAutoPairUsingLatestExchangeRate() {
+        Long baseId = createCurrency("QRI");
+        Long quoteId = createCurrency("QRJ");
+        Long definitionId = createDefinition(baseId, quoteId, 4);
+        Long brandId = firstBrandId();
+        Long id = findPairId(definitionId, brandId);
+        createdCurrencyPairIds.add(id);
+
+        jdbcTemplate.update(
+                "INSERT INTO exchange_rate (currency_pair_definition_id, brand_id, rate, deposit_rate, "
+                        + "withdrawal_rate, rate_minute, source, updated_at) VALUES (?, ?, 149.80, 149.80, 149.80, "
+                        + "NOW(), 'test-seed', NOW())",
+                definitionId, brandId);
+
+        java.math.BigDecimal[] brandSpread = currentBrandSpread(brandId);
+        java.math.BigDecimal expectedDeposit = applyPercent("149.80", brandSpread[0]);
+        java.math.BigDecimal expectedWithdrawal = applyPercent("149.80", brandSpread[1]);
+
+        ResponseEntity<Map> pair = restTemplate.getForEntity(currencyPairsUrl() + "/" + id, Map.class);
+        assertThat(pair.getBody().get("rateType")).isEqualTo("AUTO");
+        assertThat(new java.math.BigDecimal(pair.getBody().get("depositRate").toString()))
+                .isEqualByComparingTo(expectedDeposit);
+        assertThat(new java.math.BigDecimal(pair.getBody().get("withdrawalRate").toString()))
+                .isEqualByComparingTo(expectedWithdrawal);
+
+        jdbcTemplate.update(
+                "DELETE FROM exchange_rate WHERE currency_pair_definition_id = ? AND brand_id = ?",
+                definitionId, brandId);
+    }
+
+    @Test
+    void depositRateAndWithdrawalRateUseSpreadGroupSpreadWhenAssigned() {
+        Long baseId = createCurrency("QRK");
+        Long quoteId = createCurrency("QRL");
+        Long definitionId = createDefinition(baseId, quoteId, 4);
+        deleteFannedOutPairs(definitionId);
+        Long brandId = firstBrandId();
+        ResponseEntity<Map> created = postCurrencyPair(definitionId, brandId, "MANUAL", "100.00", true);
+        approve(((Number) created.getBody().get("auditRequestId")).longValue());
+        Long id = findPairId(definitionId, brandId);
+        createdCurrencyPairIds.add(id);
+
+        jdbcTemplate.update(
+                "INSERT INTO spread_group (brand_id, name, deposit_spread_percent, withdrawal_spread_percent) "
+                        + "VALUES (?, ?, 1.5, 2.5)",
+                brandId, "QR-test-group");
+        Long groupId = jdbcTemplate.queryForObject(
+                "SELECT id FROM spread_group WHERE brand_id = ? AND name = ?", Long.class, brandId, "QR-test-group");
+        jdbcTemplate.update("UPDATE currency_pair SET spread_group_id = ? WHERE id = ?", groupId, id);
+
+        ResponseEntity<Map> pair = restTemplate.getForEntity(currencyPairsUrl() + "/" + id, Map.class);
+        assertThat(pair.getBody().get("spreadGroupId")).isEqualTo(groupId.intValue());
+        assertThat(new java.math.BigDecimal(pair.getBody().get("depositRate").toString()))
+                .isEqualByComparingTo(new java.math.BigDecimal("101.50"));
+        assertThat(new java.math.BigDecimal(pair.getBody().get("withdrawalRate").toString()))
+                .isEqualByComparingTo(new java.math.BigDecimal("102.50"));
+
+        // Cross-check against GET /api/spreads/effective's GROUP-source resolution for the same pair.
+        ResponseEntity<Map[]> effective = restTemplate.getForEntity(
+                "http://localhost:" + port + "/api/spreads/effective?brandId=" + brandId, Map[].class);
+        Map<?, ?> match = java.util.Arrays.stream(effective.getBody())
+                .filter(m -> id.intValue() == ((Number) m.get("currencyPairId")).intValue())
+                .findFirst().orElseThrow();
+        assertThat(match.get("source")).isEqualTo("GROUP");
+        assertThat(new java.math.BigDecimal(match.get("depositSpreadPercent").toString()))
+                .isEqualByComparingTo(new java.math.BigDecimal("1.5"));
+
+        jdbcTemplate.update("UPDATE currency_pair SET spread_group_id = NULL WHERE id = ?", id);
+        jdbcTemplate.update("DELETE FROM spread_group WHERE id = ?", groupId);
+    }
+
+    @Test
+    void createAndUpdateIgnoreDepositRateAndWithdrawalRateIfSentInBody() {
+        Long baseId = createCurrency("QRM");
+        Long quoteId = createCurrency("QRN");
+        Long definitionId = createDefinition(baseId, quoteId, 4);
+        deleteFannedOutPairs(definitionId);
+        Long brandId = firstBrandId();
+
+        String createBody = "{\"currencyPairDefinitionId\": " + definitionId + ", \"brandId\": " + brandId
+                + ", \"rateType\": \"MANUAL\", \"rate\": 100.00, \"active\": true, "
+                + "\"depositRate\": 999.99, \"withdrawalRate\": 999.99}";
+        ResponseEntity<Map> created = restTemplate.postForEntity(currencyPairsUrl(), jsonEntity(createBody),
+                Map.class);
+        assertThat(created.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        Long createAuditId = ((Number) created.getBody().get("auditRequestId")).longValue();
+        createdAuditRequestIds.add(createAuditId);
+        approve(createAuditId);
+        Long id = findPairId(definitionId, brandId);
+        createdCurrencyPairIds.add(id);
+
+        java.math.BigDecimal[] brandSpread = currentBrandSpread(brandId);
+        java.math.BigDecimal expectedDeposit = applyPercent("100.00", brandSpread[0]);
+
+        ResponseEntity<Map> pair = restTemplate.getForEntity(currencyPairsUrl() + "/" + id, Map.class);
+        assertThat(new java.math.BigDecimal(pair.getBody().get("depositRate").toString()))
+                .isEqualByComparingTo(expectedDeposit);
+
+        ResponseEntity<Map> updateResponse = putCurrencyPair(id,
+                "{\"rate\": 200.00, \"depositRate\": 1.00, \"withdrawalRate\": 1.00}");
+        assertThat(updateResponse.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        approve(((Number) updateResponse.getBody().get("auditRequestId")).longValue());
+
+        java.math.BigDecimal expectedDepositAfterUpdate = applyPercent("200.00", brandSpread[0]);
+        ResponseEntity<Map> pairAfterUpdate = restTemplate.getForEntity(currencyPairsUrl() + "/" + id, Map.class);
+        assertThat(new java.math.BigDecimal(pairAfterUpdate.getBody().get("depositRate").toString()))
+                .isEqualByComparingTo(expectedDepositAfterUpdate);
+
+        // The submitted (bogus) depositRate/withdrawalRate never made it into the audit trail either.
+        ResponseEntity<Map> auditDetail = restTemplate.getForEntity(auditRequestsUrl() + "/" + createAuditId,
+                Map.class);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> afterData = (Map<String, Object>) auditDetail.getBody().get("afterData");
+        assertThat(afterData).doesNotContainKeys("depositRate", "withdrawalRate");
+    }
 }

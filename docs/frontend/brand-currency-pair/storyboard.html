@@ -11,15 +11,15 @@
 <body><div class="board"><div class="row">
   <figure id="frame-0">
     <img src="step-1.png" />
-    <figcaption>初始畫面：載入 au 的幣種對清單。EUR/TWD 已有待審核的變更，該列標記「審核中」且控制項停用；其餘列可正常操作。</figcaption>
+    <figcaption>初始畫面：載入 au 的幣種對清單，每列多顯示「入金加點完成」「出金加點完成」（基礎匯率疊加目前生效點差後的結果）。EUR/TWD 已有待審核的變更，該列標記「審核中」且控制項停用；其餘列可正常操作。</figcaption>
   </figure>
   <figure id="frame-1">
     <img src="step-2.png" />
-    <figcaption>將 USD/JPY 的匯率類型切為「手動」：匯率欄位轉為可輸入，填入 150.25，準備點擊該列的「儲存」。</figcaption>
+    <figcaption>將 USD/JPY 的匯率類型切為「手動」：匯率欄位轉為可輸入，填入 150.25，準備點擊該列的「儲存」。入金/出金加點完成兩欄仍顯示原本已生效的數值，不會預覽這個尚未送出的草稿。</figcaption>
   </figure>
   <figure id="frame-2">
     <img src="step-3.png" />
-    <figcaption>點擊「儲存」：變更不會立即生效，而是送出審核申請。該列匯率仍維持原本的「自動」，並標記「審核中」，顯示提示「已送出審核，核准後才會生效」。</figcaption>
+    <figcaption>點擊「儲存」：變更不會立即生效，而是送出審核申請。該列匯率仍維持原本的「自動」，並標記「審核中」，顯示提示「已送出審核，核准後才會生效」；入金/出金加點完成維持不變。</figcaption>
   </figure></div><div class="row">
   <figure id="frame-4">
     <img src="step-5.png" />
@@ -29,11 +29,11 @@
     <img src="step-4.png" />
     <figcaption>對 USD/TWD 點擊「刪除」：確認視窗說明這是送出刪除申請，核准後才會真正刪除。</figcaption>
   </figure></div>
-  <svg class="arrows" width="2438" height="1168">
+  <svg class="arrows" width="2438" height="1188">
     <defs>
       <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
         <path d="M0,0 L10,5 L0,10 z" fill="#888" />
       </marker>
     </defs>
-    <line x1="297.7666666666667" y1="129" x2="1182.625" y2="129" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="1494.6083333333333" y1="129" x2="1798.0666666666666" y2="129" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="2339.8083333333334" y1="195.93333333333334" x2="1277.6666666666665" y2="824.3333333333334" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="1371" y1="901.4" x2="757.2666666666667" y2="809.5333333333333" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" />
+    <line x1="275.68333333333334" y1="127.93333333333332" x2="1123.0166666666667" y2="127.93333333333334" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="1538.2583333333332" y1="127.93333333333332" x2="1798.0666666666666" y2="129" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="2383.4583333333335" y1="203.66666666666666" x2="1277.6666666666665" y2="844.6" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" /><line x1="1371" y1="920.8666666666666" x2="757.2666666666667" y2="838.0666666666666" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)" />
   </svg></div></body></html>

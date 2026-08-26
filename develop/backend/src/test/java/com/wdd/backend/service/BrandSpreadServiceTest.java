@@ -74,8 +74,8 @@ class BrandSpreadServiceTest {
         spread.setId(1L);
         spread.setBrandId(brandId);
         spread.setBrandCode(brandCode);
-        spread.setDepositSpread(deposit);
-        spread.setWithdrawalSpread(withdrawal);
+        spread.setDepositSpreadPercent(deposit);
+        spread.setWithdrawalSpreadPercent(withdrawal);
         spread.setCreatedAt(LocalDateTime.now());
         spread.setUpdatedAt(LocalDateTime.now());
         return spread;
@@ -99,8 +99,8 @@ class BrandSpreadServiceTest {
         BrandSpreadResponse response = service.findByBrandId(1L);
 
         verify(brandSpreadMapper).insertZero(1L);
-        assertThat(response.getDepositSpread()).isEqualByComparingTo("0");
-        assertThat(response.getWithdrawalSpread()).isEqualByComparingTo("0");
+        assertThat(response.getDepositSpreadPercent()).isEqualByComparingTo("0");
+        assertThat(response.getWithdrawalSpreadPercent()).isEqualByComparingTo("0");
     }
 
     @Test
@@ -113,7 +113,7 @@ class BrandSpreadServiceTest {
 
         verify(brandSpreadMapper, never()).insertZero(any());
         assertThat(response.getBrandCode()).isEqualTo("au");
-        assertThat(response.getDepositSpread()).isEqualByComparingTo("0.0005");
+        assertThat(response.getDepositSpreadPercent()).isEqualByComparingTo("0.0005");
     }
 
     @Test
@@ -146,6 +146,28 @@ class BrandSpreadServiceTest {
         assertThatThrownBy(() -> service.update(1L, request, null))
                 .isInstanceOf(InvalidRequestException.class);
         verify(auditService, never()).submit(any(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void updateRejectsSpreadOver100() {
+        when(brandMapper.findById(1L)).thenReturn(sampleBrand(1L, "au"));
+        BrandSpreadUpdateRequest request = new BrandSpreadUpdateRequest(new BigDecimal("100.00000001"),
+                new BigDecimal("0.0001"));
+
+        assertThatThrownBy(() -> service.update(1L, request, null))
+                .isInstanceOf(InvalidRequestException.class);
+        verify(auditService, never()).submit(any(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void updateAccepts100AsInclusiveUpperBound() {
+        when(brandMapper.findById(1L)).thenReturn(sampleBrand(1L, "au"));
+        when(brandSpreadMapper.findByBrandId(1L)).thenReturn(null);
+        BrandSpreadUpdateRequest request = new BrandSpreadUpdateRequest(new BigDecimal("100"), new BigDecimal("100"));
+
+        service.update(1L, request, null);
+
+        verify(auditService).submit(eq("BRAND_SPREAD"), eq("UPDATE"), eq(1L), eq(1L), any(), any(), any(), any());
     }
 
     @Test
@@ -183,9 +205,9 @@ class BrandSpreadServiceTest {
         Map<String, Object> before = (Map<String, Object>) beforeCaptor.getValue();
         @SuppressWarnings("unchecked")
         Map<String, Object> after = (Map<String, Object>) afterCaptor.getValue();
-        assertThat((BigDecimal) before.get("depositSpread")).isEqualByComparingTo("0");
-        assertThat((BigDecimal) after.get("depositSpread")).isEqualByComparingTo("0.0001");
-        assertThat((BigDecimal) after.get("withdrawalSpread")).isEqualByComparingTo("0.0002");
+        assertThat((BigDecimal) before.get("depositSpreadPercent")).isEqualByComparingTo("0");
+        assertThat((BigDecimal) after.get("depositSpreadPercent")).isEqualByComparingTo("0.0001");
+        assertThat((BigDecimal) after.get("withdrawalSpreadPercent")).isEqualByComparingTo("0.0002");
 
         verify(brandSpreadMapper, never()).insertZero(any());
         verify(brandSpreadMapper, never()).update(any(), any(), any());
@@ -206,8 +228,8 @@ class BrandSpreadServiceTest {
                 beforeCaptor.capture(), any(), isNull());
         @SuppressWarnings("unchecked")
         Map<String, Object> before = (Map<String, Object>) beforeCaptor.getValue();
-        assertThat((BigDecimal) before.get("depositSpread")).isEqualByComparingTo("0.0003");
-        assertThat((BigDecimal) before.get("withdrawalSpread")).isEqualByComparingTo("0.0004");
+        assertThat((BigDecimal) before.get("depositSpreadPercent")).isEqualByComparingTo("0.0003");
+        assertThat((BigDecimal) before.get("withdrawalSpreadPercent")).isEqualByComparingTo("0.0004");
         verify(brandSpreadMapper, never()).update(any(), any(), any());
     }
 }

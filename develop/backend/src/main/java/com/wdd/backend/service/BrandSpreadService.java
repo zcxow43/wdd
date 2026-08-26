@@ -70,23 +70,23 @@ public class BrandSpreadService {
         }
         Brand brand = ensureBrandExists(brandId);
 
-        BigDecimal depositSpread = SpreadValidator.validate(request.getDepositSpread(), "depositSpread");
-        BigDecimal withdrawalSpread = SpreadValidator.validate(request.getWithdrawalSpread(), "withdrawalSpread");
+        BigDecimal depositSpreadPercent = SpreadValidator.validate(request.getDepositSpreadPercent(), "depositSpreadPercent");
+        BigDecimal withdrawalSpreadPercent = SpreadValidator.validate(request.getWithdrawalSpreadPercent(), "withdrawalSpreadPercent");
 
         BrandSpread existing = brandSpreadMapper.findByBrandId(brandId);
-        BigDecimal currentDeposit = existing != null ? existing.getDepositSpread() : BigDecimal.ZERO;
-        BigDecimal currentWithdrawal = existing != null ? existing.getWithdrawalSpread() : BigDecimal.ZERO;
+        BigDecimal currentDeposit = existing != null ? existing.getDepositSpreadPercent() : BigDecimal.ZERO;
+        BigDecimal currentWithdrawal = existing != null ? existing.getWithdrawalSpreadPercent() : BigDecimal.ZERO;
 
         Map<String, Object> beforeData = new LinkedHashMap<>();
-        beforeData.put("depositSpread", currentDeposit);
-        beforeData.put("withdrawalSpread", currentWithdrawal);
+        beforeData.put("depositSpreadPercent", currentDeposit);
+        beforeData.put("withdrawalSpreadPercent", currentWithdrawal);
 
         Map<String, Object> afterData = new LinkedHashMap<>();
-        afterData.put("depositSpread", depositSpread);
-        afterData.put("withdrawalSpread", withdrawalSpread);
+        afterData.put("depositSpreadPercent", depositSpreadPercent);
+        afterData.put("withdrawalSpreadPercent", withdrawalSpreadPercent);
 
-        String summary = String.format("%s 預設點差調整為入金 %s／出金 %s", brand.getCode(), depositSpread,
-                withdrawalSpread);
+        String summary = String.format("%s 預設點差調整為入金 %s／出金 %s", brand.getCode(), depositSpreadPercent,
+                withdrawalSpreadPercent);
 
         var submitted = auditService.submit(ENTITY_TYPE, ACTION_UPDATE, brandId, brandId, summary, beforeData,
                 afterData, actor);
@@ -105,8 +105,8 @@ public class BrandSpreadService {
         return new BrandSpreadResponse(
                 spread.getBrandId(),
                 spread.getBrandCode(),
-                spread.getDepositSpread(),
-                spread.getWithdrawalSpread(),
+                spread.getDepositSpreadPercent(),
+                spread.getWithdrawalSpreadPercent(),
                 spread.getCreatedAt(),
                 spread.getUpdatedAt());
     }

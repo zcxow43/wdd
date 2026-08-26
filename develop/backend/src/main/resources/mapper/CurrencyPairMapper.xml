@@ -14,6 +14,9 @@
         <result property="active" column="active" />
         <result property="spreadGroupId" column="spread_group_id" />
         <result property="spreadGroupName" column="spread_group_name" />
+        <result property="autoRate" column="auto_rate" />
+        <result property="effectiveDepositSpreadPercent" column="effective_deposit_spread_percent" />
+        <result property="effectiveWithdrawalSpreadPercent" column="effective_withdrawal_spread_percent" />
         <result property="createdAt" column="created_at" />
         <result property="updatedAt" column="updated_at" />
     </resultMap>
@@ -22,6 +25,9 @@
         SELECT cp.id, cp.currency_pair_definition_id, cp.brand_id, b.code AS brand_code,
                bc.code AS base_currency_code, qc.code AS quote_currency_code,
                cp.rate_type, cp.rate, cp.active, cp.spread_group_id, sg.name AS spread_group_name,
+               er.rate AS auto_rate,
+               CASE WHEN cp.spread_group_id IS NOT NULL THEN sg.deposit_spread_percent ELSE bs.deposit_spread_percent END AS effective_deposit_spread_percent,
+               CASE WHEN cp.spread_group_id IS NOT NULL THEN sg.withdrawal_spread_percent ELSE bs.withdrawal_spread_percent END AS effective_withdrawal_spread_percent,
                cp.created_at, cp.updated_at
         FROM currency_pair cp
         JOIN brand b ON b.id = cp.brand_id
@@ -29,6 +35,13 @@
         JOIN currency bc ON bc.id = d.base_currency_id
         JOIN currency qc ON qc.id = d.quote_currency_id
         LEFT JOIN spread_group sg ON sg.id = cp.spread_group_id
+        LEFT JOIN brand_spread bs ON bs.brand_id = cp.brand_id
+        LEFT JOIN (
+            SELECT e.currency_pair_definition_id, e.rate,
+                   ROW_NUMBER() OVER (PARTITION BY e.currency_pair_definition_id
+                                       ORDER BY e.rate_minute DESC) AS rn
+            FROM exchange_rate e
+        ) er ON er.currency_pair_definition_id = cp.currency_pair_definition_id AND er.rn = 1
     </sql>
 
     <select id="findByDefinitionId" resultMap="CurrencyPairResultMap">
@@ -126,8 +139,8 @@
         <result property="spreadGroupId" column="spread_group_id" />
         <result property="spreadGroupName" column="spread_group_name" />
         <result property="source" column="source" />
-        <result property="depositSpread" column="deposit_spread" />
-        <result property="withdrawalSpread" column="withdrawal_spread" />
+        <result property="depositSpreadPercent" column="deposit_spread_percent" />
+        <result property="withdrawalSpreadPercent" column="withdrawal_spread_percent" />
     </resultMap>
 
     <select id="findEffectiveSpreadsByBrandId" resultMap="EffectiveSpreadResultMap">
@@ -135,8 +148,8 @@
                bc.code AS base_currency_code, qc.code AS quote_currency_code,
                cp.brand_id, b.code AS brand_code, cp.spread_group_id, sg.name AS spread_group_name,
                CASE WHEN cp.spread_group_id IS NOT NULL THEN 'GROUP' ELSE 'DEFAULT' END AS source,
-               CASE WHEN cp.spread_group_id IS NOT NULL THEN sg.deposit_spread ELSE bs.deposit_spread END AS deposit_spread,
-               CASE WHEN cp.spread_group_id IS NOT NULL THEN sg.withdrawal_spread ELSE bs.withdrawal_spread END AS withdrawal_spread
+               CASE WHEN cp.spread_group_id IS NOT NULL THEN sg.deposit_spread_percent ELSE bs.deposit_spread_percent END AS deposit_spread_percent,
+               CASE WHEN cp.spread_group_id IS NOT NULL THEN sg.withdrawal_spread_percent ELSE bs.withdrawal_spread_percent END AS withdrawal_spread_percent
         FROM currency_pair cp
         JOIN brand b ON b.id = cp.brand_id
         JOIN currency_pair_definition d ON d.id = cp.currency_pair_definition_id

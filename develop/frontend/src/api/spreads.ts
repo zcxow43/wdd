@@ -18,15 +18,15 @@ export interface SpreadAuditSubmission {
 export interface BrandSpread {
   brandId: number
   brandCode: string
-  depositSpread: number
-  withdrawalSpread: number
+  depositSpreadPercent: number
+  withdrawalSpreadPercent: number
   createdAt: string
   updatedAt: string
 }
 
 export interface BrandSpreadUpdateRequest {
-  depositSpread: number
-  withdrawalSpread: number
+  depositSpreadPercent: number
+  withdrawalSpreadPercent: number
 }
 
 export interface SpreadGroup {
@@ -34,8 +34,8 @@ export interface SpreadGroup {
   brandId: number
   brandCode: string
   name: string
-  depositSpread: number
-  withdrawalSpread: number
+  depositSpreadPercent: number
+  withdrawalSpreadPercent: number
   memberCount: number
   createdAt: string
   updatedAt: string
@@ -56,14 +56,14 @@ export interface SpreadGroupDetail extends SpreadGroup {
 export interface SpreadGroupCreateRequest {
   brandId: number
   name: string
-  depositSpread: number
-  withdrawalSpread: number
+  depositSpreadPercent: number
+  withdrawalSpreadPercent: number
 }
 
 export interface SpreadGroupUpdateRequest {
   name?: string
-  depositSpread?: number
-  withdrawalSpread?: number
+  depositSpreadPercent?: number
+  withdrawalSpreadPercent?: number
 }
 
 export interface SpreadGroupMemberAssignRequest {
@@ -80,8 +80,8 @@ export interface EffectiveSpread {
   spreadGroupId: number | null
   spreadGroupName: string | null
   source: 'GROUP' | 'DEFAULT'
-  depositSpread: number
-  withdrawalSpread: number
+  depositSpreadPercent: number
+  withdrawalSpreadPercent: number
 }
 
 export function fetchBrandSpread(brandId: number): Promise<BrandSpread> {

@@ -21,7 +21,7 @@ public interface BrandSpreadMapper {
 
     int insertZero(@Param("brandId") Long brandId);
 
-    int update(@Param("brandId") Long brandId, @Param("depositSpread") BigDecimal depositSpread,
-            @Param("withdrawalSpread") BigDecimal withdrawalSpread);
+    int update(@Param("brandId") Long brandId, @Param("depositSpreadPercent") BigDecimal depositSpreadPercent,
+            @Param("withdrawalSpreadPercent") BigDecimal withdrawalSpreadPercent);
 
 }

@@ -25,36 +25,36 @@ import {
 import Toast from '../components/Toast'
 import './SpreadGroupManagementPage.css'
 
-const SPREAD_ERROR_MESSAGE = '請輸入 0 或以上的數值，小數點後最多 8 位'
+const SPREAD_ERROR_MESSAGE = '請輸入 0 至 100 之間的百分比數值，小數點後最多 8 位'
 const SPREAD_NUMBER_PATTERN = /^\d+(\.\d+)?$/
 const SUBMITTED_TOAST_MESSAGE = '已送出審核，核准後才會生效'
 
 interface DefaultFormState {
-  depositSpread: string
-  withdrawalSpread: string
+  depositSpreadPercent: string
+  withdrawalSpreadPercent: string
 }
 
 interface DefaultFormErrors {
-  depositSpread?: string
-  withdrawalSpread?: string
+  depositSpreadPercent?: string
+  withdrawalSpreadPercent?: string
 }
 
 interface GroupFormState {
   name: string
-  depositSpread: string
-  withdrawalSpread: string
+  depositSpreadPercent: string
+  withdrawalSpreadPercent: string
 }
 
 interface GroupFormErrors {
   name?: string
-  depositSpread?: string
-  withdrawalSpread?: string
+  depositSpreadPercent?: string
+  withdrawalSpreadPercent?: string
 }
 
 const EMPTY_GROUP_FORM: GroupFormState = {
   name: '',
-  depositSpread: '0',
-  withdrawalSpread: '0',
+  depositSpreadPercent: '0',
+  withdrawalSpreadPercent: '0',
 }
 
 function validateSpreadValue(raw: string): string | undefined {
@@ -66,18 +66,22 @@ function validateSpreadValue(raw: string): string | undefined {
   if (dotIndex !== -1 && trimmed.length - dotIndex - 1 > 8) {
     return SPREAD_ERROR_MESSAGE
   }
+  const numeric = Number(trimmed)
+  if (numeric < 0 || numeric > 100) {
+    return SPREAD_ERROR_MESSAGE
+  }
   return undefined
 }
 
 function validateDefaultForm(form: DefaultFormState): DefaultFormErrors {
   const errors: DefaultFormErrors = {}
-  const depositError = validateSpreadValue(form.depositSpread)
+  const depositError = validateSpreadValue(form.depositSpreadPercent)
   if (depositError) {
-    errors.depositSpread = depositError
+    errors.depositSpreadPercent = depositError
   }
-  const withdrawalError = validateSpreadValue(form.withdrawalSpread)
+  const withdrawalError = validateSpreadValue(form.withdrawalSpreadPercent)
   if (withdrawalError) {
-    errors.withdrawalSpread = withdrawalError
+    errors.withdrawalSpreadPercent = withdrawalError
   }
   return errors
 }
@@ -88,21 +92,21 @@ function validateGroupForm(form: GroupFormState): GroupFormErrors {
   if (trimmedName === '' || trimmedName.length > 50) {
     errors.name = '群組名稱為必填，長度需在 1–50 字元之間'
   }
-  const depositError = validateSpreadValue(form.depositSpread)
+  const depositError = validateSpreadValue(form.depositSpreadPercent)
   if (depositError) {
-    errors.depositSpread = depositError
+    errors.depositSpreadPercent = depositError
   }
-  const withdrawalError = validateSpreadValue(form.withdrawalSpread)
+  const withdrawalError = validateSpreadValue(form.withdrawalSpreadPercent)
   if (withdrawalError) {
-    errors.withdrawalSpread = withdrawalError
+    errors.withdrawalSpreadPercent = withdrawalError
   }
   return errors
 }
 
 function toDefaultForm(spread: BrandSpread): DefaultFormState {
   return {
-    depositSpread: String(spread.depositSpread),
-    withdrawalSpread: String(spread.withdrawalSpread),
+    depositSpreadPercent: String(spread.depositSpreadPercent),
+    withdrawalSpreadPercent: String(spread.withdrawalSpreadPercent),
   }
 }
 
@@ -123,8 +127,8 @@ function SpreadGroupManagementPage() {
   const [defaultLoading, setDefaultLoading] = useState(false)
   const [defaultError, setDefaultError] = useState(false)
   const [defaultForm, setDefaultForm] = useState<DefaultFormState>({
-    depositSpread: '',
-    withdrawalSpread: '',
+    depositSpreadPercent: '',
+    withdrawalSpreadPercent: '',
   })
   const [defaultFormErrors, setDefaultFormErrors] =
     useState<DefaultFormErrors>({})
@@ -322,8 +326,8 @@ function SpreadGroupManagementPage() {
 
     setDefaultSaving(true)
     updateBrandSpread(selectedBrandId, {
-      depositSpread: Number(defaultForm.depositSpread.trim()),
-      withdrawalSpread: Number(defaultForm.withdrawalSpread.trim()),
+      depositSpreadPercent: Number(defaultForm.depositSpreadPercent.trim()),
+      withdrawalSpreadPercent: Number(defaultForm.withdrawalSpreadPercent.trim()),
     })
       .then(() => {
         // 202: nothing is applied yet — the card reverts to the
@@ -339,8 +343,8 @@ function SpreadGroupManagementPage() {
       .catch((error: unknown) => {
         if (error instanceof ApiError && error.status === 400) {
           setDefaultFormErrors({
-            depositSpread: SPREAD_ERROR_MESSAGE,
-            withdrawalSpread: SPREAD_ERROR_MESSAGE,
+            depositSpreadPercent: SPREAD_ERROR_MESSAGE,
+            withdrawalSpreadPercent: SPREAD_ERROR_MESSAGE,
           })
         } else if (error instanceof ApiError && error.status === 409) {
           if (defaultSpread) {
@@ -372,8 +376,8 @@ function SpreadGroupManagementPage() {
     setEditingGroup(group)
     setGroupForm({
       name: group.name,
-      depositSpread: String(group.depositSpread),
-      withdrawalSpread: String(group.withdrawalSpread),
+      depositSpreadPercent: String(group.depositSpreadPercent),
+      withdrawalSpreadPercent: String(group.withdrawalSpreadPercent),
     })
     setGroupFormErrors({})
   }
@@ -405,15 +409,15 @@ function SpreadGroupManagementPage() {
 
     setGroupSubmitting(true)
     const trimmedName = groupForm.name.trim()
-    const depositSpread = Number(groupForm.depositSpread.trim())
-    const withdrawalSpread = Number(groupForm.withdrawalSpread.trim())
+    const depositSpreadPercent = Number(groupForm.depositSpreadPercent.trim())
+    const withdrawalSpreadPercent = Number(groupForm.withdrawalSpreadPercent.trim())
 
     if (isGroupEdit && editingGroup) {
       const groupId = editingGroup.id
       updateSpreadGroup(groupId, {
         name: trimmedName,
-        depositSpread,
-        withdrawalSpread,
+        depositSpreadPercent,
+        withdrawalSpreadPercent,
       })
         .then(() => {
           // 202: the row's values are left exactly as they were — only a
@@ -446,8 +450,8 @@ function SpreadGroupManagementPage() {
       createSpreadGroup({
         brandId: selectedBrandId,
         name: trimmedName,
-        depositSpread,
-        withdrawalSpread,
+        depositSpreadPercent,
+        withdrawalSpreadPercent,
       })
         .then(() => {
           // 202: the group does not exist until the request is approved —
@@ -697,21 +701,24 @@ function SpreadGroupManagementPage() {
                 <div className="sgm-default-form">
                   <div className="sgm-form__field">
                     <label className="sgm-form__label" htmlFor="defaultDeposit">
-                      入金點差
+                      入金點差 (%)
                     </label>
-                    <input
-                      id="defaultDeposit"
-                      type="number"
-                      className="sgm-form__input"
-                      value={defaultForm.depositSpread}
-                      disabled={defaultSaving || defaultPending}
-                      onChange={(e) =>
-                        handleDefaultFieldChange('depositSpread', e.target.value)
-                      }
-                    />
-                    {defaultFormErrors.depositSpread && (
+                    <div className="sgm-input-suffix">
+                      <input
+                        id="defaultDeposit"
+                        type="number"
+                        className="sgm-form__input"
+                        value={defaultForm.depositSpreadPercent}
+                        disabled={defaultSaving || defaultPending}
+                        onChange={(e) =>
+                          handleDefaultFieldChange('depositSpreadPercent', e.target.value)
+                        }
+                      />
+                      <span className="sgm-input-suffix__unit">%</span>
+                    </div>
+                    {defaultFormErrors.depositSpreadPercent && (
                       <p className="sgm-form__error">
-                        {defaultFormErrors.depositSpread}
+                        {defaultFormErrors.depositSpreadPercent}
                       </p>
                     )}
                   </div>
@@ -720,24 +727,27 @@ function SpreadGroupManagementPage() {
                       className="sgm-form__label"
                       htmlFor="defaultWithdrawal"
                     >
-                      出金點差
+                      出金點差 (%)
                     </label>
-                    <input
-                      id="defaultWithdrawal"
-                      type="number"
-                      className="sgm-form__input"
-                      value={defaultForm.withdrawalSpread}
-                      disabled={defaultSaving || defaultPending}
-                      onChange={(e) =>
-                        handleDefaultFieldChange(
-                          'withdrawalSpread',
-                          e.target.value,
-                        )
-                      }
-                    />
-                    {defaultFormErrors.withdrawalSpread && (
+                    <div className="sgm-input-suffix">
+                      <input
+                        id="defaultWithdrawal"
+                        type="number"
+                        className="sgm-form__input"
+                        value={defaultForm.withdrawalSpreadPercent}
+                        disabled={defaultSaving || defaultPending}
+                        onChange={(e) =>
+                          handleDefaultFieldChange(
+                            'withdrawalSpreadPercent',
+                            e.target.value,
+                          )
+                        }
+                      />
+                      <span className="sgm-input-suffix__unit">%</span>
+                    </div>
+                    {defaultFormErrors.withdrawalSpreadPercent && (
                       <p className="sgm-form__error">
-                        {defaultFormErrors.withdrawalSpread}
+                        {defaultFormErrors.withdrawalSpreadPercent}
                       </p>
                     )}
                   </div>
@@ -797,8 +807,8 @@ function SpreadGroupManagementPage() {
                 <thead>
                   <tr>
                     <th>群組名稱</th>
-                    <th>入金點差</th>
-                    <th>出金點差</th>
+                    <th>入金點差 (%)</th>
+                    <th>出金點差 (%)</th>
                     <th>成員數</th>
                     <th>操作</th>
                   </tr>
@@ -820,10 +830,10 @@ function SpreadGroupManagementPage() {
                           )}
                         </td>
                         <td className="sgm-table__spread-cell">
-                          {group.depositSpread}
+                          {group.depositSpreadPercent}
                         </td>
                         <td className="sgm-table__spread-cell">
-                          {group.withdrawalSpread}
+                          {group.withdrawalSpreadPercent}
                         </td>
                         <td>
                           <span className={memberBadgeClass(group.memberCount)}>
@@ -902,8 +912,8 @@ function SpreadGroupManagementPage() {
                     <tr>
                       <th>幣種對</th>
                       <th>來源</th>
-                      <th>入金點差</th>
-                      <th>出金點差</th>
+                      <th>入金點差 (%)</th>
+                      <th>出金點差 (%)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -926,10 +936,10 @@ function SpreadGroupManagementPage() {
                           </span>
                         </td>
                         <td className="sgm-table__spread-cell">
-                          {item.depositSpread}
+                          {item.depositSpreadPercent}
                         </td>
                         <td className="sgm-table__spread-cell">
-                          {item.withdrawalSpread}
+                          {item.withdrawalSpreadPercent}
                         </td>
                       </tr>
                     ))}
@@ -968,41 +978,47 @@ function SpreadGroupManagementPage() {
               </div>
               <div className="sgm-modal-form__field">
                 <label className="sgm-form__label" htmlFor="groupDeposit">
-                  入金點差
+                  入金點差 (%)
                 </label>
-                <input
-                  id="groupDeposit"
-                  type="number"
-                  className="sgm-form__input sgm-modal-form__input"
-                  value={groupForm.depositSpread}
-                  disabled={groupSubmitting}
-                  onChange={(e) =>
-                    handleGroupFieldChange('depositSpread', e.target.value)
-                  }
-                />
-                {groupFormErrors.depositSpread && (
+                <div className="sgm-input-suffix sgm-input-suffix--full">
+                  <input
+                    id="groupDeposit"
+                    type="number"
+                    className="sgm-form__input sgm-modal-form__input"
+                    value={groupForm.depositSpreadPercent}
+                    disabled={groupSubmitting}
+                    onChange={(e) =>
+                      handleGroupFieldChange('depositSpreadPercent', e.target.value)
+                    }
+                  />
+                  <span className="sgm-input-suffix__unit">%</span>
+                </div>
+                {groupFormErrors.depositSpreadPercent && (
                   <p className="sgm-form__error">
-                    {groupFormErrors.depositSpread}
+                    {groupFormErrors.depositSpreadPercent}
                   </p>
                 )}
               </div>
               <div className="sgm-modal-form__field">
                 <label className="sgm-form__label" htmlFor="groupWithdrawal">
-                  出金點差
+                  出金點差 (%)
                 </label>
-                <input
-                  id="groupWithdrawal"
-                  type="number"
-                  className="sgm-form__input sgm-modal-form__input"
-                  value={groupForm.withdrawalSpread}
-                  disabled={groupSubmitting}
-                  onChange={(e) =>
-                    handleGroupFieldChange('withdrawalSpread', e.target.value)
-                  }
-                />
-                {groupFormErrors.withdrawalSpread && (
+                <div className="sgm-input-suffix sgm-input-suffix--full">
+                  <input
+                    id="groupWithdrawal"
+                    type="number"
+                    className="sgm-form__input sgm-modal-form__input"
+                    value={groupForm.withdrawalSpreadPercent}
+                    disabled={groupSubmitting}
+                    onChange={(e) =>
+                      handleGroupFieldChange('withdrawalSpreadPercent', e.target.value)
+                    }
+                  />
+                  <span className="sgm-input-suffix__unit">%</span>
+                </div>
+                {groupFormErrors.withdrawalSpreadPercent && (
                   <p className="sgm-form__error">
-                    {groupFormErrors.withdrawalSpread}
+                    {groupFormErrors.withdrawalSpreadPercent}
                   </p>
                 )}
               </div>

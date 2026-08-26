@@ -1,7 +1,7 @@
 ---
 status: done
 title: "Currency Pair Table (Brand-Scoped)"
-requirement: "新增品牌幣種對：每個品牌各自的幣種對設定（自動/手動匯率、開啟關閉），幣種對新增時自動為所有品牌建立一筆，預設關閉且為自動匯率"
+requirement: "新增品牌幣種對：每個品牌各自的幣種對設定（自動/手動匯率、開啟關閉），幣種對新增時自動為所有品牌建立一筆，預設關閉且為自動匯率；額外補上一批 USD 幣種對的品牌種子資料（手動匯率、啟用）供 demo 使用"
 ---
 
 # Currency Pair — DBA Spec
@@ -19,6 +19,7 @@ This table also owns the **spread group membership** link: `spread_group_id` is 
 - `spread_group_id` is nullable and references `spread_group.id`. It may only point at a group belonging to the **same brand** as the row itself — cross-brand assignment is rejected at the application layer (matching this project's convention of keeping cross-row conditional validation in the service layer, since a DB constraint cannot express it without denormalizing `brand_id`).
 - Deleting a `spread_group` sets its members' `spread_group_id` back to `NULL` rather than deleting the pairs — they fall back to the brand default spread.
 - Deleting the parent `currency_pair_definition` cascades to delete all of its `currency_pair` rows — only reachable after the definition-level delete guard (in its own backend spec) has confirmed none of them are `active`.
+- Seeded with one row per `(seeded USD-base definition, brand)` combination — see the seed migration below. Unlike the plain fan-out defaults (`AUTO`/`null`/`false`), these seed rows are `MANUAL` with a realistic example rate and `active = true`, so a fresh deployment has visibly populated, working currency pairs to demo/test against rather than empty stubs. They are otherwise ordinary rows — editable/deletable through the API like any fan-out-created or user-created pair.
 
 ## Implementation Details
 
@@ -67,6 +68,31 @@ ALTER TABLE currency_pair
         FOREIGN KEY (spread_group_id) REFERENCES spread_group(id) ON DELETE SET NULL;
 ```
 
+## Migration SQL — V012__seed_usd_brand_currency_pairs.sql (Delta: seed brand-scoped USD pairs)
+
+Comes after `V011__seed_usd_currency_pair_definitions.sql` (`specs/dba/currency-pair-definition.md`) and `V001__create_brand.sql` (`specs/dba/brand.md`) — resolves definition ids via a join back to `currency` by code, and fans out across every existing brand, so both must already be populated. Uses `INSERT IGNORE` for the same idempotency reason as the other seed migrations: the unique constraint on `(currency_pair_definition_id, brand_id)` makes re-running this safe, and it also means running it again after a new brand is added will only fill in that brand's missing rows, not touch existing ones. Rates below are representative example values for seed/demo purposes, not live market data.
+
+```sql
+INSERT IGNORE INTO currency_pair (currency_pair_definition_id, brand_id, rate_type, rate, active)
+SELECT cpd.id, b.id, 'MANUAL', rates.pair_rate, TRUE
+FROM (
+    SELECT 'JPY' AS quote_code, 149.850 AS pair_rate UNION ALL
+    SELECT 'TWD', 31.250 UNION ALL
+    SELECT 'EUR', 0.9200 UNION ALL
+    SELECT 'CNY', 7.1500 UNION ALL
+    SELECT 'GBP', 0.7850 UNION ALL
+    SELECT 'HKD', 7.8200 UNION ALL
+    SELECT 'SGD', 1.3400 UNION ALL
+    SELECT 'AUD', 1.5200 UNION ALL
+    SELECT 'KRW', 1385.00
+) AS rates
+JOIN currency quote ON quote.code = rates.quote_code
+JOIN currency base ON base.code = 'USD'
+JOIN currency_pair_definition cpd
+    ON cpd.base_currency_id = base.id AND cpd.quote_currency_id = quote.id
+CROSS JOIN brand b;
+```
+
 ## Acceptance Criteria
 - [x] `currency_pair` table exists with columns exactly as defined above.
 - [x] Unique constraint on `(currency_pair_definition_id, brand_id)`.
@@ -75,6 +101,8 @@ ALTER TABLE currency_pair
 - [x] `rate_type` defaults to `AUTO`, `active` defaults to `false`.
 - [x] `spread_group_id` column exists on `currency_pair`, is nullable, and defaults to `NULL` for both existing and newly created rows.
 - [x] `fk_currency_pair_spread_group` foreign key references `spread_group.id` with `ON DELETE SET NULL` — deleting a group nulls its members' `spread_group_id` and deletes no `currency_pair` rows.
+- [x] After `V012` runs, `currency_pair` contains one row per (seeded USD-base definition, brand) combination — 9 definitions × every existing brand — each `rate_type = 'MANUAL'`, `active = true`, and `rate` equal to the example value listed above for its quote currency.
+- [x] Re-running `V012` does not error and does not create duplicate `(currency_pair_definition_id, brand_id)` rows; running it again after a new brand is added fills in only that brand's missing rows.
 
 ---
 ## Execution Result
@@ -99,3 +127,12 @@ ALTER TABLE currency_pair
 - Proved the `SET NULL` behavior end-to-end with real rows: inserted a temporary `currency_pair_definition` (base=USD id 1, quote=JPY id 2), a temporary `spread_group` (brand_id 1, name `TEMP_TEST_GROUP`), and a temporary `currency_pair` row referencing both, with `spread_group_id` set to the new group's id. Confirmed the pair row held the non-null `spread_group_id` before deletion. Deleted the `spread_group` row directly. Re-queried the `currency_pair` row by id: it still existed (not cascade-deleted) and its `spread_group_id` had been automatically set to `NULL`. Confirmed the `spread_group` row itself was gone.
 - Cleanup: deleted the temporary `currency_pair` row and the temporary `currency_pair_definition` row (the `spread_group` row was already removed by the test itself). Re-checked row counts across `currency_pair`, `spread_group`, `currency_pair_definition`, `currency`, and `brand` — all back to their pre-test values (0, 0, 0, 5, 7 respectively; `currency` and `brand` untouched throughout).
 - Checked off both previously-unchecked Acceptance Criteria items; left the five already-checked items and prior Execution Result / Increment 2 history untouched. No standalone `.sql` file was left behind (scratch files live only under the session temp scratchpad, outside the repo). No application code changes were made — this spec is DBA-only.
+
+### Increment 4 — 2026-08-25
+- Trigger: implement the last remaining delta migration `V012__seed_usd_brand_currency_pairs.sql` — the two remaining unchecked Acceptance Criteria (seeded USD-base rows per definition × brand; idempotent re-run). Prerequisites confirmed already applied: `currency` has 10 rows, `currency_pair_definition` has 9 USD-base rows (V011), `brand` has 7 rows.
+- Pre-flight: read `env.md` (MySQL 8.0.36, 127.0.0.1:3306, db `wdd`, user `app`, password `1234`); `mysql -h 127.0.0.1 -P 3306 -u app -p1234 -e "SELECT 1;"` succeeded; `SHOW DATABASES LIKE 'wdd';` confirmed the database exists — no creation needed.
+- Confirmed prerequisite row counts directly: `SELECT COUNT(*) FROM currency` → 10; `SELECT COUNT(*) FROM currency_pair_definition cpd JOIN currency c ON c.id = cpd.base_currency_id WHERE c.code = 'USD'` → 9; `SELECT COUNT(*) FROM brand` → 7. `currency_pair` itself was empty (0 rows) before this run — V005/V008 schema from prior increments was already in place per `SHOW CREATE TABLE currency_pair`, matching the spec exactly (unique key, both FKs, `spread_group_id` column).
+- Applied the V012 SQL (identical to the block above) directly via `mysql -h 127.0.0.1 -P 3306 -u app -p1234 wdd -e "..."` — executed cleanly, no errors.
+- Verified: `SELECT COUNT(*) FROM currency_pair` → 63 (= 9 definitions × 7 brands, exactly as expected). Grouped by `rate_type`/`active` → all 63 rows are `MANUAL`/`1` (true). Grouped by quote currency code and rate → each of JPY (149.85), TWD (31.25), EUR (0.92), CNY (7.15), GBP (0.785), HKD (7.82), SGD (1.34), AUD (1.52), KRW (1385.00) has exactly 7 rows (one per brand) at its correct example rate, matching the spec's table verbatim.
+- Idempotency: re-ran the identical V012 SQL a second time. It completed with no error, and `SELECT COUNT(*) FROM currency_pair` remained 63 (no duplicates), confirming `INSERT IGNORE` against `uk_currency_pair` behaves as specified — a future re-run after a new brand is added would only insert that brand's missing rows.
+- Checked off the two remaining Acceptance Criteria items (all eight are now checked) and set frontmatter `status: done`. No standalone `.sql` file was left behind — SQL was executed directly via the `mysql` CLI, matching this spec's own convention. No application code changes were made — this spec is DBA-only.

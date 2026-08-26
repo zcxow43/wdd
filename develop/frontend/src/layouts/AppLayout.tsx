@@ -10,6 +10,7 @@ interface NavItem {
 const EXCHANGE_RATE_CENTER_ITEMS: NavItem[] = [
   { label: '幣別管理', path: '/currencies', enabled: true },
   { label: '幣別對管理', path: '/currency-pairs', enabled: true },
+  { label: '匯率同步', path: '/exchange-rates', enabled: true },
   { label: '品牌幣種對', path: '/brand-currency-pairs', enabled: true },
   { label: '價差群組管理', path: '/spreads', enabled: true },
   { label: '品牌管理', path: '/brands', enabled: true },
