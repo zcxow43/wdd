@@ -20,6 +20,35 @@ wdd/
 └── env.md              ← declared stack + container config
 ```
 
+## Commands
+
+Project lifecycle:
+- `/init` — bootstrap `develop/`, `docker/` from `env.md` on an empty checkout
+- `/spec <requirement>` — turn a requirement into frontend/backend/dba spec files, then chain into whichever doc command(s) the change actually alters
+- `/dev` — execute every pending spec, dispatching to the matching agent (dba → backend → frontend)
+- `/infra` — inspect/edit `env.md` and the matching `docker-compose.yml` service; the only place that starts a container service
+- `/start` — start containers, then backend/frontend dev servers, in that order
+- `/close` — the inverse of `/start`: stop backend/frontend and containers without deleting anything
+- `/destroy` — the inverse of `/init`: wipe `develop/`, `docker/`, and every container, and reset all specs back to pending
+- `/reset-env` — drop every table in the database and rebuild it from `specs/dba/`
+
+Documentation (usually chained automatically by `/spec`, but runnable standalone):
+- `/doc-backend [slug]` — per-topic backend API docs → `docs/backend/<slug>.md`
+- `/doc-blue-print` — the unified architecture blueprint → `docs/blueprint/backend.md`
+- `/doc-db` — the DB ER model → `docs/db/er-model.md`
+- `/doc-fronend [group]` — real-looking screen storyboards → `docs/frontend/<group>/`
+
+Git:
+- `/commit [main|claude]` — commit and push this repo and/or the `.claude` submodule
+- `/pull [main|claude]` — pull the latest changes for this repo and/or the `.claude` submodule
+- `/reset [ref]` — discard all local changes (`git reset --hard` + `git clean -fd`)
+
+Other:
+- `/demo` — dispatch rapid, disposable UI prototyping (static HTML/CSS/JS, no framework) to a design subagent
+- `/grunt` — a strict roleplay mode where every message is treated as a direct order, executed without question
+
+A fresh checkout is: `/init` → `/dev`. Config and tooling shared across sessions live in the `.claude/` submodule (agents, commands, skills).
+
 ## 匯率中心後端系統藍圖
 
 本文件整合以下 7 份後端 spec：品牌（brand）、幣種（currency）、幣種對定義（currency-pair-definition）、品牌幣種對（currency-pair）、點差（spread）、匯率同步（exchange-rate）、審核（audit）。這些 spec 個別描述的是各自的 API 細節；本文件要呈現的是把它們疊起來之後，**整個匯率中心現在實際運作的樣子**：品牌與幣種是底層主檔，幣種對定義建立「支援哪些幣種對」的全域規格並自動幫每個品牌鋪好一份設定，品牌幣種對是每個品牌真正在調整的東西（匯率來源、是否啟用、點差歸屬），點差系統決定這些幣種對最終加點多少，匯率同步則是把外部市場匯率、依當下點差算好，定期把當下的匯率記錄下來成為不再變動的歷史紀錄。品牌幣種對與點差的每一筆異動都必須經過同一套通用審核機制核准後才會生效，其餘資料則是提交即生效。
